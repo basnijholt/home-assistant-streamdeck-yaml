@@ -2,16 +2,22 @@
 from __future__ import annotations
 
 import asyncio
+import colorsys
+import functools
+import io
 import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
+import cairosvg
+import requests
 import rich
 import websockets
 import yaml
 from jinja2 import Template
-from PIL import Image, ImageDraw, ImageFont
+from lxml import etree
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 from pydantic import BaseModel, Field
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.ImageHelpers import PILHelper
@@ -37,6 +43,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     text_color: str | None = None
     text_size: int = 12
     icon: str | None = None
+    icon_mdi: str | None = None
 
 
 class Config(BaseModel):
@@ -184,6 +191,7 @@ def render_key_image(
     *,
     text_color: str = "white",
     icon_filename: str | None = None,
+    icon_mdi: str | None = None,
     font_filename: str = "Roboto-Regular.ttf",
     font_size: int = 12,
     label_text: str = "",
@@ -191,6 +199,9 @@ def render_key_image(
     """Render an image for a key."""
     if icon_filename is not None:
         icon = Image.open(ASSETS_PATH / icon_filename)
+    elif icon_mdi is not None:
+        download_mdi_as_png(icon_mdi, 0.5, ASSETS_PATH / f"{icon_mdi}.png")
+        icon = Image.open(ASSETS_PATH / f"{icon_mdi}.png")
     else:
         icon = Image.new("RGB", (deck.KEY_PIXEL_WIDTH, deck.KEY_PIXEL_HEIGHT), "black")
     image = PILHelper.create_scaled_image(deck, icon, margins=[0, 0, 0, 0])
@@ -232,6 +243,7 @@ def update_key_image(
         deck,
         label_text=text,
         text_color=text_color if not key_pressed else "green",
+        icon_mdi=button.icon_mdi,
         icon_filename=button.icon,
         font_size=button.text_size,
     )
@@ -291,6 +303,91 @@ def _on_press_callback(
             await call_service(websocket, button.service, data)
 
     return key_change_callback
+
+
+@functools.lru_cache(maxsize=128)
+def _download(url: str) -> bytes:
+    """Download the content from the URL."""
+    response = requests.get(url, timeout=5)
+    return response.content
+
+
+def download_and_convert_svg_to_png(
+    url: str,
+    color: float,
+    filename: str | Path,
+    margin: int = 10,
+) -> None:
+    """Download an SVG file from a given URL to PNG.
+
+    Modify the fill and background colors based on the input color value,
+    convert it to PNG format, and save the resulting PNG image to a file.
+
+    Parameters
+    ----------
+    url
+        The URL of the SVG file.
+    color
+        A color value between 0 and 1.
+    filename
+        The name of the file to save the PNG content to.
+    margin
+        The margin to add around the icon.
+    """
+    # Get the corresponding gray RGB tuple for the input color value
+    rgb = colorsys.hsv_to_rgb(0, 0, color)
+    gray_color = tuple(int(255 * c) for c in rgb)
+
+    svg_content = _download(url)
+
+    # Modify the SVG content to set the fill and background colors
+    svg_tree = etree.fromstring(svg_content)
+    fill_color = "#{:02x}{:02x}{:02x}".format(*gray_color)
+    svg_tree.attrib["fill"] = fill_color
+    svg_tree.attrib["style"] = "background-color: #000000"
+    modified_svg_content = etree.tostring(svg_tree)
+
+    # Convert the modified SVG content to PNG format using cairosvg
+    png_content = cairosvg.svg2png(
+        bytestring=modified_svg_content,
+        background_color="#000000",
+        scale=1,
+    )
+
+    # Save the resulting PNG image to a file using Pillow
+    with Image.open(io.BytesIO(png_content)) as image:
+        im = ImageOps.expand(image, border=(margin, margin), fill="black")
+        im = im.resize((72, 72))
+        im.save(filename)
+
+
+def download_mdi_as_png(
+    mdi: str,
+    color: float,
+    filename: str | Path,
+    margin: int = 10,
+) -> None:
+    """Download SVG from MDI, change colors with input, convert to PNG, and save.
+
+    Download an SVG file from the Material Design Icons website and, modify the fill and background colors based on the input
+    color value, convert it to PNG format, and save the resulting PNG image to a file.
+
+    Check https://mdi.bessarabov.com for the available icons.
+
+    Parameters
+    ----------
+    mdi
+        The name of the Material Design Icon.
+    color
+        A color value between 0 and 1.
+    filename
+        The name of the file to save the PNG content to.
+    margin
+        The margin to add around the icon.
+    """
+    # TOOD: this URL only works for volume buttons, FIX IT
+    url = f"https://mdi.bessarabov.com/img/icon/v/o/{mdi}.svg"
+    download_and_convert_svg_to_png(url, color, filename, margin)
 
 
 async def main(host: str, token: str, config: Config) -> None:

@@ -35,6 +35,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     icon: str | None = None
     text: str = ""
     text_color: str | None = None
+    text_size: int = 12
     service_data: dict[str, Any] = Field(default_factory=dict)
     data: dict[str, Any] = Field(default_factory=dict)
 
@@ -185,6 +186,7 @@ def render_key_image(
     text_color: str = "white",
     icon_filename: str | None = None,
     font_filename: str = "Roboto-Regular.ttf",
+    font_size: int = 12,
     label_text: str = "",
 ) -> memoryview:
     """Render an image for a key."""
@@ -194,7 +196,7 @@ def render_key_image(
         icon = Image.new("RGB", (deck.KEY_PIXEL_WIDTH, deck.KEY_PIXEL_HEIGHT), "black")
     image = PILHelper.create_scaled_image(deck, icon, margins=[0, 0, 0, 0])
     draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype(str(ASSETS_PATH / font_filename), 12)
+    font = ImageFont.truetype(str(ASSETS_PATH / font_filename), font_size)
     draw.text(
         (image.width / 2, image.height / 2),
         text=label_text,
@@ -232,6 +234,7 @@ def update_key_image(
         label_text=text,
         text_color=text_color if not key_pressed else "green",
         icon_filename=button.icon,
+        font_size=button.text_size,
     )
     with deck:
         deck.set_key_image(key, image)

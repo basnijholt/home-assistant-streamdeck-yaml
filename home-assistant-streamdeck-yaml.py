@@ -282,14 +282,13 @@ def _on_press_callback(
             state=state,
             key_pressed=key_pressed,
         )
-        if key_pressed:
-            rich.print("Calling service", button.service)
-            if button.service is not None:
-                if button.service_data:
-                    data = button.service_data
-                elif button.entity_id is not None:
-                    data = {"entity_id": button.entity_id}
-                await call_service(websocket, button.service, data)
+        if key_pressed and button.service is not None:
+            data = button.service_data
+            if not button.service_data and button.entity_id is not None:
+                # Add the entity_id to the service data if service_data is empty
+                data = {"entity_id": button.entity_id}
+            rich.print(f"Calling service {button.service} with data {data}")
+            await call_service(websocket, button.service, data)
 
     return key_change_callback
 

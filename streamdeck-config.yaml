@@ -15,10 +15,10 @@
   text: "Baby\nlights"
 - entity_id: media_player.kef_ls50
   service: media_player.volume_down
-  text: '{{ 100 * state["attributes"]["volume_level"] | round(2) }}%'
+  text: '{{ (100 * state["attributes"]["volume_level"]) | int }}%'
 - entity_id: media_player.kef_ls50
   service: media_player.volume_up
-  text: '{{ 100 * state["attributes"]["volume_level"] | round(2) }}%'
+  text: '{{ (100 * state["attributes"]["volume_level"]) | int }}%'
 - service: script.reset_manual_control
   text: "Reset\nadaptive\nlighting"
 - icon: night_sky.png

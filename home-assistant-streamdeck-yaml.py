@@ -98,12 +98,9 @@ async def handle_state_changes(
         _update_state(state, data, buttons, deck)
 
 
-def _key(entity_id: str, buttons: list[Button]) -> int | None:
-    """Get the key index for an entity_id."""
-    for i, button in enumerate(buttons):
-        if button.entity_id == entity_id:
-            return i
-    return None
+def _keys(entity_id: str, buttons: list[Button]) -> list[int]:
+    """Get the key indices for an entity_id."""
+    return [i for i, button in enumerate(buttons) if button.entity_id == entity_id]
 
 
 def _update_state(
@@ -119,17 +116,16 @@ def _update_state(
             event_data = event_data["data"]
             eid = event_data["entity_id"]
             state[eid] = event_data["new_state"]
-            key = _key(eid, buttons)
-            if key is None:
-                return
-            rich.print(f"Updating key {key} for {eid}")
-            update_key_image(
-                deck,
-                key=key,
-                button=buttons[key],
-                state=state,
-                key_pressed=False,
-            )
+            keys = _keys(eid, buttons)
+            for key in keys:
+                rich.print(f"Updating key {key} for {eid}")
+                update_key_image(
+                    deck,
+                    key=key,
+                    button=buttons[key],
+                    state=state,
+                    key_pressed=False,
+                )
 
 
 def _render_jinja(text: str, data: dict[str, Any]) -> str:

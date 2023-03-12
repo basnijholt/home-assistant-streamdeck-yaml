@@ -37,7 +37,7 @@
   text: Sleep {{ state["state"] }}
 - icon: fireplace.png
   service: script.start_fireplace_netflix
-- data:
+- service_data:
     playlist: 37i9dQZF1DXaRycgyh6kXP
     source: KEF LS50
   icon: spotify.png

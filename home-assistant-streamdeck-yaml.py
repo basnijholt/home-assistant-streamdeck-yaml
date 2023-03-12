@@ -32,12 +32,11 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
 
     entity_id: str | None = None
     service: str | None = None
-    icon: str | None = None
+    service_data: dict[str, Any] = Field(default_factory=dict)
     text: str = ""
     text_color: str | None = None
     text_size: int = 12
-    service_data: dict[str, Any] = Field(default_factory=dict)
-    data: dict[str, Any] = Field(default_factory=dict)
+    icon: str | None = None
 
 
 class Config(BaseModel):
@@ -69,8 +68,8 @@ async def setup_ws(host: str, token: str) -> websockets.WebSocketClientProtocol:
                 rich.print("Connected to Home Assistant")
                 yield websocket
         except ConnectionResetError:
-            # Connection was reset, retrying in 5 seconds
-            rich.print("Connection was reset, retrying in 5 seconds")
+            # Connection was reset, retrying in 3 seconds
+            rich.print("Connection was reset, retrying in 3 seconds")
             await asyncio.sleep(5)
 
 
@@ -285,8 +284,11 @@ def _on_press_callback(
         )
         if key_pressed:
             rich.print("Calling service", button.service)
-            data = {"entity_id": button.entity_id} if button.entity_id else {}
             if button.service is not None:
+                if button.service_data:
+                    data = button.service_data
+                elif button.entity_id is not None:
+                    data = {"entity_id": button.entity_id}
                 await call_service(websocket, button.service, data)
 
     return key_change_callback

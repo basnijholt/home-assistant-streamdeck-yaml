@@ -1,4 +1,6 @@
+cairosvg
 jinja2
+lxml
 pillow
 pydantic
 rich

@@ -6,4 +6,4 @@ pydantic
 rich
 streamdeck
 websockets
-yaml
+pyyaml

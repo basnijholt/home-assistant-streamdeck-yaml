@@ -3,7 +3,8 @@ jinja2
 lxml
 pillow
 pydantic
+pyyaml
+requests
 rich
 streamdeck
 websockets
-pyyaml

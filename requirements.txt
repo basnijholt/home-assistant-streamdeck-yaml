@@ -1,0 +1,6 @@
+jinja2
+pillow
+rich
+streamdeck
+websockets
+yaml

@@ -1,0 +1,42 @@
+- entity: light.living_room_lights_z2m
+  service: light.toggle
+  text: "Living room\nlights"
+- entity: light.bedroom_lights_z2m
+  service: light.toggle
+  text: "Bedroom\nlights"
+- entity: light.guest_room
+  service: light.toggle
+  text: "Guest room\nlight"
+- entity: light.outside_lights_z2m
+  service: light.toggle
+  text: "Outside\nlights"
+- entity: light.baby_sphere
+  service: light.toggle
+  text: "Baby\nlights"
+- entity: media_player.kef_ls50
+  service: media_player.volume_down
+  text: '{{ 100 * state["attributes"]["volume_level"] | round(2) }}%'
+- entity: media_player.kef_ls50
+  service: media_player.volume_up
+  text: '{{ 100 * state["attributes"]["volume_level"] | round(2) }}%'
+- service: script.reset_manual_control
+  text: "Reset\nadaptive\nlighting"
+- icon: night_sky.png
+  service: script.turn_off_everything
+  text: ALL OFF
+- entity: input_select.sleep_mode
+  service: input_select.select_previous
+  text: Sleep {{ state["state"] }}
+- icon: fireplace.png
+  service: script.start_fireplace_netflix
+- data:
+    playlist: 37i9dQZF1DXaRycgyh6kXP
+    source: KEF LS50
+  icon: spotify.png
+  service: script.start_spotify
+- icon: hogwarts.png
+  service: script.start_hogwarts_legacy
+- icon: xbox.png
+  service: script.start_xbox
+- icon: netflix.png
+  service: script.start_netflix

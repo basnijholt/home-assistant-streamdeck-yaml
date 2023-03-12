@@ -17,6 +17,8 @@ from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.ImageHelpers import PILHelper
 
 if TYPE_CHECKING:
+    from collections.abc import Coroutine
+
     from StreamDeck.Devices import StreamDeck
 
 ASSETS_PATH = Path(__file__).parent / "assets"
@@ -25,7 +27,7 @@ ASSETS_PATH = Path(__file__).parent / "assets"
 _ID_COUNTER = 0
 
 
-class Button(BaseModel, extra="forbid"):
+class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     """Button configuration."""
 
     entity_id: str | None = None
@@ -87,7 +89,7 @@ async def handle_state_changes(
     websocket: websockets.WebSocketClientProtocol,
     state: dict[str, Any],
     deck: StreamDeck,
-    buttons: list[dict[str, Any]],
+    buttons: list[Button],
 ) -> None:
     """Handle state changes."""
     # Wait for the state change events
@@ -107,7 +109,7 @@ def _key(entity_id: str, buttons: list[Button]) -> int | None:
 def _update_state(
     state: dict[str, Any],
     data: dict[str, Any],
-    buttons: list[dict[str, Any]],
+    buttons: list[Button],
     deck: StreamDeck,
 ) -> None:
     """Update the state dictionary and update the keys."""
@@ -267,7 +269,7 @@ def _on_press_callback(
     websocket: websockets.WebSocketClientProtocol,
     state: dict[str, Any],
     buttons: list[Button],
-) -> Callable[[StreamDeck, int, bool], None]:
+) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:
     async def key_change_callback(
         deck: StreamDeck,
         key: int,
@@ -285,7 +287,8 @@ def _on_press_callback(
         if key_pressed:
             rich.print("Calling service", button.service)
             data = {"entity_id": button.entity_id} if button.entity_id else {}
-            await call_service(websocket, button.service, data)
+            if button.service is not None:
+                await call_service(websocket, button.service, data)
 
     return key_change_callback
 

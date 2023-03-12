@@ -16,9 +16,6 @@
   icon: "space-heater.png"
   text_size: 16
   text_color: black
-# - entity_id: light.baby_sphere
-#   service: light.toggle
-#   text: "Baby\nlights"
 - entity_id: media_player.kef_ls50
   service: media_player.volume_down
   text: '{{ (100 * state["attributes"]["volume_level"]) | int }}%'

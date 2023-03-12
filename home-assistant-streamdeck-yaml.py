@@ -11,6 +11,7 @@ from jinja2 import Template
 from PIL import Image, ImageDraw, ImageFont
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.ImageHelpers import PILHelper
+from StreamDeck.Devices import StreamDeck
 
 ASSETS_PATH = Path(__file__).parent / "assets"
 
@@ -26,7 +27,7 @@ def next_id():
 
 @asynccontextmanager
 async def setup_ws(host: str, token: str) -> websockets.WebSocketClientProtocol:
-    # Set up the connection to Home Assistant
+    """Set up the connection to Home Assistant."""
     uri = f"wss://{host}/api/websocket"
     while True:
         try:
@@ -49,7 +50,7 @@ async def setup_ws(host: str, token: str) -> websockets.WebSocketClientProtocol:
 async def subscribe_state_changes(
     websocket: websockets.WebSocketClientProtocol,
 ) -> None:
-    # Subscribe to the state change events for a specific entity
+    """Subscribe to the state change events."""
     subscribe_payload = {
         "type": "subscribe_events",
         "event_type": "state_changed",
@@ -61,37 +62,46 @@ async def subscribe_state_changes(
 async def handle_state_changes(
     websocket: websockets.WebSocketClientProtocol,
     state: dict[str, Any],
-    deck: DeviceManager,
-    buttons: list[dict[str, Any]]
+    deck: StreamDeck,
+    buttons: list[dict[str, Any]],
 ) -> None:
+    """Handle state changes."""
     # Wait for the state change events
     while True:
         data = json.loads(await websocket.recv())
-        update_state(state, data, buttons, deck)
+        _update_state(state, data, buttons, deck)
 
 
-def get_key(entity_id: str, buttons) -> int | None:
+def _key(entity_id: str, buttons) -> int | None:
+    """Get the key index for an entity_id."""
     for i, button in enumerate(buttons):
         if button.get("entity") == entity_id:
             return i
     return None
 
 
-def update_state(state, data, buttons, deck):
+def _update_state(
+    state: dict[str, Any],
+    data: dict[str, Any],
+    buttons: list[dict[str, Any]],
+    deck: StreamDeck,
+):
+    """Update the state dictionary and update the keys."""
     if data["type"] == "event":
         event_data = data["event"]
         if event_data["event_type"] == "state_changed":
             event_data = event_data["data"]
             eid = event_data["entity_id"]
             state[eid] = event_data["new_state"]
-            key = get_key(eid, buttons)
+            key = _key(eid, buttons)
             if key is None:
                 return
             rich.print(f"Updating key {key} for {eid}")
             update_key_image(deck, key, buttons[key], state, False)
 
 
-def render_jinja(text: str, data: dict[str, Any]) -> str:
+def _render_jinja(text: str, data: dict[str, Any]) -> str:
+    """Render a Jinja template."""
     template = Template(text)
     return template.render(**data)
 
@@ -175,9 +185,9 @@ def render_key_image(
 def update_key_image(deck, key, button, state, key_pressed: bool = False):
     if button.get("entity") in state:
         state = state[button["entity"]]
-        text = render_jinja(button["text"], data={"state": state})
+        text = _render_jinja(button["text"], data={"state": state})
         if "text_color" in button:
-            text_color = render_jinja(button["text_color"], data={"state": state})
+            text_color = _render_jinja(button["text_color"], data={"state": state})
         else:
             if state["state"] == "on":
                 text_color = "orangered"

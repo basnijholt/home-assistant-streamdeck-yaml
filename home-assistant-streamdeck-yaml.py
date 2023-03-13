@@ -82,6 +82,10 @@ class Config(BaseModel):
         """Return the current page."""
         return self.pages[self.current_page_index]
 
+    def button(self, key: int) -> Button:
+        """Return the button for a key."""
+        return self.current_page().buttons[key]
+
 
 def _next_id() -> int:
     global _ID_COUNTER
@@ -160,7 +164,7 @@ def _update_state(
                 update_key_image(
                     deck,
                     key=key,
-                    button=buttons[key],
+                    config=config,
                     state=state,
                     key_pressed=False,
                 )
@@ -279,11 +283,12 @@ def update_key_image(
     deck: StreamDeck,
     *,
     key: int,
-    button: Button,
+    config: Config,
     state: dict[str, Any],
     key_pressed: bool = False,
 ) -> None:
     """Update the image for a key."""
+    button = config.button(key)
     if button.special_type == "empty":
         return
     if button.special_type == "next-page":
@@ -365,7 +370,7 @@ def read_config(fname: Path) -> Config:
 def _on_press_callback(
     websocket: websockets.WebSocketClientProtocol,
     state: dict[str, Any],
-    buttons: list[Button],
+    config: Config,
 ) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:
     async def key_change_callback(
         deck: StreamDeck,
@@ -373,11 +378,11 @@ def _on_press_callback(
         key_pressed: bool,  # noqa: FBT001
     ) -> None:
         print(f"Key {key} {'pressed' if key_pressed else 'released'}")
-        button = buttons[key]
+        button = config.button(key)
         update_key_image(
             deck,
             key=key,
-            button=button,
+            config=config,
             state=state,
             key_pressed=key_pressed,
         )
@@ -486,18 +491,18 @@ def _mdi_url(mdi: str) -> str:
 async def main(host: str, token: str, config: Config) -> None:
     """Main entry point for the Stream Deck integration."""
     deck = get_deck()
-    buttons = config.pages[0].buttons
+    buttons = config.current_page().buttons
     async with setup_ws(host, token) as websocket:
         state = await get_states(websocket)
         for key in range(deck.key_count()):
             update_key_image(
                 deck,
                 key=key,
-                button=buttons[key],
+                config=config,
                 state=state,
                 key_pressed=False,
             )
-        deck.set_key_callback_async(_on_press_callback(websocket, state, buttons))
+        deck.set_key_callback_async(_on_press_callback(websocket, state, config))
         deck.set_brightness(100)
         await subscribe_state_changes(websocket)
         await handle_state_changes(websocket, state, deck, buttons)

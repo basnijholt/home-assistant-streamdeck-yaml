@@ -398,18 +398,22 @@ def _on_press_callback(
                 update_all_key_images(deck, config, state)
             elif button.service is not None:
                 if button.service_data is None:
-                    data = (
-                        {}
-                        if button.entity_id is None
-                        else {"entity_id": button.entity_id}
-                    )
+                    service_data = {}
+                    if button.entity_id is not None:
+                        service_data["entity_id"] = button.entity_id
                 else:
-                    data = button.service_data
-                    if entity_id := data.get("entity_id"):
-                        for k, v in data.items():
-                            data[k] = _render_jinja(v, data={"state": state[entity_id]})
-                rich.print(f"Calling service {button.service} with data {data}")
-                await call_service(websocket, button.service, data)
+                    service_data = button.service_data
+                    if entity_id := service_data.get("entity_id"):
+                        for k, v in service_data.items():
+                            service_data[k] = _render_jinja(
+                                v,
+                                data={"state": state[entity_id]},
+                            )
+                rich.print(
+                    f"Calling service {button.service} with data {service_data}",
+                    flush=True,
+                )
+                await call_service(websocket, button.service, service_data)
 
     return key_change_callback
 

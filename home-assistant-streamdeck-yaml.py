@@ -10,11 +10,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import cairosvg
+import jinja2
 import requests
 import rich
 import websockets
 import yaml
-from jinja2 import Template
 from lxml import etree
 from PIL import Image, ImageColor, ImageDraw, ImageFont, ImageOps
 from pydantic import BaseModel, Field
@@ -173,8 +173,16 @@ def _update_state(
 
 def _render_jinja(text: str, data: dict[str, Any]) -> str:
     """Render a Jinja template."""
-    template = Template(text)
-    return template.render(**data)
+    try:
+        template = jinja2.Template(text)
+        return template.render(  # noqa: TRY300
+            **data,
+            min=min,
+            max=max,
+        )
+    except jinja2.exceptions.TemplateError as err:
+        rich.print(f"Error rendering template: {err} with error type {type(err)}")
+        return text
 
 
 async def get_states(websocket: websockets.WebSocketClientProtocol) -> dict[str, Any]:
@@ -378,7 +386,7 @@ def _on_press_callback(
         key: int,
         key_pressed: bool,  # noqa: FBT001
     ) -> None:
-        print(f"Key {key} {'pressed' if key_pressed else 'released'}")
+        rich.print(f"Key {key} {'pressed' if key_pressed else 'released'}")
         button = config.button(key)
         update_key_image(
             deck,

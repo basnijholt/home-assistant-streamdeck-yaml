@@ -21,12 +21,18 @@ pages:
         text_color: black
         icon_gray_when_off: true
       - entity_id: media_player.kef_ls50
-        service: media_player.volume_down
+        service: media_player.volume_set
+        service_data:
+          volume_level: '{{ max(state["attributes"]["volume_level"] - 0.05, 0) }}'
+          entity_id: media_player.kef_ls50
         text: '{{ (100 * state["attributes"]["volume_level"]) | int }}%'
         text_size: 16
         icon_mdi: "volume-minus"
       - entity_id: media_player.kef_ls50
-        service: media_player.volume_up
+        service: media_player.volume_set
+        service_data:
+          volume_level: '{{ min(state["attributes"]["volume_level"] + 0.05, 1) }}'
+          entity_id: media_player.kef_ls50
         text: '{{ (100 * state["attributes"]["volume_level"]) | int }}%'
         text_size: 16
         icon_mdi: "volume-plus"

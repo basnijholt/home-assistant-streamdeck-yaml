@@ -47,7 +47,13 @@ pages:
         service: script.start_spotify
       - icon: hogwarts.png
         service: script.start_hogwarts_legacy
+      # - icon: netflix.png
+      #   service: script.start_netflix
+      - special_type: previous-page
+      - special_type: next-page
+  - name: Media
+    buttons:
+      - icon: netflix.png
+        service: script.start_spotify
       - icon: xbox.png
         service: script.start_xbox
-      - icon: netflix.png
-        service: script.start_netflix

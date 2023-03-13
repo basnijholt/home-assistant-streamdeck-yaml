@@ -7,7 +7,7 @@ import io
 import json
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import cairosvg
 import requests
@@ -45,6 +45,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     icon: str | None = None
     icon_mdi: str | None = None
     icon_gray_when_off: bool = False
+    special_type: Literal["next-page", "previous-page", "empty"] | None = None
 
     @property
     def domain(self) -> str | None:
@@ -65,6 +66,21 @@ class Config(BaseModel):
     """Configuration file."""
 
     pages: list[Page] = Field(default_factory=list)
+    current_page_index: int = 0
+
+    def next_page(self) -> Page:
+        """Go to the next page."""
+        self.current_page_index = (self.current_page_index + 1) % len(self.pages)
+        return self.pages[self.current_page_index]
+
+    def previous_page(self) -> Page:
+        """Go to the previous page."""
+        self.current_page_index = (self.current_page_index - 1) % len(self.pages)
+        return self.pages[self.current_page_index]
+
+    def current_page(self) -> Page:
+        """Return the current page."""
+        return self.pages[self.current_page_index]
 
 
 def _next_id() -> int:
@@ -268,7 +284,19 @@ def update_key_image(
     key_pressed: bool = False,
 ) -> None:
     """Update the image for a key."""
-    if button.entity_id in state:
+    if button.special_type == "empty":
+        return
+    if button.special_type == "next-page":
+        text = "Next\nPage"
+        text_color = "white"
+        icon_mdi = "chevron-right"
+        icon_convert_to_grayscale = False
+    elif button.special_type == "previous-page":
+        text = "Previous\nPage"
+        text_color = "white"
+        icon_mdi = "chevron-left"
+        icon_convert_to_grayscale = False
+    elif button.entity_id in state:
         # Has entity_id
         state = state[button.entity_id]
         text = _render_jinja(button.text, data={"state": state})
@@ -295,6 +323,7 @@ def update_key_image(
         text_color = button.text_color or "white"
         icon_mdi = button.icon_mdi
         icon_convert_to_grayscale = False
+
     image = render_key_image(
         deck,
         label_text=text,

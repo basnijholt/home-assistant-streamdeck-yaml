@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import colorsys
 import functools
 import io
 import json
@@ -29,6 +28,7 @@ if TYPE_CHECKING:
 
 ASSETS_PATH = Path(__file__).parent / "assets"
 
+DEFAULT_MDI_ICONS = {"light": "lightbulb", "switch": "power-socket-eu"}
 
 _ID_COUNTER = 0
 
@@ -44,6 +44,13 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     text_size: int = 12
     icon: str | None = None
     icon_mdi: str | None = None
+
+    @property
+    def domain(self) -> str | None:
+        """Return the domain of the entity."""
+        if self.service is None:
+            return None
+        return self.service.split(".", 1)[0]
 
 
 class Config(BaseModel):
@@ -192,6 +199,7 @@ def render_key_image(
     text_color: str = "white",
     icon_filename: str | None = None,
     icon_mdi: str | None = None,
+    icon_mdi_margin: int = 0,
     font_filename: str = "Roboto-Regular.ttf",
     font_size: int = 12,
     label_text: str = "",
@@ -200,7 +208,14 @@ def render_key_image(
     if icon_filename is not None:
         icon = Image.open(ASSETS_PATH / icon_filename)
     elif icon_mdi is not None:
-        download_mdi_as_png(icon_mdi, 0.5, ASSETS_PATH / f"{icon_mdi}.png")
+        url = _mdi_url(icon_mdi)
+        _download_and_convert_svg_to_png(
+            url,
+            color="#FFFFFF",
+            opacity=0.1,
+            filename=ASSETS_PATH / f"{icon_mdi}.png",
+            margin=icon_mdi_margin,
+        )
         icon = Image.open(ASSETS_PATH / f"{icon_mdi}.png")
     else:
         icon = Image.new("RGB", (deck.KEY_PIXEL_WIDTH, deck.KEY_PIXEL_HEIGHT), "black")
@@ -228,6 +243,7 @@ def update_key_image(
 ) -> None:
     """Update the image for a key."""
     if button.entity_id in state:
+        # Has entity_id
         state = state[button.entity_id]
         text = _render_jinja(button.text, data={"state": state})
         if button.text_color is not None:
@@ -236,14 +252,22 @@ def update_key_image(
             text_color = "orangered"
         else:
             text_color = "white"
+        icon_mdi = (
+            DEFAULT_MDI_ICONS.get(button.domain)  # type: ignore[arg-type]
+            if button.icon_mdi is None and button.icon is None
+            else None
+        )
     else:
+        # No entity_id, e.g., a script
         text = button.text
         text_color = button.text_color or "white"
+        icon_mdi = button.icon_mdi
+
     image = render_key_image(
         deck,
         label_text=text,
         text_color=text_color if not key_pressed else "green",
-        icon_mdi=button.icon_mdi,
+        icon_mdi=icon_mdi,
         icon_filename=button.icon,
         font_size=button.text_size,
     )
@@ -312,11 +336,40 @@ def _download(url: str) -> bytes:
     return response.content
 
 
-def download_and_convert_svg_to_png(
+def _scale_hex_color(hex_color: str, scale: float) -> str:
+    """Scales a HEX color by a given factor.
+
+    Parameters
+    ----------
+    hex_color
+        A HEX color in the format "#RRGGBB".
+    scale
+        A scaling factor between 0 and 1.
+
+    Returns
+    -------
+    A scaled HEX color in the format "#RRGGBB".
+    """
+    # Convert HEX color to RGB values
+    r = int(hex_color[1:3], 16)
+    g = int(hex_color[3:5], 16)
+    b = int(hex_color[5:7], 16)
+
+    # Scale RGB values
+    r = int(r * scale)
+    g = int(g * scale)
+    b = int(b * scale)
+
+    # Convert scaled RGB values back to HEX color
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def _download_and_convert_svg_to_png(
     url: str,
-    color: float,
+    color: str,
+    opacity: float,
     filename: str | Path,
-    margin: int = 10,
+    margin: int,
 ) -> None:
     """Download an SVG file from a given URL to PNG.
 
@@ -328,21 +381,19 @@ def download_and_convert_svg_to_png(
     url
         The URL of the SVG file.
     color
-        A color value between 0 and 1.
+        The HEX color to use for the icon.
+    opacity
+        The opacity of the icon. 0 is black, 1 is full color.
     filename
         The name of the file to save the PNG content to.
     margin
         The margin to add around the icon.
     """
-    # Get the corresponding gray RGB tuple for the input color value
-    rgb = colorsys.hsv_to_rgb(0, 0, color)
-    gray_color = tuple(int(255 * c) for c in rgb)
-
     svg_content = _download(url)
 
     # Modify the SVG content to set the fill and background colors
     svg_tree = etree.fromstring(svg_content)
-    fill_color = "#{:02x}{:02x}{:02x}".format(*gray_color)
+    fill_color = _scale_hex_color(color, opacity)
     svg_tree.attrib["fill"] = fill_color
     svg_tree.attrib["style"] = "background-color: #000000"
     modified_svg_content = etree.tostring(svg_tree)
@@ -351,7 +402,7 @@ def download_and_convert_svg_to_png(
     png_content = cairosvg.svg2png(
         bytestring=modified_svg_content,
         background_color="#000000",
-        scale=1,
+        scale=4,
     )
 
     # Save the resulting PNG image to a file using Pillow
@@ -361,33 +412,12 @@ def download_and_convert_svg_to_png(
         im.save(filename)
 
 
-def download_mdi_as_png(
-    mdi: str,
-    color: float,
-    filename: str | Path,
-    margin: int = 10,
-) -> None:
-    """Download SVG from MDI, change colors with input, convert to PNG, and save.
-
-    Download an SVG file from the Material Design Icons website and, modify the fill and background colors based on the input
-    color value, convert it to PNG format, and save the resulting PNG image to a file.
+def _mdi_url(mdi: str) -> str:
+    """Return the URL of the Materian. opacity=Design Ico,.
 
     Check https://mdi.bessarabov.com for the available icons.
-
-    Parameters
-    ----------
-    mdi
-        The name of the Material Design Icon.
-    color
-        A color value between 0 and 1.
-    filename
-        The name of the file to save the PNG content to.
-    margin
-        The margin to add around the icon.
     """
-    # TOOD: this URL only works for volume buttons, FIX IT
-    url = f"https://mdi.bessarabov.com/img/icon/v/o/{mdi}.svg"
-    download_and_convert_svg_to_png(url, color, filename, margin)
+    return f"https://raw.githubusercontent.com/Templarian/MaterialDesign/master/svg/{mdi}.svg"
 
 
 async def main(host: str, token: str, config: Config) -> None:

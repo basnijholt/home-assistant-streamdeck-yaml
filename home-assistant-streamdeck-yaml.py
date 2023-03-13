@@ -131,13 +131,13 @@ async def handle_state_changes(
     websocket: websockets.WebSocketClientProtocol,
     state: dict[str, Any],
     deck: StreamDeck,
-    buttons: list[Button],
+    config: Config,
 ) -> None:
     """Handle state changes."""
     # Wait for the state change events
     while True:
         data = json.loads(await websocket.recv())
-        _update_state(state, data, buttons, deck)
+        _update_state(state, data, config, deck)
 
 
 def _keys(entity_id: str, buttons: list[Button]) -> list[int]:
@@ -148,10 +148,11 @@ def _keys(entity_id: str, buttons: list[Button]) -> list[int]:
 def _update_state(
     state: dict[str, Any],
     data: dict[str, Any],
-    buttons: list[Button],
+    config: Config,
     deck: StreamDeck,
 ) -> None:
     """Update the state dictionary and update the keys."""
+    buttons = config.current_page().buttons
     if data["type"] == "event":
         event_data = data["event"]
         if event_data["event_type"] == "state_changed":
@@ -516,14 +517,13 @@ def update_all_key_images(
 async def main(host: str, token: str, config: Config) -> None:
     """Main entry point for the Stream Deck integration."""
     deck = get_deck()
-    buttons = config.current_page().buttons
     async with setup_ws(host, token) as websocket:
         state = await get_states(websocket)
         update_all_key_images(deck, config, state)
         deck.set_key_callback_async(_on_press_callback(websocket, state, config))
         deck.set_brightness(100)
         await subscribe_state_changes(websocket)
-        await handle_state_changes(websocket, state, deck, buttons)
+        await handle_state_changes(websocket, state, deck, config)
 
 
 if __name__ == "__main__":

@@ -67,6 +67,8 @@ pages:
       - special_type: empty
       - special_type: empty
       - special_type: empty
-      - special_type: empty
+      - entity_id: light.guest_room
+        service: light.toggle
+        text: "Guest room\nlight"
       - special_type: previous-page
       - special_type: next-page

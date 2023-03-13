@@ -54,10 +54,17 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         return self.service.split(".", 1)[0]
 
 
+class Page(BaseModel):
+    """A page of buttons."""
+
+    name: str
+    buttons: list[Button] = Field(default_factory=list)
+
+
 class Config(BaseModel):
     """Configuration file."""
 
-    buttons: list[Button] = Field(default_factory=list)
+    pages: list[Page] = Field(default_factory=list)
 
 
 def _next_id() -> int:
@@ -214,9 +221,9 @@ def render_key_image(
     *,
     text_color: str = "white",
     icon_filename: str | None = None,
+    icon_convert_to_grayscale: bool = False,
     icon_mdi: str | None = None,
     icon_mdi_margin: int = 0,
-    icon_convert_to_grayscale: bool = False,
     font_filename: str = "Roboto-Regular.ttf",
     font_size: int = 12,
     label_text: str = "",
@@ -322,7 +329,8 @@ def get_deck() -> StreamDeck:
 def read_config(fname: Path) -> Config:
     """Read the configuration file."""
     with fname.open() as f:
-        return Config(buttons=yaml.safe_load(f))
+        data = yaml.safe_load(f)
+        return Config(pages=data["pages"])
 
 
 def _on_press_callback(
@@ -449,7 +457,7 @@ def _mdi_url(mdi: str) -> str:
 async def main(host: str, token: str, config: Config) -> None:
     """Main entry point for the Stream Deck integration."""
     deck = get_deck()
-    buttons = config.buttons  # TODO: make it work with multiple decks
+    buttons = config.pages[0].buttons
     async with setup_ws(host, token) as websocket:
         state = await get_states(websocket)
         for key in range(deck.key_count()):

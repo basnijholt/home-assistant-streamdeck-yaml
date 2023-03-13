@@ -386,13 +386,22 @@ def _on_press_callback(
             state=state,
             key_pressed=key_pressed,
         )
-        if key_pressed and button.service is not None:
-            data = button.service_data
-            if not button.service_data and button.entity_id is not None:
-                # Add the entity_id to the service data if service_data is empty
-                data = {"entity_id": button.entity_id}
-            rich.print(f"Calling service {button.service} with data {data}")
-            await call_service(websocket, button.service, data)
+        if key_pressed:
+            if button.special_type == "next-page":
+                config.next_page()
+                deck.reset()
+                update_all_key_images(deck, config, state)
+            elif button.special_type == "previous-page":
+                config.previous_page()
+                deck.reset()
+                update_all_key_images(deck, config, state)
+            elif button.service is not None:
+                data = button.service_data
+                if not button.service_data and button.entity_id is not None:
+                    # Add the entity_id to the service data if service_data is empty
+                    data = {"entity_id": button.entity_id}
+                rich.print(f"Calling service {button.service} with data {data}")
+                await call_service(websocket, button.service, data)
 
     return key_change_callback
 
@@ -488,20 +497,29 @@ def _mdi_url(mdi: str) -> str:
     return f"https://raw.githubusercontent.com/Templarian/MaterialDesign/master/svg/{mdi}.svg"
 
 
+def update_all_key_images(
+    deck: StreamDeck,
+    config: Config,
+    state: dict[str, Any],
+) -> None:
+    """Update all key images."""
+    for key in range(deck.key_count()):
+        update_key_image(
+            deck,
+            key=key,
+            config=config,
+            state=state,
+            key_pressed=False,
+        )
+
+
 async def main(host: str, token: str, config: Config) -> None:
     """Main entry point for the Stream Deck integration."""
     deck = get_deck()
     buttons = config.current_page().buttons
     async with setup_ws(host, token) as websocket:
         state = await get_states(websocket)
-        for key in range(deck.key_count()):
-            update_key_image(
-                deck,
-                key=key,
-                config=config,
-                state=state,
-                key_pressed=False,
-            )
+        update_all_key_images(deck, config, state)
         deck.set_key_callback_async(_on_press_callback(websocket, state, config))
         deck.set_brightness(100)
         await subscribe_state_changes(websocket)

@@ -57,3 +57,16 @@ pages:
         service: script.start_spotify
       - icon: xbox.png
         service: script.start_xbox
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: previous-page
+      - special_type: next-page

@@ -44,6 +44,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     text_size: int = 12
     icon: str | None = None
     icon_mdi: str | None = None
+    icon_gray_when_off: bool = False
 
     @property
     def domain(self) -> str | None:
@@ -203,6 +204,11 @@ def _named_to_hex(color: str) -> str:
     raise ValueError(msg)
 
 
+def _convert_to_grayscale(image: Image) -> Image:
+    """Convert an image to grayscale."""
+    return image.convert("L").convert("RGB")
+
+
 def render_key_image(
     deck: StreamDeck,
     *,
@@ -210,6 +216,7 @@ def render_key_image(
     icon_filename: str | None = None,
     icon_mdi: str | None = None,
     icon_mdi_margin: int = 0,
+    icon_convert_to_grayscale: bool = False,
     font_filename: str = "Roboto-Regular.ttf",
     font_size: int = 12,
     label_text: str = "",
@@ -217,6 +224,8 @@ def render_key_image(
     """Render an image for a key."""
     if icon_filename is not None:
         icon = Image.open(ASSETS_PATH / icon_filename)
+        if icon_convert_to_grayscale:
+            icon = _convert_to_grayscale(icon)
     elif icon_mdi is not None:
         url = _mdi_url(icon_mdi)
         _download_and_convert_svg_to_png(
@@ -227,6 +236,8 @@ def render_key_image(
             margin=icon_mdi_margin,
         )
         icon = Image.open(ASSETS_PATH / f"{icon_mdi}.png")
+        if icon_convert_to_grayscale:
+            icon = _convert_to_grayscale(icon)
     else:
         icon = Image.new("RGB", (deck.KEY_PIXEL_WIDTH, deck.KEY_PIXEL_HEIGHT), "black")
     image = PILHelper.create_scaled_image(deck, icon, margins=[0, 0, 0, 0])
@@ -269,17 +280,23 @@ def update_key_image(
             icon_mdi = DEFAULT_MDI_ICONS[button.domain]
         else:
             icon_mdi = None
+
+        icon_convert_to_grayscale = (
+            False if state["state"] == "on" else button.icon_gray_when_off
+        )
     else:
         # No entity_id, e.g., a script
         text = button.text
         text_color = button.text_color or "white"
         icon_mdi = button.icon_mdi
+        icon_convert_to_grayscale = False
     image = render_key_image(
         deck,
         label_text=text,
         text_color=text_color if not key_pressed else "green",
         icon_mdi=icon_mdi,
         icon_filename=button.icon,
+        icon_convert_to_grayscale=icon_convert_to_grayscale,
         font_size=button.text_size,
     )
     with deck:

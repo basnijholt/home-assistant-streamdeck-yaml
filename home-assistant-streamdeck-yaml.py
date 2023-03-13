@@ -236,8 +236,6 @@ def render_key_image(
             margin=icon_mdi_margin,
         )
         icon = Image.open(ASSETS_PATH / f"{icon_mdi}.png")
-        if icon_convert_to_grayscale:
-            icon = _convert_to_grayscale(icon)
     else:
         icon = Image.new("RGB", (deck.KEY_PIXEL_WIDTH, deck.KEY_PIXEL_HEIGHT), "black")
     image = PILHelper.create_scaled_image(deck, icon, margins=[0, 0, 0, 0])

@@ -16,7 +16,7 @@ import websockets
 import yaml
 from jinja2 import Template
 from lxml import etree
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageColor, ImageDraw, ImageFont, ImageOps
 from pydantic import BaseModel, Field
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.ImageHelpers import PILHelper
@@ -193,6 +193,16 @@ async def call_service(
     await websocket.send(json.dumps(subscribe_payload))
 
 
+def _named_to_hex(color: str) -> str:
+    """Convert a named color to a hex color."""
+    rgb: tuple[int, int, int] = ImageColor.getrgb(color)
+    color = "#{:02x}{:02x}{:02x}".format(*rgb)
+    if color.startswith("#"):
+        return color
+    msg = f"Invalid color: {color}"
+    raise ValueError(msg)
+
+
 def render_key_image(
     deck: StreamDeck,
     *,
@@ -211,8 +221,8 @@ def render_key_image(
         url = _mdi_url(icon_mdi)
         _download_and_convert_svg_to_png(
             url,
-            color="#FFFFFF",
-            opacity=0.1,
+            color=_named_to_hex(text_color),
+            opacity=0.3,
             filename=ASSETS_PATH / f"{icon_mdi}.png",
             margin=icon_mdi_margin,
         )
@@ -252,17 +262,18 @@ def update_key_image(
             text_color = "orangered"
         else:
             text_color = "white"
-        icon_mdi = (
-            DEFAULT_MDI_ICONS.get(button.domain)  # type: ignore[arg-type]
-            if button.icon_mdi is None and button.icon is None
-            else None
-        )
+
+        if button.icon_mdi is not None:
+            icon_mdi = button.icon_mdi
+        elif button.icon is None and button.domain in DEFAULT_MDI_ICONS:
+            icon_mdi = DEFAULT_MDI_ICONS[button.domain]
+        else:
+            icon_mdi = None
     else:
         # No entity_id, e.g., a script
         text = button.text
         text_color = button.text_color or "white"
         icon_mdi = button.icon_mdi
-
     image = render_key_image(
         deck,
         label_text=text,

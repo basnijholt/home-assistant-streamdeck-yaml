@@ -399,11 +399,9 @@ def update_key_image(
 
     if button.special_type == "next-page":
         text = "Next\nPage"
-        text_color = "white"
         icon_mdi = "chevron-right"
     elif button.special_type == "previous-page":
         text = "Previous\nPage"
-        text_color = "white"
         icon_mdi = "chevron-left"
     elif button.entity_id in complete_state:
         # Has entity_id
@@ -413,15 +411,13 @@ def update_key_image(
             text_color = button.text_color
         elif state["state"] == "on":
             text_color = "orangered"
-        else:
-            text_color = "white"
 
-        if button.icon_mdi is not None:
-            icon_mdi = button.icon_mdi
-        elif button.icon is None and button.domain in DEFAULT_MDI_ICONS:
+        if (
+            button.icon_mdi is None
+            and button.icon is None
+            and button.domain in DEFAULT_MDI_ICONS
+        ):
             icon_mdi = DEFAULT_MDI_ICONS[button.domain]
-        else:
-            icon_mdi = None
 
         if state["state"] == "off":
             icon_convert_to_grayscale = button.icon_gray_when_off

@@ -54,6 +54,35 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             return None
         return self.service.split(".", 1)[0]
 
+    @property
+    def templatable(self) -> set[str]:
+        """Return if an attribute is templatable, which is if the type-annotation is str."""
+        return {
+            "entity_id",
+            "service",
+            "service_data",
+            "text",
+            "text_color",
+            "icon",
+            "icon_mdi",
+        }
+
+    def rendered_button(self, complete_state: dict[str, dict[str, Any]]) -> Button:
+        """Return a button with the rendered text."""
+        rendered_button = self.copy()
+        for field_name in self.templatable:
+            field_value = getattr(self, field_name)
+            if isinstance(field_value, dict):  # e.g., service_data
+                new = {}
+                for k, v in field_value.items():
+                    new[k] = _render_jinja(v, complete_state)
+            elif isinstance(field_value, str):
+                new = _render_jinja(field_value, complete_state)  # type: ignore[assignment]
+            else:
+                new = field_value
+            setattr(rendered_button, field_name, new)
+        return rendered_button
+
 
 class Page(BaseModel):
     """A page of buttons."""

@@ -1,10 +1,12 @@
-# Home Assistant Stream Deck control configurated via YAML and running on Linux, MacOS, and Windows
+# Home Assistant on Stream Deck: configured via YAML (with templates) and running on Linux, MacOS, and Windows
 
 This is a simple Python script that allows you to control your Home Assistant instance via a Stream Deck.
 
 It is configured via a YAML file and runs on Linux, so you can use it on the same machine as Home Assistant or on a separate machine (a Raspberry Pi or any other machine).
 
 More information coming soon.
+
+See the [streamdeck-config.yaml](streamdeck-config.yaml) file for an example configuration (or my current configuration).
 
 ## Why?
 Even though [github.com/cgiesche/streamdeck-homeassistant](https://github.com/cgiesche/streamdeck-homeassistant) exists, I wanted to have a solution that is more flexible and allows me to connect a Stream Deck to the same Linux machine where Home Assistant is running.

@@ -35,7 +35,7 @@ pages:
           entity_id: media_player.kef_ls50
         text: '{{ (100 * state_attr("media_player.kef_ls50", "volume_level")) | int }}%'
         text_size: 16
-        icon_mdi: "volume-plus"
+        icon_mdi: volume-plus
       - service: script.reset_manual_control
         text: "Reset\nadaptive\nlighting"
       - icon: night_sky.png
@@ -44,6 +44,7 @@ pages:
       - entity_id: input_select.sleep_mode
         service: input_select.select_previous
         text: Sleep {{ states("input_select.sleep_mode") }}
+        icon_mdi: power-sleep
       - icon: fireplace.png
         service: script.start_fireplace_netflix
       - service_data:

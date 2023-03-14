@@ -263,6 +263,8 @@ def _is_state(
 def _render_jinja(text: str, complete_state: dict[str, dict[str, Any]]) -> str:
     """Render a Jinja template."""
     try:
+        if "{" not in text:
+            return text
         template = jinja2.Template(text)
         return template.render(  # noqa: TRY300
             min=min,
@@ -389,7 +391,7 @@ def update_key_image(
     button = config.button(key)
     if button.special_type == "empty":
         return
-
+    button = button.rendered_button(complete_state)
     icon_convert_to_grayscale = False
     text = button.text
     text_color = button.text_color or "white"
@@ -406,10 +408,9 @@ def update_key_image(
     elif button.entity_id in complete_state:
         # Has entity_id
         state = complete_state[button.entity_id]
-        text = _render_jinja(button.text, complete_state)
 
         if button.text_color is not None:
-            text_color = _render_jinja(button.text_color, complete_state)
+            text_color = button.text_color
         elif state["state"] == "on":
             text_color = "orangered"
         else:
@@ -467,9 +468,10 @@ async def _handle_key_press(
     websocket: websockets.WebSocketClientProtocol,
     complete_state: dict[str, dict[str, Any]],
     config: Config,
-    button: Button,
+    key: int,
     deck: StreamDeck,
 ) -> None:
+    button = config.button(key)
     if button.special_type == "next-page":
         config.next_page()
         deck.reset()
@@ -479,18 +481,18 @@ async def _handle_key_press(
         deck.reset()
         update_all_key_images(deck, config, complete_state)
     elif button.service is not None:
+        button = button.rendered_button(complete_state)
         if button.service_data is None:
             service_data = {}
             if button.entity_id is not None:
                 service_data["entity_id"] = button.entity_id
         else:
-            service_data = button.service_data.copy()
-            for k, v in service_data.items():
-                service_data[k] = _render_jinja(v, complete_state)
+            service_data = button.service_data
         rich.print(
             f"Calling service {button.service} with data {service_data}",
             flush=True,
         )
+        assert button.service is not None  # for mypy
         await call_service(websocket, button.service, service_data)
 
 
@@ -506,7 +508,6 @@ def _on_press_callback(
     ) -> None:
         rich.print(f"Key {key} {'pressed' if key_pressed else 'released'}")
         try:
-            button = config.button(key)
             update_key_image(
                 deck,
                 key=key,
@@ -515,7 +516,7 @@ def _on_press_callback(
                 key_pressed=key_pressed,
             )
             if key_pressed:
-                await _handle_key_press(websocket, complete_state, config, button, deck)
+                await _handle_key_press(websocket, complete_state, config, key, deck)
         except Exception as e:  # noqa: BLE001
             rich.print(f"key_change_callback failed with a {type(e)}: {e}")
 

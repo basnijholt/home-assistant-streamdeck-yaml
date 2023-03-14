@@ -360,20 +360,25 @@ def update_key_image(
     button = config.button(key)
     if button.special_type == "empty":
         return
+
+    icon_convert_to_grayscale = False
+    text = button.text
+    text_color = button.text_color or "white"
+    icon_mdi = button.icon_mdi
+
     if button.special_type == "next-page":
         text = "Next\nPage"
         text_color = "white"
         icon_mdi = "chevron-right"
-        icon_convert_to_grayscale = False
     elif button.special_type == "previous-page":
         text = "Previous\nPage"
         text_color = "white"
         icon_mdi = "chevron-left"
-        icon_convert_to_grayscale = False
     elif button.entity_id in complete_state:
         # Has entity_id
         state = complete_state[button.entity_id]
         text = _render_jinja(button.text, complete_state)
+
         if button.text_color is not None:
             text_color = _render_jinja(button.text_color, complete_state)
         elif state["state"] == "on":
@@ -388,15 +393,8 @@ def update_key_image(
         else:
             icon_mdi = None
 
-        icon_convert_to_grayscale = (
-            False if state["state"] == "on" else button.icon_gray_when_off
-        )
-    else:
-        # No entity_id, e.g., a script
-        text = button.text
-        text_color = button.text_color or "white"
-        icon_mdi = button.icon_mdi
-        icon_convert_to_grayscale = False
+        if state["state"] == "off":
+            icon_convert_to_grayscale = button.icon_gray_when_off
 
     image = render_key_image(
         deck,

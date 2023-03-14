@@ -436,6 +436,37 @@ def read_config(fname: Path) -> Config:
         return Config(pages=data["pages"])
 
 
+async def _handle_key_press(
+    button: Button,
+    deck: StreamDeck,
+    complete_state: dict[str, dict[str, Any]],
+    config: Config,
+    websocket: websockets.WebSocketClientProtocol,
+) -> None:
+    if button.special_type == "next-page":
+        config.next_page()
+        deck.reset()
+        update_all_key_images(deck, config, complete_state)
+    elif button.special_type == "previous-page":
+        config.previous_page()
+        deck.reset()
+        update_all_key_images(deck, config, complete_state)
+    elif button.service is not None:
+        if button.service_data is None:
+            service_data = {}
+            if button.entity_id is not None:
+                service_data["entity_id"] = button.entity_id
+        else:
+            service_data = button.service_data.copy()
+            for k, v in service_data.items():
+                service_data[k] = _render_jinja(v, complete_state)
+        rich.print(
+            f"Calling service {button.service} with data {service_data}",
+            flush=True,
+        )
+        await call_service(websocket, button.service, service_data)
+
+
 def _on_press_callback(
     websocket: websockets.WebSocketClientProtocol,
     complete_state: dict[str, dict[str, Any]],
@@ -447,37 +478,19 @@ def _on_press_callback(
         key_pressed: bool,  # noqa: FBT001
     ) -> None:
         rich.print(f"Key {key} {'pressed' if key_pressed else 'released'}")
-        button = config.button(key)
-        update_key_image(
-            deck,
-            key=key,
-            config=config,
-            complete_state=complete_state,
-            key_pressed=key_pressed,
-        )
-        if key_pressed:
-            if button.special_type == "next-page":
-                config.next_page()
-                deck.reset()
-                update_all_key_images(deck, config, complete_state)
-            elif button.special_type == "previous-page":
-                config.previous_page()
-                deck.reset()
-                update_all_key_images(deck, config, complete_state)
-            elif button.service is not None:
-                if button.service_data is None:
-                    service_data = {}
-                    if button.entity_id is not None:
-                        service_data["entity_id"] = button.entity_id
-                else:
-                    service_data = button.service_data.copy()
-                    for k, v in service_data.items():
-                        service_data[k] = _render_jinja(v, complete_state)
-                rich.print(
-                    f"Calling service {button.service} with data {service_data}",
-                    flush=True,
-                )
-                await call_service(websocket, button.service, service_data)
+        try:
+            button = config.button(key)
+            update_key_image(
+                deck,
+                key=key,
+                config=config,
+                complete_state=complete_state,
+                key_pressed=key_pressed,
+            )
+            if key_pressed:
+                await _handle_key_press(button, deck, complete_state, config, websocket)
+        except Exception as e:  # noqa: BLE001
+            rich.print(f"key_change_callback failed with a {type(e)}: {e}")
 
     return key_change_callback
 

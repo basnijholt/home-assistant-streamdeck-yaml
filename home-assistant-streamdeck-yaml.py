@@ -356,7 +356,7 @@ def render_key_image(
     elif icon_mdi is not None:
         url = _mdi_url(icon_mdi)
         icon = _download_and_convert_svg_to_png(
-            url,
+            url=url,
             color=_named_to_hex(text_color),
             opacity=0.3,
             margin=icon_mdi_margin,
@@ -554,11 +554,12 @@ def _scale_hex_color(hex_color: str, scale: float) -> str:
 
 @ft.lru_cache(maxsize=128)
 def _download_and_convert_svg_to_png(
+    *,
     url: str,
     color: str,
     opacity: float,
-    filename: str | Path | None,
     margin: int,
+    filename: str | Path | None = None,
 ) -> Image:
     """Download an SVG file from a given URL to PNG.
 
@@ -573,10 +574,10 @@ def _download_and_convert_svg_to_png(
         The HEX color to use for the icon.
     opacity
         The opacity of the icon. 0 is black, 1 is full color.
-    filename
-        The name of the file to save the PNG content to.
     margin
         The margin to add around the icon.
+    filename
+        The name of the file to save the PNG content to.
     """
     svg_content = _download(url)
 

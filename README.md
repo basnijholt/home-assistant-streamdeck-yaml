@@ -16,7 +16,11 @@ Unfortunately, the native Stream Deck software does not support Linux, so here w
 Just run `pip install -r requirements.txt` to install the required dependencies.
 
 ## Usage
+
 1. Create a `streamdeck-config.yaml` file in the same directory as the `home-assistant-streamdeck-yaml.py` file.
+
+### (Option 1) With commandline arguments
+
 2. Run `python home-assistant-streamdeck-yaml.py -h` to see the available options.
 
 Example:
@@ -24,4 +28,10 @@ Example:
 python home-assistant-streamdeck-yaml.py --host "klasdhkjashdhaksdl.ui.nabu.casa" --token "SOME_TOKEN_FROM_YOUR_PROFILE"
 ```
 
-Or edit the `.env.example` file and rename it to `.env`. Then you can run the script without any arguments.
+### (Option 2) With environment variables
+
+2. Edit the `.env.example` file and rename it to `.env`. Then you can run the script without any arguments. The script will automatically load the environment variables from the `.env` file.
+
+```bash
+python home-assistant-streamdeck-yaml.py
+```

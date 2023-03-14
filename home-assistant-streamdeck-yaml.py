@@ -45,6 +45,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     text_size: int = 12
     icon: str | None = None
     icon_mdi: str | None = None
+    icon_mdi_color: str | None = None
     icon_gray_when_off: bool = False
     special_type: Literal["next-page", "previous-page", "empty"] | None = None
 
@@ -66,6 +67,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             "text_color",
             "icon",
             "icon_mdi",
+            "icon_mdi_color",
         }
 
     def rendered_button(self, complete_state: dict[str, dict[str, Any]]) -> Button:
@@ -345,6 +347,7 @@ def render_key_image(
     icon_convert_to_grayscale: bool = False,
     icon_mdi: str | None = None,
     icon_mdi_margin: int = 0,
+    icon_mdi_color: str | None = None,
     font_filename: str = "Roboto-Regular.ttf",
     font_size: int = 12,
     label_text: str = "",
@@ -358,7 +361,7 @@ def render_key_image(
         url = _mdi_url(icon_mdi)
         icon = _download_and_convert_svg_to_png(
             url=url,
-            color=_named_to_hex(text_color),
+            color=_named_to_hex(icon_mdi_color or text_color),
             opacity=0.3,
             margin=icon_mdi_margin,
         )
@@ -427,6 +430,7 @@ def update_key_image(
         text_color=text_color if not key_pressed else "green",
         icon_mdi=icon_mdi,
         icon_filename=button.icon,
+        icon_mdi_color=button.icon_mdi_color,
         icon_convert_to_grayscale=icon_convert_to_grayscale,
         font_size=button.text_size,
     )

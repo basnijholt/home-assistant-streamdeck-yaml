@@ -202,10 +202,24 @@ def _is_state_attr(
 
 def _states(
     entity_id: str,
-    complete_state: dict[str, dict[str, Any]],
+    *,
+    with_unit: bool = False,
+    rounded: bool = False,
+    complete_state: dict[str, dict[str, Any]] | None = None,
 ) -> Any:
     """Get the state for an entity."""
-    return complete_state.get(entity_id, {}).get("state")
+    assert complete_state is not None
+    entity_state = complete_state.get(entity_id, {})
+    if not entity_state:
+        return None
+    state = entity_state["state"]
+    if with_unit:
+        unit = entity_state.get("attributes", {}).get("unit_of_measurement")
+        if unit:
+            state += f" {unit}"
+    if rounded:
+        state = round(float(state))
+    return state  # noqa: RET504
 
 
 def _is_state(
@@ -214,7 +228,7 @@ def _is_state(
     complete_state: dict[str, dict[str, Any]],
 ) -> bool:
     """Check if the state for an entity is a value."""
-    return _states(entity_id, complete_state) == state
+    return _states(entity_id, complete_state=complete_state) == state
 
 
 def _render_jinja(text: str, complete_state: dict[str, dict[str, Any]]) -> str:

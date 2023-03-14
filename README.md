@@ -21,3 +21,5 @@ Example:
 ```bash
 python home-assistant-streamdeck-yaml.py --host "klasdhkjashdhaksdl.ui.nabu.casa" --token "SOME_TOKEN_FROM_YOUR_PROFILE"
 ```
+
+Or edit the `.env.example` file and rename it to `.env`. Then you can run the script without any arguments.

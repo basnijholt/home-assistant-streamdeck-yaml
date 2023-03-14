@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-import functools
+import functools as ft
 import io
 import json
 from contextlib import asynccontextmanager
@@ -208,6 +208,15 @@ def _states(
     return complete_state.get(entity_id, {}).get("state")
 
 
+def _is_state(
+    entity_id: str,
+    state: str,
+    complete_state: dict[str, dict[str, Any]],
+) -> bool:
+    """Check if the state for an entity is a value."""
+    return _states(entity_id, complete_state) == state
+
+
 def _render_jinja(text: str, complete_state: dict[str, dict[str, Any]]) -> str:
     """Render a Jinja template."""
     try:
@@ -215,12 +224,10 @@ def _render_jinja(text: str, complete_state: dict[str, dict[str, Any]]) -> str:
         return template.render(  # noqa: TRY300
             min=min,
             max=max,
-            is_state_attr=functools.partial(
-                _is_state_attr,
-                complete_state=complete_state,
-            ),
-            state_attr=functools.partial(_state_attr, complete_state=complete_state),
-            states=functools.partial(_states, complete_state=complete_state),
+            is_state_attr=ft.partial(_is_state_attr, complete_state=complete_state),
+            state_attr=ft.partial(_state_attr, complete_state=complete_state),
+            states=ft.partial(_states, complete_state=complete_state),
+            is_state=ft.partial(_is_state, complete_state=complete_state),
         )
     except jinja2.exceptions.TemplateError as err:
         rich.print(f"Error rendering template: {err} with error type {type(err)}")
@@ -464,7 +471,7 @@ def _on_press_callback(
     return key_change_callback
 
 
-@functools.lru_cache(maxsize=128)
+@ft.lru_cache(maxsize=128)
 def _download(url: str) -> bytes:
     """Download the content from the URL."""
     response = requests.get(url, timeout=5)

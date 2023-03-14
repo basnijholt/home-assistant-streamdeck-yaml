@@ -70,12 +70,22 @@ class Config(BaseModel):
 
     def next_page(self) -> Page:
         """Go to the next page."""
-        self.current_page_index = (self.current_page_index + 1) % len(self.pages)
+        self.current_page_index = self.next_page_index
         return self.pages[self.current_page_index]
+
+    @property
+    def next_page_index(self) -> int:
+        """Return the next page index."""
+        return (self.current_page_index + 1) % len(self.pages)
+
+    @property
+    def previous_page_index(self) -> int:
+        """Return the previous page index."""
+        return (self.current_page_index - 1) % len(self.pages)
 
     def previous_page(self) -> Page:
         """Go to the previous page."""
-        self.current_page_index = (self.current_page_index - 1) % len(self.pages)
+        self.current_page_index = self.previous_page_index
         return self.pages[self.current_page_index]
 
     def current_page(self) -> Page:

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Home Assistant Stream Deck integration."""
 from __future__ import annotations
 

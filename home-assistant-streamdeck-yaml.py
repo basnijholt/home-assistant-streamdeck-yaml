@@ -251,10 +251,7 @@ def _render_jinja(text: str, complete_state: dict[str, dict[str, Any]]) -> str:
 async def get_states(websocket: websockets.WebSocketClientProtocol) -> dict[str, Any]:
     """Get the current state of all entities."""
     _id = _next_id()
-    subscribe_payload = {
-        "type": "get_states",
-        "id": _id,
-    }
+    subscribe_payload = {"type": "get_states", "id": _id}
     await websocket.send(json.dumps(subscribe_payload))
     while True:
         data = json.loads(await websocket.recv())

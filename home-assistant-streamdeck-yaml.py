@@ -139,7 +139,7 @@ async def subscribe_state_changes(
 
 async def handle_state_changes(
     websocket: websockets.WebSocketClientProtocol,
-    complete_state: dict[str, Any],
+    complete_state: dict[str, dict[str, Any]],
     deck: StreamDeck,
     config: Config,
 ) -> None:
@@ -156,7 +156,7 @@ def _keys(entity_id: str, buttons: list[Button]) -> list[int]:
 
 
 def _update_state(
-    complete_state: dict[str, Any],
+    complete_state: dict[str, dict[str, Any]],
     data: dict[str, Any],
     config: Config,
     deck: StreamDeck,
@@ -181,14 +181,46 @@ def _update_state(
                 )
 
 
-def _render_jinja(text: str, data: dict[str, Any]) -> str:
+def _state_attr(
+    entity_id: str,
+    attr: str,
+    complete_state: dict[str, dict[str, Any]],
+) -> Any:
+    """Get the state attribute for an entity."""
+    return complete_state.get(entity_id, {}).get("attributes", {}).get(attr)
+
+
+def _is_state_attr(
+    entity_id: str,
+    attr: str,
+    value: Any,
+    complete_state: dict[str, dict[str, Any]],
+) -> bool:
+    """Check if the state attribute for an entity is a value."""
+    return _state_attr(entity_id, attr, complete_state) == value
+
+
+def _states(
+    entity_id: str,
+    complete_state: dict[str, dict[str, Any]],
+) -> Any:
+    """Get the state for an entity."""
+    return complete_state.get(entity_id, {}).get("state")
+
+
+def _render_jinja(text: str, complete_state: dict[str, dict[str, Any]]) -> str:
     """Render a Jinja template."""
     try:
         template = jinja2.Template(text)
         return template.render(  # noqa: TRY300
-            **data,
             min=min,
             max=max,
+            is_state_attr=functools.partial(
+                _is_state_attr,
+                complete_state=complete_state,
+            ),
+            state_attr=functools.partial(_state_attr, complete_state=complete_state),
+            states=functools.partial(_states, complete_state=complete_state),
         )
     except jinja2.exceptions.TemplateError as err:
         rich.print(f"Error rendering template: {err} with error type {type(err)}")
@@ -303,7 +335,7 @@ def update_key_image(
     *,
     key: int,
     config: Config,
-    complete_state: dict[str, Any],
+    complete_state: dict[str, dict[str, Any]],
     key_pressed: bool = False,
 ) -> None:
     """Update the image for a key."""
@@ -323,9 +355,9 @@ def update_key_image(
     elif button.entity_id in complete_state:
         # Has entity_id
         state = complete_state[button.entity_id]
-        text = _render_jinja(button.text, data={"state": state})
+        text = _render_jinja(button.text, complete_state)
         if button.text_color is not None:
-            text_color = _render_jinja(button.text_color, data={"state": state})
+            text_color = _render_jinja(button.text_color, complete_state)
         elif state["state"] == "on":
             text_color = "orangered"
         else:
@@ -388,7 +420,7 @@ def read_config(fname: Path) -> Config:
 
 def _on_press_callback(
     websocket: websockets.WebSocketClientProtocol,
-    complete_state: dict[str, Any],
+    complete_state: dict[str, dict[str, Any]],
     config: Config,
 ) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:
     async def key_change_callback(
@@ -420,13 +452,9 @@ def _on_press_callback(
                     if button.entity_id is not None:
                         service_data["entity_id"] = button.entity_id
                 else:
-                    service_data = button.service_data
-                    if entity_id := service_data.get("entity_id"):
-                        for k, v in service_data.items():
-                            service_data[k] = _render_jinja(
-                                v,
-                                data={"state": complete_state[entity_id]},
-                            )
+                    service_data = button.service_data.copy()
+                    for k, v in service_data.items():
+                        service_data[k] = _render_jinja(v, complete_state)
                 rich.print(
                     f"Calling service {button.service} with data {service_data}",
                     flush=True,
@@ -530,7 +558,7 @@ def _mdi_url(mdi: str) -> str:
 def update_all_key_images(
     deck: StreamDeck,
     config: Config,
-    complete_state: dict[str, Any],
+    complete_state: dict[str, dict[str, Any]],
 ) -> None:
     """Update all key images."""
     for key in range(deck.key_count()):

@@ -437,11 +437,11 @@ def read_config(fname: Path) -> Config:
 
 
 async def _handle_key_press(
-    button: Button,
-    deck: StreamDeck,
+    websocket: websockets.WebSocketClientProtocol,
     complete_state: dict[str, dict[str, Any]],
     config: Config,
-    websocket: websockets.WebSocketClientProtocol,
+    button: Button,
+    deck: StreamDeck,
 ) -> None:
     if button.special_type == "next-page":
         config.next_page()
@@ -488,7 +488,7 @@ def _on_press_callback(
                 key_pressed=key_pressed,
             )
             if key_pressed:
-                await _handle_key_press(button, deck, complete_state, config, websocket)
+                await _handle_key_press(websocket, complete_state, config, button, deck)
         except Exception as e:  # noqa: BLE001
             rich.print(f"key_change_callback failed with a {type(e)}: {e}")
 

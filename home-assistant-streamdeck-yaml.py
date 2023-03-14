@@ -139,7 +139,7 @@ async def subscribe_state_changes(
 
 async def handle_state_changes(
     websocket: websockets.WebSocketClientProtocol,
-    state: dict[str, Any],
+    complete_state: dict[str, Any],
     deck: StreamDeck,
     config: Config,
 ) -> None:
@@ -147,7 +147,7 @@ async def handle_state_changes(
     # Wait for the state change events
     while True:
         data = json.loads(await websocket.recv())
-        _update_state(state, data, config, deck)
+        _update_state(complete_state, data, config, deck)
 
 
 def _keys(entity_id: str, buttons: list[Button]) -> list[int]:
@@ -156,7 +156,7 @@ def _keys(entity_id: str, buttons: list[Button]) -> list[int]:
 
 
 def _update_state(
-    state: dict[str, Any],
+    complete_state: dict[str, Any],
     data: dict[str, Any],
     config: Config,
     deck: StreamDeck,
@@ -168,7 +168,7 @@ def _update_state(
         if event_data["event_type"] == "state_changed":
             event_data = event_data["data"]
             eid = event_data["entity_id"]
-            state[eid] = event_data["new_state"]
+            complete_state[eid] = event_data["new_state"]
             keys = _keys(eid, buttons)
             for key in keys:
                 rich.print(f"Updating key {key} for {eid}")
@@ -176,7 +176,7 @@ def _update_state(
                     deck,
                     key=key,
                     config=config,
-                    state=state,
+                    complete_state=complete_state,
                     key_pressed=False,
                 )
 
@@ -303,7 +303,7 @@ def update_key_image(
     *,
     key: int,
     config: Config,
-    state: dict[str, Any],
+    complete_state: dict[str, Any],
     key_pressed: bool = False,
 ) -> None:
     """Update the image for a key."""
@@ -320,9 +320,9 @@ def update_key_image(
         text_color = "white"
         icon_mdi = "chevron-left"
         icon_convert_to_grayscale = False
-    elif button.entity_id in state:
+    elif button.entity_id in complete_state:
         # Has entity_id
-        state = state[button.entity_id]
+        state = complete_state[button.entity_id]
         text = _render_jinja(button.text, data={"state": state})
         if button.text_color is not None:
             text_color = _render_jinja(button.text_color, data={"state": state})
@@ -388,7 +388,7 @@ def read_config(fname: Path) -> Config:
 
 def _on_press_callback(
     websocket: websockets.WebSocketClientProtocol,
-    state: dict[str, Any],
+    complete_state: dict[str, Any],
     config: Config,
 ) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:
     async def key_change_callback(
@@ -402,18 +402,18 @@ def _on_press_callback(
             deck,
             key=key,
             config=config,
-            state=state,
+            complete_state=complete_state,
             key_pressed=key_pressed,
         )
         if key_pressed:
             if button.special_type == "next-page":
                 config.next_page()
                 deck.reset()
-                update_all_key_images(deck, config, state)
+                update_all_key_images(deck, config, complete_state)
             elif button.special_type == "previous-page":
                 config.previous_page()
                 deck.reset()
-                update_all_key_images(deck, config, state)
+                update_all_key_images(deck, config, complete_state)
             elif button.service is not None:
                 if button.service_data is None:
                     service_data = {}
@@ -425,7 +425,7 @@ def _on_press_callback(
                         for k, v in service_data.items():
                             service_data[k] = _render_jinja(
                                 v,
-                                data={"state": state[entity_id]},
+                                data={"state": complete_state[entity_id]},
                             )
                 rich.print(
                     f"Calling service {button.service} with data {service_data}",
@@ -530,7 +530,7 @@ def _mdi_url(mdi: str) -> str:
 def update_all_key_images(
     deck: StreamDeck,
     config: Config,
-    state: dict[str, Any],
+    complete_state: dict[str, Any],
 ) -> None:
     """Update all key images."""
     for key in range(deck.key_count()):
@@ -538,7 +538,7 @@ def update_all_key_images(
             deck,
             key=key,
             config=config,
-            state=state,
+            complete_state=complete_state,
             key_pressed=False,
         )
 
@@ -547,12 +547,14 @@ async def main(host: str, token: str, config: Config) -> None:
     """Main entry point for the Stream Deck integration."""
     deck = get_deck()
     async with setup_ws(host, token) as websocket:
-        state = await get_states(websocket)
-        update_all_key_images(deck, config, state)
-        deck.set_key_callback_async(_on_press_callback(websocket, state, config))
+        complete_state = await get_states(websocket)
+        update_all_key_images(deck, config, complete_state)
+        deck.set_key_callback_async(
+            _on_press_callback(websocket, complete_state, config),
+        )
         deck.set_brightness(100)
         await subscribe_state_changes(websocket)
-        await handle_state_changes(websocket, state, deck, config)
+        await handle_state_changes(websocket, complete_state, deck, config)
 
 
 if __name__ == "__main__":

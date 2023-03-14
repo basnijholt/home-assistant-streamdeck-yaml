@@ -642,13 +642,23 @@ async def main(host: str, token: str, config: Config) -> None:
         await handle_state_changes(websocket, complete_state, deck, config)
 
 
-if __name__ == "__main__":
+def start() -> None:
+    """Start the Stream Deck integration."""
     import argparse
+    import os
+
+    from dotenv import load_dotenv
+
+    load_dotenv()
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="localhost")
-    parser.add_argument("--token", default=None)
+    parser.add_argument("--host", default=os.environ.get("HASS_HOST", "localhost"))
+    parser.add_argument("--token", default=os.environ.get("HASS_TOKEN"))
     parser.add_argument("--config", default="streamdeck-config.yaml", type=Path)
     args = parser.parse_args()
     config = read_config(args.config)
     asyncio.run(main(host=args.host, token=args.token, config=config))
+
+
+if __name__ == "__main__":
+    start()

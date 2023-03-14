@@ -1,4 +1,5 @@
 cairosvg
+dotenv
 jinja2
 lxml
 pillow

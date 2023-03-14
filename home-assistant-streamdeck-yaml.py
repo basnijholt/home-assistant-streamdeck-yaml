@@ -355,14 +355,12 @@ def render_key_image(
             icon = _convert_to_grayscale(icon)
     elif icon_mdi is not None:
         url = _mdi_url(icon_mdi)
-        _download_and_convert_svg_to_png(
+        icon = _download_and_convert_svg_to_png(
             url,
             color=_named_to_hex(text_color),
             opacity=0.3,
-            filename=ASSETS_PATH / f"{icon_mdi}.png",
             margin=icon_mdi_margin,
         )
-        icon = Image.open(ASSETS_PATH / f"{icon_mdi}.png")
     else:
         icon = Image.new("RGB", (deck.KEY_PIXEL_WIDTH, deck.KEY_PIXEL_HEIGHT), "black")
     image = PILHelper.create_scaled_image(deck, icon, margins=[0, 0, 0, 0])
@@ -554,13 +552,14 @@ def _scale_hex_color(hex_color: str, scale: float) -> str:
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
+@ft.lru_cache(maxsize=128)
 def _download_and_convert_svg_to_png(
     url: str,
     color: str,
     opacity: float,
-    filename: str | Path,
+    filename: str | Path | None,
     margin: int,
-) -> None:
+) -> Image:
     """Download an SVG file from a given URL to PNG.
 
     Modify the fill and background colors based on the input color value,
@@ -599,7 +598,9 @@ def _download_and_convert_svg_to_png(
     with Image.open(io.BytesIO(png_content)) as image:
         im = ImageOps.expand(image, border=(margin, margin), fill="black")
         im = im.resize((72, 72))
-        im.save(filename)
+        if filename is not None:
+            im.save(filename)
+    return im
 
 
 def _mdi_url(mdi: str) -> str:

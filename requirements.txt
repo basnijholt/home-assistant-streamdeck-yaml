@@ -1,5 +1,5 @@
 cairosvg
-dotenv
+python-dotenv
 jinja2
 lxml
 pillow

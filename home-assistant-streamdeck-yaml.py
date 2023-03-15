@@ -103,11 +103,15 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         values: dict[str, Any],
     ) -> Any:
         """Validate the special_type_data."""
-        if values["special_type"] == "go-to-page" and not isinstance(v, (int, str)):
+        special_type = values["special_type"]
+        if special_type == "go-to-page" and not isinstance(v, (int, str)):
             msg = (
                 "If special_type is go-to-page, special_type_data must be an int or str"
             )
-            raise ValueError(msg)
+            raise AssertionError(msg)
+        if special_type in {"next-page", "previous-page", "empty"} and v is not None:
+            msg = f"special_type_data needs to be empty with {special_type=}"
+            raise AssertionError(msg)
         return v
 
 

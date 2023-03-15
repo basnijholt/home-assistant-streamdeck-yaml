@@ -27,5 +27,6 @@ User=root
 
 # Set this to the path of `home-assistant-streamdeck-yaml`
 ExecStart=/root/home-assistant-streamdeck-yaml/systemd/run.sh
+
 [Install]
 WantedBy=multi-user.target

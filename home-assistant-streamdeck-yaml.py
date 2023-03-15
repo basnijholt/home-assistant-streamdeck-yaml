@@ -152,13 +152,13 @@ async def setup_ws(host: str, token: str) -> websockets.WebSocketClientProtocol:
 
                 # Wait for the authentication response
                 auth_response = await websocket.recv()
-                console.print(auth_response)
-                console.print("Connected to Home Assistant")
+                console.log(auth_response)
+                console.log("Connected to Home Assistant")
                 yield websocket
         except ConnectionResetError:
             # Connection was reset, retrying in 3 seconds
             console.print_exception(show_locals=True)
-            console.print("Connection was reset, retrying in 3 seconds")
+            console.log("Connection was reset, retrying in 3 seconds")
             await asyncio.sleep(5)
 
 
@@ -208,7 +208,7 @@ def _update_state(
             complete_state[eid] = event_data["new_state"]
             keys = _keys(eid, buttons)
             for key in keys:
-                console.print(f"Updating key {key} for {eid}")
+                console.log(f"Updating key {key} for {eid}")
                 update_key_image(
                     deck,
                     key=key,
@@ -286,7 +286,7 @@ def _render_jinja(text: str, complete_state: dict[str, dict[str, Any]]) -> str:
         )
     except jinja2.exceptions.TemplateError as err:
         console.print_exception(show_locals=True)
-        console.print(f"Error rendering template: {err} with error type {type(err)}")
+        console.log(f"Error rendering template: {err} with error type {type(err)}")
         return text
 
 
@@ -300,7 +300,7 @@ async def get_states(websocket: websockets.WebSocketClientProtocol) -> dict[str,
         if data["type"] == "result":
             # Extract the state data from the response
             state_dict = {state["entity_id"]: state for state in data["result"]}
-            console.print(state_dict)
+            console.log(state_dict)
             await unsubscribe(websocket, _id)
             return state_dict
 
@@ -460,7 +460,7 @@ def get_deck() -> StreamDeck:
     if not found:
         msg = "No Stream Deck found"
         raise RuntimeError(msg)
-    print(f"Found {deck.key_count()} keys, {deck=}")
+    console.log(f"Found {deck.key_count()} keys, {deck=}")
     return deck
 
 
@@ -495,7 +495,7 @@ async def _handle_key_press(
                 service_data["entity_id"] = button.entity_id
         else:
             service_data = button.service_data
-        console.print(f"Calling service {button.service} with data {service_data}")
+        console.log(f"Calling service {button.service} with data {service_data}")
         assert button.service is not None  # for mypy
         await call_service(websocket, button.service, service_data)
 
@@ -510,7 +510,7 @@ def _on_press_callback(
         key: int,
         key_pressed: bool,  # noqa: FBT001
     ) -> None:
-        console.print(f"Key {key} {'pressed' if key_pressed else 'released'}")
+        console.log(f"Key {key} {'pressed' if key_pressed else 'released'}")
         try:
             update_key_image(
                 deck,
@@ -523,7 +523,7 @@ def _on_press_callback(
                 await _handle_key_press(websocket, complete_state, config, key, deck)
         except Exception as e:  # noqa: BLE001
             console.print_exception(show_locals=True)
-            console.print(f"key_change_callback failed with a {type(e)}: {e}")
+            console.log(f"key_change_callback failed with a {type(e)}: {e}")
 
     return key_change_callback
 

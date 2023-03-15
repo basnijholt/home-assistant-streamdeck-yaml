@@ -1,9 +1,11 @@
 #!/bin/bash
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # activate the micromamba environment
-eval "$(~/.local/bin/micromamba shell hook -s posix)"
+export MAMBA_EXE="$HOME/.local/bin/micromamba"
+export MAMBA_ROOT_PREFIX="$HOME/micromamba"
+eval "$($MAMBA_EXE shell hook --shell=bash --prefix $MAMBA_ROOT_PREFIX)"
 micromamba activate streamdeck
 
 $SCRIPT_DIR/home-assistant-streamdeck-yaml.py

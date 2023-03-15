@@ -1,0 +1,31 @@
+# This is a systemd service file for the Home Assistant Stream Deck YAML service
+
+# First edit the `ExecStart` value below with the correct path.
+
+# Copy this file to /etc/systemd/system/home-assistant-streamdeck-yaml.service with:
+# > sudo cp home-assistant-streamdeck-yaml.service /etc/systemd/system/
+
+# After making changes to the service file, you need to reload the
+# systemd configuration to pick up the changes:
+# > sudo systemctl daemon-reload
+
+# And then you can start, stop, and enable the service with the systemctl command:
+# > sudo systemctl start home-assistant-streamdeck-yaml
+# > sudo systemctl stop home-assistant-streamdeck-yaml
+# > sudo systemctl restart home-assistant-streamdeck-yaml
+# > sudo systemctl enable home-assistant-streamdeck-yaml
+
+[Unit]
+Description=Home Assistant Stream Deck YAML Service
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=3
+User=root
+
+# Set this to the path of `home-assistant-streamdeck-yaml`
+ExecStart=/bin/bash -c '/root/home-assistant-streamdeck-yaml/run.sh'
+[Install]
+WantedBy=multi-user.target

@@ -30,8 +30,9 @@ if TYPE_CHECKING:
 
     from StreamDeck.Devices import StreamDeck
 
-ASSETS_PATH = Path(__file__).parent / "assets"
-
+SCRIPT_DIR = Path(__file__).parent
+ASSETS_PATH = SCRIPT_DIR / "assets"
+DEFAULT_CONFIG = SCRIPT_DIR / "streamdeck-config.yaml"
 DEFAULT_MDI_ICONS = {"light": "lightbulb", "switch": "power-socket-eu"}
 
 _ID_COUNTER = 0
@@ -662,7 +663,7 @@ def start() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default=os.environ.get("HASS_HOST", "localhost"))
     parser.add_argument("--token", default=os.environ.get("HASS_TOKEN"))
-    parser.add_argument("--config", default="streamdeck-config.yaml", type=Path)
+    parser.add_argument("--config", default=DEFAULT_CONFIG, type=Path)
     args = parser.parse_args()
     config = read_config(args.config)
     asyncio.run(main(host=args.host, token=args.token, config=config))

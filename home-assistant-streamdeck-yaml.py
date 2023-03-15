@@ -51,7 +51,13 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     icon_mdi: str | None = None
     icon_mdi_color: str | None = None
     icon_gray_when_off: bool = False
-    special_type: Literal["next-page", "previous-page", "empty"] | None = None
+    special_type: Literal[
+        "next-page",
+        "previous-page",
+        "empty",
+        "go-to-page",
+    ] | None = None
+    special_type_data: Any | None = None
 
     @property
     def domain(self) -> str | None:
@@ -131,6 +137,17 @@ class Config(BaseModel):
     def button(self, key: int) -> Button:
         """Return the button for a key."""
         return self.current_page().buttons[key]
+
+    def to_page(self, page: int | str) -> Page:
+        """Go to a page based on the page name or index."""
+        if isinstance(page, int):
+            self.current_page_index = page
+        else:
+            for i, p in enumerate(self.pages):
+                if p.name == page:
+                    self.current_page_index = i
+                    break
+        return self.current_page()
 
 
 def _next_id() -> int:
@@ -413,6 +430,10 @@ def update_key_image(
     elif button.special_type == "previous-page":
         text = "Previous\nPage"
         icon_mdi = "chevron-left"
+    elif button.special_type == "go-to-page":
+        page = button.special_type_data
+        text = f"Go to\nPage\n{page}"
+        icon_mdi = "book-open-page-variant"
     elif button.entity_id in complete_state:
         # Has entity_id
         state = complete_state[button.entity_id]
@@ -485,6 +506,10 @@ async def _handle_key_press(
         update_all_key_images(deck, config, complete_state)
     elif button.special_type == "previous-page":
         config.previous_page()
+        deck.reset()
+        update_all_key_images(deck, config, complete_state)
+    elif button.special_type == "go-to-page":
+        config.to_page(button.special_type_data)  # type: ignore[arg-type]
         deck.reset()
         update_all_key_images(deck, config, complete_state)
     elif button.service is not None:

@@ -120,7 +120,9 @@ pages:
         text: |
           Movie
           time
-      - special_type: empty
-      - special_type: empty
+      - special_type: go-to-page
+        special_type_data: Home
+      - special_type: go-to-page
+        special_type_data: 0
       - special_type: previous-page
       - special_type: next-page

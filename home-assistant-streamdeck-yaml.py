@@ -96,6 +96,20 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             setattr(rendered_button, field_name, new)
         return rendered_button
 
+    def render_icon(self) -> str | None:
+        """Render the icon."""
+        if self.icon is None:
+            return None
+
+        if ":" in self.icon:
+            which, id_ = self.icon.split(":", 1)
+            if which == "spotify":
+                filename = _to_filename(self.icon, ".jpeg")
+                _download_spotify_image(id_, filename)
+                return str(filename)
+
+        return self.icon
+
     @validator("special_type_data")
     def _validate_special_type(
         cls: type[Button],
@@ -113,6 +127,12 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             msg = f"special_type_data needs to be empty with {special_type=}"
             raise AssertionError(msg)
         return v
+
+
+def _to_filename(id_: str, suffix: str = "") -> Path:
+    """Converts an id with ":" and "_" to a filename with optional suffix."""
+    filename = ASSETS_PATH / id_.replace("/", "_").replace(":", "_")
+    return filename.with_suffix(suffix)
 
 
 class Page(BaseModel):
@@ -476,7 +496,7 @@ def update_key_image(
         label_text=text,
         text_color=text_color if not key_pressed else "green",
         icon_mdi=icon_mdi,
-        icon_filename=button.icon,
+        icon_filename=button.render_icon(),
         icon_mdi_color=button.icon_mdi_color,
         icon_convert_to_grayscale=icon_convert_to_grayscale,
         font_size=button.text_size,
@@ -664,6 +684,28 @@ def _mdi_url(mdi: str) -> str:
     Check https://mdi.bessarabov.com for the available icons.
     """
     return f"https://raw.githubusercontent.com/Templarian/MaterialDesign/master/svg/{mdi}.svg"
+
+
+@ft.lru_cache(maxsize=128)
+def _download_spotify_image(
+    id_: str,
+    filename: str | Path | None = None,
+) -> Image | None:
+    """Download the Spotify image for the given ID.
+
+    For example, the ID for the following URL is "playlist/37i9dQZF1DXaRycgyh6kXP"
+    or "track/2QZzZU0GK6y4M5yfXtXoZK".
+    """
+    url = f"https://embed.spotify.com/oembed/?url=http://open.spotify.com/{id_}"
+    content = _download(url)
+    data = json.loads(content)
+    image_url = data["thumbnail_url"]
+    image_content = _download(image_url)
+    image = Image.open(io.BytesIO(image_content))
+    if filename is not None:
+        image.save(filename)
+        return None
+    return image
 
 
 def update_all_key_images(

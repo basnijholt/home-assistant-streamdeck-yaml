@@ -3,22 +3,22 @@ pages:
     buttons:
       - entity_id: light.living_room_lights_z2m
         service: light.toggle
-        text: >
+        text: |
           Living room
           lights
       - entity_id: light.bedroom_lights_z2m
         service: light.toggle
-        text: >
+        text: |
           Bedroom
           lights
       - entity_id: light.guest_room
         service: light.toggle
-        text: >
+        text: |
           Guest room
           light
       - entity_id: light.outside_lights_z2m
         service: light.toggle
-        text: >
+        text: |
           Outside
           lights
       - entity_id: switch.space_heater
@@ -45,7 +45,7 @@ pages:
         text_size: 16
         icon_mdi: volume-plus
       - service: script.reset_manual_control
-        text: >
+        text: |
           Reset
           adaptive
           lighting
@@ -73,20 +73,47 @@ pages:
         service: script.start_spotify
       - icon: xbox.png
         service: script.start_xbox
+      - icon_mdi: lightbulb
+        service: script.cozy_lights_living_room
+        text: |
+          Cozy
+          lights
+      - icon_mdi: lightbulb
+        service: script.white_lights_living_room
+        text: |
+          White
+          lights
+      - icon_mdi: lightbulb
+        entity_id: light.living_room_lights_z2m
+        service: light.turn_on
+        service_data:
+          entity_id: light.living_room_lights_z2m
+          brightness: 1
+        text: |
+          1%
+          brightness
+      - icon_mdi: lightbulb
+        entity_id: light.living_room_lights_z2m
+        service: light.turn_on
+        service_data:
+          brightness: 50
+          entity_id: light.living_room_lights_z2m
+        text: |
+          50%
+          brightness
+      - icon_mdi: lightbulb
+        entity_id: light.living_room_lights_z2m
+        service: light.turn_on
+        service_data:
+          brightness: 100
+          entity_id: light.living_room_lights_z2m
+        text: |
+          100%
+          brightness
       - special_type: empty
       - special_type: empty
       - special_type: empty
       - special_type: empty
       - special_type: empty
-      - special_type: empty
-      - special_type: empty
-      - special_type: empty
-      - special_type: empty
-      - special_type: empty
-      - entity_id: light.guest_room
-        service: light.toggle
-        text: >
-          Guest room
-          light
       - special_type: previous-page
       - special_type: next-page

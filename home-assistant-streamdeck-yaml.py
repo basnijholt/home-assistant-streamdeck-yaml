@@ -271,6 +271,8 @@ def _is_state(
 def _render_jinja(text: str, complete_state: dict[str, dict[str, Any]]) -> str:
     """Render a Jinja template."""
     try:
+        if not isinstance(text, str):
+            return text
         if "{" not in text:
             return text
         template = jinja2.Template(text)

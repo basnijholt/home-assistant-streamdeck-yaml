@@ -3,16 +3,24 @@ pages:
     buttons:
       - entity_id: light.living_room_lights_z2m
         service: light.toggle
-        text: "Living room\nlights"
+        text: >
+          Living room
+          lights
       - entity_id: light.bedroom_lights_z2m
         service: light.toggle
-        text: "Bedroom\nlights"
+        text: >
+          Bedroom
+          lights
       - entity_id: light.guest_room
         service: light.toggle
-        text: "Guest room\nlight"
+        text: >
+          Guest room
+          light
       - entity_id: light.outside_lights_z2m
         service: light.toggle
-        text: "Outside\nlights"
+        text: >
+          Outside
+          lights
       - entity_id: switch.space_heater
         service: switch.toggle
         text: '{{ states("switch.space_heater") }}'
@@ -37,7 +45,10 @@ pages:
         text_size: 16
         icon_mdi: volume-plus
       - service: script.reset_manual_control
-        text: "Reset\nadaptive\nlighting"
+        text: >
+          Reset
+          adaptive
+          lighting
       - icon: night_sky.png
         service: script.turn_off_everything
         text: ALL OFF
@@ -74,6 +85,8 @@ pages:
       - special_type: empty
       - entity_id: light.guest_room
         service: light.toggle
-        text: "Guest room\nlight"
+        text: >
+          Guest room
+          light
       - special_type: previous-page
       - special_type: next-page

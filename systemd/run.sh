@@ -8,4 +8,4 @@ export MAMBA_ROOT_PREFIX="$HOME/micromamba"
 eval "$($MAMBA_EXE shell hook --shell=bash --prefix $MAMBA_ROOT_PREFIX)"
 micromamba activate streamdeck
 
-$SCRIPT_DIR/home-assistant-streamdeck-yaml.py
+$SCRIPT_DIR/../home-assistant-streamdeck-yaml.py

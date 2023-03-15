@@ -73,6 +73,9 @@ pages:
         service: script.start_spotify
       - icon: xbox.png
         service: script.start_xbox
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
       - icon_mdi: lightbulb
         service: script.cozy_lights_living_room
         text: |
@@ -110,8 +113,6 @@ pages:
         text: |
           100%
           brightness
-      - special_type: empty
-      - special_type: empty
       - special_type: empty
       - special_type: empty
       - special_type: empty

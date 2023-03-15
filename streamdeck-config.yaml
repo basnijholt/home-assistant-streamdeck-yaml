@@ -113,7 +113,13 @@ pages:
         text: |
           100%
           brightness
-      - special_type: empty
+      - icon_mdi: movie
+        service: automation.trigger
+        service_data:
+          entity_id: automation.apple_watch_movie_time
+        text: |
+          Movie
+          time
       - special_type: empty
       - special_type: empty
       - special_type: previous-page

@@ -91,7 +91,7 @@ pages:
         service: light.turn_on
         service_data:
           entity_id: light.living_room_lights_z2m
-          brightness: 1
+          brightness_pct: 1
         text: |
           1%
           brightness
@@ -99,7 +99,7 @@ pages:
         entity_id: light.living_room_lights_z2m
         service: light.turn_on
         service_data:
-          brightness: 50
+          brightness_pct: 50
           entity_id: light.living_room_lights_z2m
         text: |
           50%
@@ -108,7 +108,7 @@ pages:
         entity_id: light.living_room_lights_z2m
         service: light.turn_on
         service_data:
-          brightness: 100
+          brightness_pct: 100
           entity_id: light.living_room_lights_z2m
         text: |
           100%

@@ -22,19 +22,19 @@ Just run `pip install -r requirements.txt` to install the required dependencies.
 
 1. Create a `streamdeck-config.yaml` file in the same directory as the `home-assistant-streamdeck-yaml.py` file.
 
-### (Option 1) With commandline arguments
-
-2. Run `python home-assistant-streamdeck-yaml.py -h` to see the available options.
-
-Example:
-```bash
-python home-assistant-streamdeck-yaml.py --host "klasdhkjashdhaksdl.ui.nabu.casa" --token "SOME_TOKEN_FROM_YOUR_PROFILE"
-```
-
-### (Option 2) With environment variables
+### (Option 1) With environment variables
 
 2. Edit the `.env.example` file and rename it to `.env`. Then you can run the script without any arguments. The script will automatically load the environment variables from the `.env` file.
 
 ```bash
 python home-assistant-streamdeck-yaml.py
+```
+
+### (Option 2) With commandline arguments
+
+2. Run `python home-assistant-streamdeck-yaml.py -h` to see the available options.
+
+Example invocation:
+```bash
+python home-assistant-streamdeck-yaml.py --host "klasdhkjashdhaksdl.ui.nabu.casa" --token "SOME_TOKEN_FROM_YOUR_PROFILE"
 ```

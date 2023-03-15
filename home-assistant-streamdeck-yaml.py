@@ -17,7 +17,7 @@ import websockets
 import yaml
 from lxml import etree
 from PIL import Image, ImageColor, ImageDraw, ImageFont, ImageOps
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from rich.console import Console
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.ImageHelpers import PILHelper
@@ -95,6 +95,20 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 new = field_value
             setattr(rendered_button, field_name, new)
         return rendered_button
+
+    @validator("special_type_data")
+    def _validate_special_type(
+        cls: type[Button],
+        v: Any,
+        values: dict[str, Any],
+    ) -> Any:
+        """Validate the special_type_data."""
+        if values["special_type"] == "go-to-page" and not isinstance(v, (int, str)):
+            msg = (
+                "If special_type is go-to-page, special_type_data must be an int or str"
+            )
+            raise ValueError(msg)
+        return v
 
 
 class Page(BaseModel):

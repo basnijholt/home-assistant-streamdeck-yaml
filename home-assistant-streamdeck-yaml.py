@@ -13,14 +13,17 @@ from typing import TYPE_CHECKING, Any, Callable, Literal
 import cairosvg
 import jinja2
 import requests
-import rich
 import websockets
 import yaml
 from lxml import etree
 from PIL import Image, ImageColor, ImageDraw, ImageFont, ImageOps
 from pydantic import BaseModel, Field
+from rich.console import Console
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.ImageHelpers import PILHelper
+
+console = Console()
+
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
@@ -148,12 +151,13 @@ async def setup_ws(host: str, token: str) -> websockets.WebSocketClientProtocol:
 
                 # Wait for the authentication response
                 auth_response = await websocket.recv()
-                rich.print(auth_response)
-                rich.print("Connected to Home Assistant")
+                console.print(auth_response)
+                console.print("Connected to Home Assistant")
                 yield websocket
         except ConnectionResetError:
             # Connection was reset, retrying in 3 seconds
-            rich.print("Connection was reset, retrying in 3 seconds")
+            console.print_exception(show_locals=True)
+            console.print("Connection was reset, retrying in 3 seconds")
             await asyncio.sleep(5)
 
 
@@ -203,7 +207,7 @@ def _update_state(
             complete_state[eid] = event_data["new_state"]
             keys = _keys(eid, buttons)
             for key in keys:
-                rich.print(f"Updating key {key} for {eid}")
+                console.print(f"Updating key {key} for {eid}")
                 update_key_image(
                     deck,
                     key=key,
@@ -278,7 +282,8 @@ def _render_jinja(text: str, complete_state: dict[str, dict[str, Any]]) -> str:
             is_state=ft.partial(_is_state, complete_state=complete_state),
         )
     except jinja2.exceptions.TemplateError as err:
-        rich.print(f"Error rendering template: {err} with error type {type(err)}")
+        console.print_exception(show_locals=True)
+        console.print(f"Error rendering template: {err} with error type {type(err)}")
         return text
 
 
@@ -292,7 +297,7 @@ async def get_states(websocket: websockets.WebSocketClientProtocol) -> dict[str,
         if data["type"] == "result":
             # Extract the state data from the response
             state_dict = {state["entity_id"]: state for state in data["result"]}
-            rich.print(state_dict)
+            console.print(state_dict)
             await unsubscribe(websocket, _id)
             return state_dict
 
@@ -487,10 +492,7 @@ async def _handle_key_press(
                 service_data["entity_id"] = button.entity_id
         else:
             service_data = button.service_data
-        rich.print(
-            f"Calling service {button.service} with data {service_data}",
-            flush=True,
-        )
+        console.print(f"Calling service {button.service} with data {service_data}")
         assert button.service is not None  # for mypy
         await call_service(websocket, button.service, service_data)
 
@@ -505,7 +507,7 @@ def _on_press_callback(
         key: int,
         key_pressed: bool,  # noqa: FBT001
     ) -> None:
-        rich.print(f"Key {key} {'pressed' if key_pressed else 'released'}")
+        console.print(f"Key {key} {'pressed' if key_pressed else 'released'}")
         try:
             update_key_image(
                 deck,
@@ -517,7 +519,8 @@ def _on_press_callback(
             if key_pressed:
                 await _handle_key_press(websocket, complete_state, config, key, deck)
         except Exception as e:  # noqa: BLE001
-            rich.print(f"key_change_callback failed with a {type(e)}: {e}")
+            console.print_exception(show_locals=True)
+            console.print(f"key_change_callback failed with a {type(e)}: {e}")
 
     return key_change_callback
 

@@ -9,7 +9,7 @@ It is configured via a YAML file and runs on Linux, so you can use it on the sam
 
 More information coming soon.
 
-See the [streamdeck-config.yaml](streamdeck-config.yaml) file for an example configuration (or my current configuration).
+See the [configuration.yaml](configuration.yaml) file for an example configuration (or my current configuration).
 
 ## Why?
 Even though [github.com/cgiesche/streamdeck-homeassistant](https://github.com/cgiesche/streamdeck-homeassistant) exists, I wanted to have a solution that is more flexible and allows me to connect a Stream Deck to the same Linux machine where Home Assistant is running.
@@ -20,7 +20,7 @@ Just run `pip install -r requirements.txt` to install the required dependencies.
 
 ## Usage
 
-1. Create a `streamdeck-config.yaml` file in the same directory as the `home-assistant-streamdeck-yaml.py` file.
+1. Create a `configuration.yaml` file in the same directory as the `home-assistant-streamdeck-yaml.py` file.
 
 ### (Option 1) With environment variables
 

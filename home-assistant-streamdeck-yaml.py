@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 SCRIPT_DIR = Path(__file__).parent
 ASSETS_PATH = SCRIPT_DIR / "assets"
-DEFAULT_CONFIG = SCRIPT_DIR / "streamdeck-config.yaml"
+DEFAULT_CONFIG = SCRIPT_DIR / "configuration.yaml"
 DEFAULT_MDI_ICONS = {"light": "lightbulb", "switch": "power-socket-eu"}
 
 _ID_COUNTER = 0

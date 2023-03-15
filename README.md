@@ -1,4 +1,7 @@
+<img src="https://user-images.githubusercontent.com/6897215/225175629-28f80bfb-3b0a-44ac-8b52-b719953958d7.png" align="right" style="width: 300px;" />
+
 # Home Assistant on Stream Deck: configured via YAML (with templates) and running on Linux, MacOS, and Windows
+
 
 This is a simple Python script that allows you to control your Home Assistant instance via a Stream Deck.
 

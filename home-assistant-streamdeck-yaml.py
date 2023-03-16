@@ -693,8 +693,10 @@ def _download_spotify_image(
 ) -> Image | None:
     """Download the Spotify image for the given ID.
 
-    For example, the ID for the following URL is "playlist/37i9dQZF1DXaRycgyh6kXP"
-    or "track/2QZzZU0GK6y4M5yfXtXoZK".
+    Examples of ids are:
+    - "playlist/37i9dQZF1DXaRycgyh6kXP"
+    - "episode/3RIaY4PM7h4mO2IaD0eSXo"
+    - "track/4o0LyB69tylqDG6eTGhmig"
     """
     url = f"https://embed.spotify.com/oembed/?url=http://open.spotify.com/{id_}"
     content = _download(url)

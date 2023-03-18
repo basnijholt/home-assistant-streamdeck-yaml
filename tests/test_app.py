@@ -14,6 +14,7 @@ from home_assistant_streamdeck_yaml import (
     Button,
     Config,
     Page,
+    _keys,
     _named_to_hex,
     _to_filename,
     get_states,
@@ -52,13 +53,13 @@ def test_example_config_browsing_pages() -> None:
     assert config.current_page_index == 1
     first_page = config.to_page(first_page.name)
     assert config.current_page_index == 0
+    assert config.button(0) == first_page.buttons[0]
 
 
 @pytest.mark.skipif(
     not IS_CONNECTED_TO_HOMEASSISTANT,
     reason="Not connected to Home Assistant",
 )
-@pytest.mark.asyncio()
 async def test_websocket_connection() -> None:
     """Test websocket connection."""
     config = dotenv_values(ROOT / ".env")
@@ -129,30 +130,30 @@ SPECIAL_GOTO_0 = {"special_type": "go-to-page", "special_type_data": 0}
 SPECIAL_GOTO_HOME = {"special_type": "go-to-page", "special_type_data": "Home"}
 SPECIAL_PREV_PAGE = {"special_type": "previous-page"}
 SPECIAL_NEXT_PAGE = {"special_type": "next-page"}
+BUTTONS = [
+    LIGHT,
+    VOLUME_DOWN,
+    SCRIPT_WITH_TEXT,
+    SCRIPT_WITH_TEXT_AND_ICON,
+    INPUT_SELECT_WITH_TEMPLATE,
+    SCRIPT_WITH_ICON,
+    SPOTIFY_PLAYLIST,
+    SPECIAL_EMPTY,
+    SPECIAL_EMPTY,
+    SPECIAL_EMPTY,
+    SPECIAL_EMPTY,
+    SPECIAL_GOTO_0,
+    SPECIAL_GOTO_HOME,
+    SPECIAL_PREV_PAGE,
+    SPECIAL_NEXT_PAGE,
+]
 
 
 def test_buttons() -> None:
     """Test buttons."""
     with TEST_STATE_FILENAME.open("r") as f:
         state = json.load(f)
-
-    buttons = [
-        LIGHT,
-        VOLUME_DOWN,
-        SCRIPT_WITH_TEXT,
-        SCRIPT_WITH_TEXT_AND_ICON,
-        INPUT_SELECT_WITH_TEMPLATE,
-        SCRIPT_WITH_ICON,
-        SPOTIFY_PLAYLIST,
-        SPECIAL_EMPTY,
-        SPECIAL_EMPTY,
-        SPECIAL_EMPTY,
-        SPECIAL_EMPTY,
-        SPECIAL_GOTO_0,
-        SPECIAL_GOTO_HOME,
-        SPECIAL_PREV_PAGE,
-        SPECIAL_NEXT_PAGE,
-    ]
+    buttons = BUTTONS
     buttons_per_page = 15
     assert len(buttons) == buttons_per_page
     page = Page(name="Home", buttons=buttons)
@@ -168,7 +169,7 @@ def test_buttons() -> None:
     volume = state[b.entity_id]["attributes"]["volume_level"]
     assert b.text == f"{int(100 * volume)}%"
     assert b.service_data is not None
-    assert b.service_data["volume_level"] == f"{volume - 0.05:.2f}"
+    assert float(b.service_data["volume_level"]) == volume - 0.05
 
     b = rendered_buttons[3]  # SCRIPT_WITH_TEXT_AND_ICON
     assert b.render_icon() == b.icon
@@ -185,6 +186,8 @@ def test_buttons() -> None:
 
     b = rendered_buttons[14]  # SPECIAL_NEXT_PAGE
     assert b.domain is None
+
+    assert _keys(LIGHT["entity_id"], page.buttons) == [0]
 
 
 def test_validate_special_type() -> None:

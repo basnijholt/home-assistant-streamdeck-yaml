@@ -45,6 +45,7 @@ addopts = """
     --cov-report term
     --cov-report html
     --cov-fail-under=98
+    --asyncio-mode=auto
 """
 
 [tool.black]

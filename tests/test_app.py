@@ -34,12 +34,100 @@ TEST_STATE_FILENAME = ROOT / "tests" / "state.json"
 IS_CONNECTED_TO_HOMEASSISTANT = False
 
 
-def load_defaults() -> tuple[Config, dict[str, dict[str, Any]]]:
-    """Default config and state."""
+@pytest.fixture()
+def config() -> Config:
+    """Config fixture."""
+    return read_config(DEFAULT_CONFIG)
+
+
+@pytest.fixture()
+def state() -> dict[str, dict[str, Any]]:
+    """State fixture."""
     with TEST_STATE_FILENAME.open("r") as f:
-        state = json.load(f)
-    config = read_config(DEFAULT_CONFIG)
-    return config, state
+        return json.load(f)
+
+
+@pytest.fixture()
+def button_dict() -> dict[str, dict[str, Any]]:
+    """Different button configurations."""
+    return {
+        "light": {
+            "entity_id": "light.living_room_lights_z2m",
+            "service": "light.toggle",
+            "text": "Living room\nlights\n",
+        },
+        "volume_down": {
+            "entity_id": "media_player.kef_ls50",
+            "service": "media_player.volume_set",
+            "service_data": {
+                "volume_level": '{{ max(state_attr("media_player.kef_ls50", "volume_level") - 0.05, 0) }}',
+                "entity_id": "media_player.kef_ls50",
+            },
+            "text": '{{ (100 * state_attr("media_player.kef_ls50", "volume_level")) | int }}%',
+            "text_size": 16,
+            "icon_mdi": "volume-minus",
+        },
+        "script_with_text": {
+            "service": "script.reset_adaptive_lighting",
+            "text": "Reset\nadaptive\nlighting\n",
+        },
+        "script_with_text_and_icon": {
+            "service": "script.turn_off_everything",
+            "text": "ALL OFF",
+            "icon": "night_sky.png",
+        },
+        "input_select_with_template": {
+            "entity_id": "input_select.sleep_mode",
+            "service": "input_select.select_previous",
+            "text": 'Sleep {{ states("input_select.sleep_mode") }}',
+            "icon_mdi": "power-sleep",
+        },
+        "script_with_icon": {
+            "service": "script.start_fireplace_netflix",
+            "icon": "fireplace.png",
+        },
+        "spotify_playlist": {
+            "service": "script.start_spotify",
+            "service_data": {
+                "playlist": "37i9dQZF1DXaRycgyh6kXP",
+                "source": "KEF LS50",
+            },
+            "icon": "spotify:playlist/37i9dQZF1DXaRycgyh6kXP",
+        },
+        "special_empty": {"special_type": "empty"},
+        "special_goto_0": {"special_type": "go-to-page", "special_type_data": 0},
+        "special_goto_home": {
+            "special_type": "go-to-page",
+            "special_type_data": "Home",
+        },
+        "special_prev_page": {"special_type": "previous-page"},
+        "special_next_page": {"special_type": "next-page"},
+    }
+
+
+@pytest.fixture()
+def buttons(button_dict: dict[str, dict[str, Any]]) -> list[Button]:
+    """List of `Button`s."""
+    button_order = [
+        "light",
+        "volume_down",
+        "script_with_text",
+        "script_with_text_and_icon",
+        "input_select_with_template",
+        "script_with_icon",
+        "spotify_playlist",
+        "special_empty",
+        "special_empty",
+        "special_empty",
+        "special_empty",
+        "special_goto_0",
+        "special_goto_home",
+        "special_prev_page",
+        "special_next_page",
+    ]
+    buttons_per_page = 15
+    assert len(button_order) == buttons_per_page
+    return [Button(**button_dict[key]) for key in button_order]
 
 
 def test_named_to_hex() -> None:
@@ -48,9 +136,8 @@ def test_named_to_hex() -> None:
     assert _named_to_hex("#ff0000") == "#ff0000"
 
 
-def test_example_config_browsing_pages() -> None:
+def test_example_config_browsing_pages(config: Config) -> None:
     """Test example config browsing pages."""
-    config = read_config(DEFAULT_CONFIG)
     assert isinstance(config, Config)
     assert config.current_page_index == 0
     second_page = config.next_page()
@@ -74,102 +161,30 @@ def test_example_config_browsing_pages() -> None:
     not IS_CONNECTED_TO_HOMEASSISTANT,
     reason="Not connected to Home Assistant",
 )
-async def test_websocket_connection() -> None:
+async def test_websocket_connection(buttons: list[Button]) -> None:
     """Test websocket connection."""
     config = dotenv_values(ROOT / ".env")
     async with setup_ws(config["HASS_HOST"], config["HASS_TOKEN"]) as websocket:
         complete_state = await get_states(websocket)
-        save_and_extract_relevant_state(complete_state)
+        save_and_extract_relevant_state(buttons, complete_state)
         websocket.close()
 
 
-def save_and_extract_relevant_state(state: dict[str, dict[str, Any]]) -> None:
+def save_and_extract_relevant_state(
+    buttons: list[Button],
+    state: dict[str, dict[str, Any]],
+) -> None:
     """Save and extract relevant state."""
-    config = read_config(DEFAULT_CONFIG)
     condensed_state = {}
-    for page in config.pages:
-        for button in page.buttons:
-            if button.entity_id in state:
-                condensed_state[button.entity_id] = state[button.entity_id]
+    for button in buttons:
+        if button.entity_id in state:
+            condensed_state[button.entity_id] = state[button.entity_id]
     with TEST_STATE_FILENAME.open("w") as f:
         json.dump(condensed_state, f, indent=4)
 
 
-LIGHT = {
-    "entity_id": "light.living_room_lights_z2m",
-    "service": "light.toggle",
-    "text": "Living room\nlights\n",
-}
-VOLUME_DOWN = {
-    "entity_id": "media_player.kef_ls50",
-    "service": "media_player.volume_set",
-    "service_data": {
-        "volume_level": '{{ max(state_attr("media_player.kef_ls50", "volume_level") - 0.05, 0) }}',
-        "entity_id": "media_player.kef_ls50",
-    },
-    "text": '{{ (100 * state_attr("media_player.kef_ls50", "volume_level")) | int }}%',
-    "text_size": 16,
-    "icon_mdi": "volume-minus",
-}
-SCRIPT_WITH_TEXT = {
-    "service": "script.reset_adaptive_lighting",
-    "text": "Reset\nadaptive\nlighting\n",
-}
-SCRIPT_WITH_TEXT_AND_ICON = {
-    "service": "script.turn_off_everything",
-    "text": "ALL OFF",
-    "icon": "night_sky.png",
-}
-INPUT_SELECT_WITH_TEMPLATE = {
-    "entity_id": "input_select.sleep_mode",
-    "service": "input_select.select_previous",
-    "text": 'Sleep {{ states("input_select.sleep_mode") }}',
-    "icon_mdi": "power-sleep",
-}
-
-SCRIPT_WITH_ICON = {
-    "service": "script.start_fireplace_netflix",
-    "icon": "fireplace.png",
-}
-SPOTIFY_PLAYLIST = {
-    "service": "script.start_spotify",
-    "service_data": {
-        "playlist": "37i9dQZF1DXaRycgyh6kXP",
-        "source": "KEF LS50",
-    },
-    "icon": "spotify:playlist/37i9dQZF1DXaRycgyh6kXP",
-}
-SPECIAL_EMPTY = {"special_type": "empty"}
-SPECIAL_GOTO_0 = {"special_type": "go-to-page", "special_type_data": 0}
-SPECIAL_GOTO_HOME = {"special_type": "go-to-page", "special_type_data": "Home"}
-SPECIAL_PREV_PAGE = {"special_type": "previous-page"}
-SPECIAL_NEXT_PAGE = {"special_type": "next-page"}
-BUTTONS = [
-    LIGHT,
-    VOLUME_DOWN,
-    SCRIPT_WITH_TEXT,
-    SCRIPT_WITH_TEXT_AND_ICON,
-    INPUT_SELECT_WITH_TEMPLATE,
-    SCRIPT_WITH_ICON,
-    SPOTIFY_PLAYLIST,
-    SPECIAL_EMPTY,
-    SPECIAL_EMPTY,
-    SPECIAL_EMPTY,
-    SPECIAL_EMPTY,
-    SPECIAL_GOTO_0,
-    SPECIAL_GOTO_HOME,
-    SPECIAL_PREV_PAGE,
-    SPECIAL_NEXT_PAGE,
-]
-
-
-def test_buttons() -> None:
+def test_buttons(buttons: list[Button], state: dict[str, dict[str, Any]]) -> None:
     """Test buttons."""
-    with TEST_STATE_FILENAME.open("r") as f:
-        state = json.load(f)
-    buttons = BUTTONS
-    buttons_per_page = 15
-    assert len(buttons) == buttons_per_page
     page = Page(name="Home", buttons=buttons)
     config = Config(pages=[page])
     first_page = config.to_page(0)
@@ -180,7 +195,10 @@ def test_buttons() -> None:
     assert b.render_icon() is None
 
     b = rendered_buttons[1]  # VOLUME_DOWN
-    volume = state[b.entity_id]["attributes"]["volume_level"]
+    assert b.entity_id in state
+    entity_state = state[b.entity_id]
+    attrs = entity_state["attributes"]
+    volume = attrs["volume_level"]
     assert b.text == f"{int(100 * volume)}%"
     assert b.service_data is not None
     assert float(b.service_data["volume_level"]) == volume - 0.05
@@ -201,15 +219,17 @@ def test_buttons() -> None:
     b = rendered_buttons[14]  # SPECIAL_NEXT_PAGE
     assert b.domain is None
 
-    assert _keys(LIGHT["entity_id"], page.buttons) == [0]
+    b = rendered_buttons[0]  # LIGHT
+    assert b.entity_id is not None
+    assert _keys(b.entity_id, page.buttons) == [0]
 
 
-def test_validate_special_type() -> None:
+def test_validate_special_type(button_dict: dict[str, dict[str, Any]]) -> None:
     """Test validation of special type buttons."""
     with pytest.raises(ValidationError):
-        Button(**SPECIAL_NEXT_PAGE, special_type_data="Yo")
+        Button(**button_dict["special_next_page"], special_type_data="Yo")
     with pytest.raises(ValidationError):
-        Button(**dict(SPECIAL_GOTO_0, special_type_data=[]))
+        Button(**dict(button_dict["special_goto_0"], special_type_data=[]))
 
 
 def test_download_and_save_mdi() -> None:
@@ -275,10 +295,9 @@ class MockDeck:
         """Mock reset."""
 
 
-def test_update_key_image() -> None:
+def test_update_key_image(config: Config, state: dict[str, dict[str, Any]]) -> None:
     """Test update_key_image with MockDeck."""
     deck = MockDeck()
-    config, state = load_defaults()
     update_key_image(deck, key=0, config=config, complete_state=state)
 
 

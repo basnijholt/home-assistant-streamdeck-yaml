@@ -771,7 +771,7 @@ def update_all_key_images(
         )
 
 
-async def main(host: str, token: str, config: Config) -> None:
+async def run(host: str, token: str, config: Config) -> None:
     """Main entry point for the Stream Deck integration."""
     deck = get_deck()
     async with setup_ws(host, token) as websocket:
@@ -785,7 +785,7 @@ async def main(host: str, token: str, config: Config) -> None:
         await handle_state_changes(websocket, complete_state, deck, config)
 
 
-def start() -> None:
+def main() -> None:
     """Start the Stream Deck integration."""
     import argparse
     import os
@@ -800,8 +800,8 @@ def start() -> None:
     parser.add_argument("--config", default=DEFAULT_CONFIG, type=Path)
     args = parser.parse_args()
     config = read_config(args.config)
-    asyncio.run(main(host=args.host, token=args.token, config=config))
+    asyncio.run(run(host=args.host, token=args.token, config=config))
 
 
 if __name__ == "__main__":
-    start()
+    main()

@@ -402,6 +402,17 @@ def _convert_to_grayscale(image: Image) -> Image:
     return image.convert("L").convert("RGB")
 
 
+def _download_and_save_mdi(icon_mdi: str) -> Path:
+    url = _mdi_url(icon_mdi)
+    filename_svg = ASSETS_PATH / f"{icon_mdi}.svg"
+    if filename_svg.exists():
+        return filename_svg
+    svg_content = _download(url)
+    with filename_svg.open("wb") as f:
+        f.write(svg_content)
+    return filename_svg
+
+
 def render_key_image(
     deck: StreamDeck,
     *,
@@ -421,9 +432,9 @@ def render_key_image(
         if icon_convert_to_grayscale:
             icon = _convert_to_grayscale(icon)
     elif icon_mdi is not None:
-        url = _mdi_url(icon_mdi)
-        icon = _download_and_convert_svg_to_png(
-            url=url,
+        filename_svg = _download_and_save_mdi(icon_mdi)
+        icon = _convert_svg_to_png(
+            filename_svg=filename_svg,
             color=_named_to_hex(icon_mdi_color or text_color),
             opacity=0.3,
             margin=icon_mdi_margin,
@@ -627,34 +638,34 @@ def _scale_hex_color(hex_color: str, scale: float) -> str:
 
 
 @ft.lru_cache(maxsize=128)
-def _download_and_convert_svg_to_png(
+def _convert_svg_to_png(
     *,
-    url: str,
+    filename_svg: Path,
     color: str,
     opacity: float,
     margin: int,
-    filename: str | Path | None = None,
+    filename_png: str | Path | None = None,
 ) -> Image:
-    """Download an SVG file from a given URL to PNG.
+    """Load a SVG file and convert to PNG.
 
     Modify the fill and background colors based on the input color value,
     convert it to PNG format, and save the resulting PNG image to a file.
 
     Parameters
     ----------
-    url
-        The URL of the SVG file.
+    filename_svg
+        The file name of the SVG file.
     color
         The HEX color to use for the icon.
     opacity
         The opacity of the icon. 0 is black, 1 is full color.
     margin
         The margin to add around the icon.
-    filename
+    filename_png
         The name of the file to save the PNG content to.
     """
-    svg_content = _download(url)
-
+    with filename_svg.open() as f:
+        svg_content = f.read()
     # Modify the SVG content to set the fill and background colors
     svg_tree = etree.fromstring(svg_content)
     fill_color = _scale_hex_color(color, opacity)
@@ -673,8 +684,8 @@ def _download_and_convert_svg_to_png(
     with Image.open(io.BytesIO(png_content)) as image:
         im = ImageOps.expand(image, border=(margin, margin), fill="black")
         im = im.resize((72, 72))
-        if filename is not None:
-            im.save(filename)
+        if filename_png is not None:
+            im.save(filename_png)
     return im
 
 

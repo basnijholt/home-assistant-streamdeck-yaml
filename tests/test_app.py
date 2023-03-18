@@ -17,6 +17,7 @@ from home_assistant_streamdeck_yaml import (
     Config,
     Page,
     _download_and_save_mdi,
+    _download_spotify_image,
     _init_icon,
     _keys,
     _named_to_hex,
@@ -270,9 +271,20 @@ class MockDeck:
         """Mock context manager."""
         return False
 
+    def reset(self) -> None:
+        """Mock reset."""
+
 
 def test_update_key_image() -> None:
     """Test update_key_image with MockDeck."""
     deck = MockDeck()
     config, state = load_defaults()
     update_key_image(deck, key=0, config=config, complete_state=state)
+
+
+def test_download_spotify_image() -> None:
+    """Test download_spotify_image."""
+    icon = "playlist/37i9dQZF1DXaRycgyh6kXP"
+    filename = _to_filename(icon, ".jpeg")
+    _download_spotify_image(icon, filename)
+    assert filename.exists()

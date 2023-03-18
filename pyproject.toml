@@ -2,8 +2,42 @@
 requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "home_assistant_streamdeck_yaml"
+description = "Home Assistant on Stream Deck: configured via YAML (with templates) and running on Linux, MacOS, and Windows"
+version = "0.1.0"
+authors = [{ name = "Bas Nijholt", email = "bas@nijho.length" }]
+dependencies = [
+    "cairosvg",
+    "python-dotenv",
+    "jinja2",
+    "lxml",
+    "pillow",
+    "pydantic",
+    "pyyaml",
+    "requests",
+    "rich",
+    "streamdeck",
+    "websockets",
+
+]
+requires-python = ">=3.10"
+
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
+
+[project.urls]
+Homepage = "https://github.com/basnijholt/home-assistant-streamdeck-yaml"
+
+[project.optional-dependencies]
+dev = ["pytest", "pre-commit", "pytest-asyncio"]
+
 [project.scripts]
-home-assistant-streamdeck-yaml = "home-assistant-streamdeck-yaml:main"
+home-assistant-streamdeck-yaml = "home_assistant_streamdeck_yaml:main"
+
+[tool.setuptools]
+py-modules = ["home_assistant_streamdeck_yaml"]
 
 [tool.black]
 line_length = 88
@@ -22,6 +56,10 @@ ignore = [
     "PLW0603", # Using the global statement to update `X` is discouraged
     "D401",    # First line of docstring should be in imperative mood
 ]
+
+[tool.ruff.per-file-ignores]
+"tests/*" = ["SLF001"]
+
 [tool.ruff.mccabe]
 max-complexity = 18
 

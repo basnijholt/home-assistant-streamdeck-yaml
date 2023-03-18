@@ -16,7 +16,7 @@ Even though [github.com/cgiesche/streamdeck-homeassistant](https://github.com/cg
 Unfortunately, the native Stream Deck software does not support Linux, so here we are using [github.com/abcminiuser/python-elgato-streamdeck](https://github.com/abcminiuser/python-elgato-streamdeck) to control the Stream Deck.
 
 ## Installation
-Just run `pip install -r requirements.txt` to install the required dependencies.
+Just run `pip install -e .` in the repo folder to install the required dependencies.
 
 ## Usage
 

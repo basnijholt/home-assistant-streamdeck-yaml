@@ -420,13 +420,12 @@ def _download_and_save_mdi(icon_mdi: str) -> Path:
 
 def _init_icon(
     *,
-    icon_filename: str | None,
-    icon_mdi: str | None,
-    icon_mdi_margin: int,
-    icon_mdi_color: str | None,
-    icon_convert_to_grayscale: bool,
-    text_color: str,
-    size: tuple[int, int],
+    icon_filename: str | None = None,
+    icon_mdi: str | None = None,
+    icon_mdi_margin: int | None = None,
+    icon_mdi_color: str | None = None,  # hex color
+    icon_convert_to_grayscale: bool = False,
+    size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
 ) -> Image.Image:
     """Initialize the icon."""
     if icon_filename is not None:
@@ -435,10 +434,11 @@ def _init_icon(
             icon = _convert_to_grayscale(icon)
         return icon
     if icon_mdi is not None:
+        assert icon_mdi_margin is not None
         filename_svg = _download_and_save_mdi(icon_mdi)
         return _convert_svg_to_png(
             filename_svg=filename_svg,
-            color=_named_to_hex(icon_mdi_color or text_color),
+            color=icon_mdi_color,
             opacity=0.3,
             margin=icon_mdi_margin,
             size=size,
@@ -465,9 +465,8 @@ def render_key_image(
         icon_filename=icon_filename,
         icon_mdi=icon_mdi,
         icon_mdi_margin=icon_mdi_margin,
-        icon_mdi_color=icon_mdi_color,
+        icon_mdi_color=_named_to_hex(icon_mdi_color or text_color),
         icon_convert_to_grayscale=icon_convert_to_grayscale,
-        text_color=text_color,
         size=size,
     )
     image = PILHelper.create_scaled_image(deck, icon, margins=[0, 0, 0, 0])

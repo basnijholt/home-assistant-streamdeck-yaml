@@ -15,6 +15,7 @@ from home_assistant_streamdeck_yaml import (
     Config,
     Page,
     _download_and_save_mdi,
+    _init_icon,
     _keys,
     _named_to_hex,
     _to_filename,
@@ -214,3 +215,16 @@ def test_download_and_save_mdi() -> None:
     filename = _download_and_save_mdi("phone")
     assert filename.exists()
     filename.unlink()
+
+
+def test_init_icon() -> None:
+    """Test init icon."""
+    _init_icon(icon_filename="xbox.png")
+    _init_icon(icon_filename="xbox.png", icon_convert_to_grayscale=True)
+    _init_icon(
+        icon_mdi="phone",
+        icon_mdi_margin=1,
+        icon_mdi_color="#ffbb00",
+        size=(100, 100),
+    )
+    _init_icon(size=(100, 100))

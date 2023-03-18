@@ -31,13 +31,21 @@ content-type = "text/markdown"
 Homepage = "https://github.com/basnijholt/home-assistant-streamdeck-yaml"
 
 [project.optional-dependencies]
-dev = ["pytest", "pre-commit", "pytest-asyncio"]
+test = ["pytest", "pre-commit", "pytest-asyncio", "coverage", "pytest-cov"]
 
 [project.scripts]
 home-assistant-streamdeck-yaml = "home_assistant_streamdeck_yaml:main"
 
 [tool.setuptools]
 py-modules = ["home_assistant_streamdeck_yaml"]
+
+[tool.pytest.ini_options]
+addopts = """
+    --cov=home_assistant_streamdeck_yaml
+    --cov-report term
+    --cov-report html
+    --cov-fail-under=98
+"""
 
 [tool.black]
 line_length = 88

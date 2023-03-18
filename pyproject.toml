@@ -1,3 +1,10 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+home-assistant-streamdeck-yaml = "home-assistant-streamdeck-yaml:main"
+
 [tool.black]
 line_length = 88
 

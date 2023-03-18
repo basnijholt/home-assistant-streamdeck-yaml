@@ -356,7 +356,6 @@ async def get_states(websocket: websockets.WebSocketClientProtocol) -> dict[str,
             # Extract the state data from the response
             state_dict = {state["entity_id"]: state for state in data["result"]}
             console.log(state_dict)
-            await unsubscribe(websocket, _id)
             return state_dict
 
 
@@ -387,17 +386,23 @@ async def call_service(
     await websocket.send(json.dumps(subscribe_payload))
 
 
+def _rgb_to_hex(rgb: tuple[int, int, int]) -> str:
+    """Convert an RGB color to a hex color."""
+    return "#{:02x}{:02x}{:02x}".format(*rgb)
+
+
 def _named_to_hex(color: str) -> str:
     """Convert a named color to a hex color."""
-    rgb: tuple[int, int, int] = ImageColor.getrgb(color)
-    color = "#{:02x}{:02x}{:02x}".format(*rgb)
+    rgb: tuple[int, int, int] | str = ImageColor.getrgb(color)
+    if isinstance(rgb, tuple):
+        return _rgb_to_hex(rgb)
     if color.startswith("#"):
         return color
     msg = f"Invalid color: {color}"
     raise ValueError(msg)
 
 
-def _convert_to_grayscale(image: Image) -> Image:
+def _convert_to_grayscale(image: Image.Image) -> Image.Image:
     """Convert an image to grayscale."""
     return image.convert("L").convert("RGB")
 
@@ -411,6 +416,34 @@ def _download_and_save_mdi(icon_mdi: str) -> Path:
     with filename_svg.open("wb") as f:
         f.write(svg_content)
     return filename_svg
+
+
+def _init_icon(
+    *,
+    icon_filename: str | None,
+    icon_mdi: str | None,
+    icon_mdi_margin: int,
+    icon_mdi_color: str | None,
+    icon_convert_to_grayscale: bool,
+    text_color: str,
+    size: tuple[int, int],
+) -> Image.Image:
+    """Initialize the icon."""
+    if icon_filename is not None:
+        icon = Image.open(ASSETS_PATH / icon_filename)
+        if icon_convert_to_grayscale:
+            icon = _convert_to_grayscale(icon)
+        return icon
+    if icon_mdi is not None:
+        filename_svg = _download_and_save_mdi(icon_mdi)
+        return _convert_svg_to_png(
+            filename_svg=filename_svg,
+            color=_named_to_hex(icon_mdi_color or text_color),
+            opacity=0.3,
+            margin=icon_mdi_margin,
+            size=size,
+        )
+    return Image.new("RGB", size, "black")
 
 
 def render_key_image(
@@ -427,20 +460,16 @@ def render_key_image(
     label_text: str = "",
 ) -> memoryview:
     """Render an image for a key."""
-    if icon_filename is not None:
-        icon = Image.open(ASSETS_PATH / icon_filename)
-        if icon_convert_to_grayscale:
-            icon = _convert_to_grayscale(icon)
-    elif icon_mdi is not None:
-        filename_svg = _download_and_save_mdi(icon_mdi)
-        icon = _convert_svg_to_png(
-            filename_svg=filename_svg,
-            color=_named_to_hex(icon_mdi_color or text_color),
-            opacity=0.3,
-            margin=icon_mdi_margin,
-        )
-    else:
-        icon = Image.new("RGB", (deck.KEY_PIXEL_WIDTH, deck.KEY_PIXEL_HEIGHT), "black")
+    size = (deck.KEY_PIXEL_WIDTH, deck.KEY_PIXEL_HEIGHT)
+    icon = _init_icon(
+        icon_filename=icon_filename,
+        icon_mdi=icon_mdi,
+        icon_mdi_margin=icon_mdi_margin,
+        icon_mdi_color=icon_mdi_color,
+        icon_convert_to_grayscale=icon_convert_to_grayscale,
+        text_color=text_color,
+        size=size,
+    )
     image = PILHelper.create_scaled_image(deck, icon, margins=[0, 0, 0, 0])
     draw = ImageDraw.Draw(image)
     font = ImageFont.truetype(str(ASSETS_PATH / font_filename), font_size)
@@ -645,7 +674,8 @@ def _convert_svg_to_png(
     opacity: float,
     margin: int,
     filename_png: str | Path | None = None,
-) -> Image:
+    size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
+) -> Image.Image:
     """Load a SVG file and convert to PNG.
 
     Modify the fill and background colors based on the input color value,
@@ -663,6 +693,8 @@ def _convert_svg_to_png(
         The margin to add around the icon.
     filename_png
         The name of the file to save the PNG content to.
+    size
+        The size of the resulting PNG image.
     """
     with filename_svg.open() as f:
         svg_content = f.read()
@@ -683,7 +715,7 @@ def _convert_svg_to_png(
     # Save the resulting PNG image to a file using Pillow
     with Image.open(io.BytesIO(png_content)) as image:
         im = ImageOps.expand(image, border=(margin, margin), fill="black")
-        im = im.resize((ICON_PIXELS, ICON_PIXELS))
+        im = im.resize(size)
         if filename_png is not None:
             im.save(filename_png)
     return im
@@ -701,7 +733,7 @@ def _mdi_url(mdi: str) -> str:
 def _download_spotify_image(
     id_: str,
     filename: Path | None = None,
-) -> Image | None:
+) -> Image.Image | None:
     """Download the Spotify image for the given ID.
 
     Examples of ids are:

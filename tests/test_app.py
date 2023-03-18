@@ -1,4 +1,5 @@
 """Test Home Assistant Stream Deck YAML."""
+from __future__ import annotations
 
 import json
 import sys
@@ -8,6 +9,7 @@ from typing import Any
 import pytest
 from dotenv import dotenv_values
 from pydantic import ValidationError
+from StreamDeck.Devices.StreamDeckOriginal import StreamDeckOriginal
 
 from home_assistant_streamdeck_yaml import (
     DEFAULT_CONFIG,
@@ -22,12 +24,21 @@ from home_assistant_streamdeck_yaml import (
     get_states,
     read_config,
     setup_ws,
+    update_key_image,
 )
 
 ROOT = Path(__file__).parent.parent
 sys.path.append(str(ROOT))
 TEST_STATE_FILENAME = ROOT / "tests" / "state.json"
 IS_CONNECTED_TO_HOMEASSISTANT = False
+
+
+def load_defaults() -> tuple[Config, dict[str, dict[str, Any]]]:
+    """Default config and state."""
+    with TEST_STATE_FILENAME.open("r") as f:
+        state = json.load(f)
+    config = read_config(DEFAULT_CONFIG)
+    return config, state
 
 
 def test_named_to_hex() -> None:
@@ -228,3 +239,40 @@ def test_init_icon() -> None:
         size=(100, 100),
     )
     _init_icon(size=(100, 100))
+
+
+class MockDeck:
+    """Mocks a StreamDeck."""
+
+    KEY_PIXEL_WIDTH = StreamDeckOriginal.KEY_PIXEL_WIDTH
+    KEY_PIXEL_HEIGHT = StreamDeckOriginal.KEY_PIXEL_HEIGHT
+    KEY_FLIP = StreamDeckOriginal.KEY_FLIP
+    KEY_ROTATION = StreamDeckOriginal.KEY_ROTATION
+    KEY_IMAGE_FORMAT = StreamDeckOriginal.KEY_IMAGE_FORMAT
+
+    def key_image_format(self) -> dict[str, Any]:
+        """Same as original device."""
+        return {
+            "size": (self.KEY_PIXEL_WIDTH, self.KEY_PIXEL_HEIGHT),
+            "format": self.KEY_IMAGE_FORMAT,
+            "flip": self.KEY_FLIP,
+            "rotation": self.KEY_ROTATION,
+        }
+
+    def set_key_image(self, key: int, image: memoryview) -> None:
+        """Mock set_key_image."""
+
+    def __enter__(self) -> MockDeck:
+        """Mock context manager."""
+        return self
+
+    def __exit__(self, *exc: Any) -> bool:  # type: ignore[exit-return]
+        """Mock context manager."""
+        return False
+
+
+def test_update_key_image() -> None:
+    """Test update_key_image with MockDeck."""
+    deck = MockDeck()
+    config, state = load_defaults()
+    update_key_image(deck, key=0, config=config, complete_state=state)

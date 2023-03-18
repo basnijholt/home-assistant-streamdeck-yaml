@@ -178,6 +178,7 @@ def test_buttons() -> None:
 
     b = rendered_buttons[6]  # SPOTIFY_PLAYLIST
     icon = b.render_icon()
+    assert b.icon is not None
     filename = _to_filename(b.icon, ".jpeg")
     assert icon == str(filename.absolute())
     assert Path(filename).exists()

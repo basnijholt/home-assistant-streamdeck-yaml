@@ -27,14 +27,14 @@ Just run `pip install -e .` in the repo folder to install the required dependenc
 2. Edit the `.env.example` file and rename it to `.env`. Then you can run the script without any arguments. The script will automatically load the environment variables from the `.env` file.
 
 ```bash
-python home-assistant-streamdeck-yaml.py
+home-assistant-streamdeck-yaml
 ```
 
 ### (Option 2) With commandline arguments
 
-2. Run `python home-assistant-streamdeck-yaml.py -h` to see the available options.
+1. Run `home-assistant-streamdeck-yaml -h` to see the available options.
 
 Example invocation:
 ```bash
-python home-assistant-streamdeck-yaml.py --host "klasdhkjashdhaksdl.ui.nabu.casa" --token "SOME_TOKEN_FROM_YOUR_PROFILE"
+home-assistant-streamdeck-yaml --host "klasdhkjashdhaksdl.ui.nabu.casa" --token "SOME_TOKEN_FROM_YOUR_PROFILE"
 ```

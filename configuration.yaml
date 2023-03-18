@@ -21,13 +21,18 @@ pages:
         text: |
           Outside
           lights
-      - entity_id: switch.space_heater
-        service: switch.toggle
-        text: '{{ states("switch.space_heater") }}'
-        icon: "space-heater.png"
-        text_size: 16
-        text_color: black
-        icon_gray_when_off: true
+      - entity_id: light.dinner_area
+        service: light.toggle
+        text: |
+          Dinner
+          lights
+      # - entity_id: switch.space_heater
+      #   service: switch.toggle
+      #   text: '{{ states("switch.space_heater") }}'
+      #   icon: "space-heater.png"
+      #   text_size: 16
+      #   text_color: black
+      #   icon_gray_when_off: true
       - entity_id: media_player.kef_ls50
         service: media_player.volume_set
         service_data:

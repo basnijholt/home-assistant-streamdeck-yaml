@@ -34,7 +34,7 @@ SCRIPT_DIR = Path(__file__).parent
 ASSETS_PATH = SCRIPT_DIR / "assets"
 DEFAULT_CONFIG = SCRIPT_DIR / "configuration.yaml"
 DEFAULT_MDI_ICONS = {"light": "lightbulb", "switch": "power-socket-eu"}
-
+ICON_PIXELS = 72
 _ID_COUNTER = 0
 
 
@@ -683,7 +683,7 @@ def _convert_svg_to_png(
     # Save the resulting PNG image to a file using Pillow
     with Image.open(io.BytesIO(png_content)) as image:
         im = ImageOps.expand(image, border=(margin, margin), fill="black")
-        im = im.resize((72, 72))
+        im = im.resize((ICON_PIXELS, ICON_PIXELS))
         if filename_png is not None:
             im.save(filename_png)
     return im

@@ -689,7 +689,7 @@ def _mdi_url(mdi: str) -> str:
 @ft.lru_cache(maxsize=128)
 def _download_spotify_image(
     id_: str,
-    filename: str | Path | None = None,
+    filename: Path | None = None,
 ) -> Image | None:
     """Download the Spotify image for the given ID.
 
@@ -698,6 +698,8 @@ def _download_spotify_image(
     - "episode/3RIaY4PM7h4mO2IaD0eSXo"
     - "track/4o0LyB69tylqDG6eTGhmig"
     """
+    if filename is not None and filename.exists():
+        return Image.open(filename)
     url = f"https://embed.spotify.com/oembed/?url=http://open.spotify.com/{id_}"
     content = _download(url)
     data = json.loads(content)

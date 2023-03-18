@@ -14,6 +14,7 @@ from home_assistant_streamdeck_yaml import (
     Button,
     Config,
     Page,
+    _download_and_save_mdi,
     _keys,
     _named_to_hex,
     _to_filename,
@@ -196,3 +197,20 @@ def test_validate_special_type() -> None:
         Button(**SPECIAL_NEXT_PAGE, special_type_data="Yo")
     with pytest.raises(ValidationError):
         Button(**dict(SPECIAL_GOTO_0, special_type_data=[]))
+
+
+def test_download_and_save_mdi() -> None:
+    """Test whether function downloads MDI correctly."""
+    # might be cached
+    filename = _download_and_save_mdi("phone")
+    assert filename.exists()
+
+    # is cached
+    filename = _download_and_save_mdi("phone")
+    assert filename.exists()
+    filename.unlink()
+
+    # downloads again
+    filename = _download_and_save_mdi("phone")
+    assert filename.exists()
+    filename.unlink()

@@ -49,7 +49,7 @@ pages:
         text: '{{ (100 * state_attr("media_player.kef_ls50", "volume_level")) | int }}%'
         text_size: 16
         icon_mdi: volume-plus
-      - service: script.reset_manual_control
+      - service: script.reset_adaptive_lighting
         text: |
           Reset
           adaptive

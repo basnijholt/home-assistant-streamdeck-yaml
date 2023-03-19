@@ -663,6 +663,7 @@ async def _handle_key_press(
         deck.reset()
         update_all_key_images(deck, config, complete_state)
     elif button.special_type == "go-to-page":
+        assert isinstance(button.special_type_data, (str, int))
         config.to_page(button.special_type_data)  # type: ignore[arg-type]
         deck.reset()
         update_all_key_images(deck, config, complete_state)

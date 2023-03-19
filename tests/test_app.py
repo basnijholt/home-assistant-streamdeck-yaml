@@ -22,6 +22,7 @@ from home_assistant_streamdeck_yaml import (
     _is_state,
     _is_state_attr,
     _keys,
+    _light_page,
     _named_to_hex,
     _states,
     _to_filename,
@@ -35,6 +36,7 @@ ROOT = Path(__file__).parent.parent
 sys.path.append(str(ROOT))
 TEST_STATE_FILENAME = ROOT / "tests" / "state.json"
 IS_CONNECTED_TO_HOMEASSISTANT = False
+BUTTONS_PER_PAGE = 15
 
 
 def test_read_config() -> None:
@@ -127,8 +129,8 @@ def buttons(button_dict: dict[str, dict[str, Any]]) -> list[Button]:
         "special_prev_page",
         "special_next_page",
     ]
-    buttons_per_page = 15
-    assert len(button_order) == buttons_per_page
+
+    assert len(button_order) == BUTTONS_PER_PAGE
     return [Button(**button_dict[key]) for key in button_order]
 
 
@@ -156,9 +158,8 @@ def test_example_config_browsing_pages(config: Config) -> None:
     first_page = config.previous_page()
     assert isinstance(first_page, Page)
     assert config.current_page_index == 0
-    buttons_per_page = 15
-    assert len(first_page.buttons) == buttons_per_page
-    assert len(second_page.buttons) == buttons_per_page
+    assert len(first_page.buttons) == BUTTONS_PER_PAGE
+    assert len(second_page.buttons) == BUTTONS_PER_PAGE
     second_page = config.to_page(1)
     assert isinstance(second_page, Page)
     assert config.current_page_index == 1
@@ -359,3 +360,11 @@ def test_is_state(state: dict[str, dict[str, Any]]) -> None:
                 state=current_state,
                 complete_state=state,
             )
+
+
+def test_light_page() -> None:
+    """Test light page."""
+    page = _light_page(entity_id="light.bedroom")
+    buttons = page.buttons
+    assert len(buttons) == BUTTONS_PER_PAGE
+    assert buttons[0].icon_background_color is not None

@@ -796,7 +796,11 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default=os.environ.get("HASS_HOST", "localhost"))
     parser.add_argument("--token", default=os.environ.get("HASS_TOKEN"))
-    parser.add_argument("--config", default=DEFAULT_CONFIG, type=Path)
+    parser.add_argument(
+        "--config",
+        default=os.environ.get("STREAMDECK_CONFIG", DEFAULT_CONFIG),
+        type=Path,
+    )
     args = parser.parse_args()
     config = read_config(args.config)
     asyncio.run(run(host=args.host, token=args.token, config=config))

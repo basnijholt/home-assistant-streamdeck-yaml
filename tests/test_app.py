@@ -19,8 +19,11 @@ from home_assistant_streamdeck_yaml import (
     _download_and_save_mdi,
     _download_spotify_image,
     _init_icon,
+    _is_state,
+    _is_state_attr,
     _keys,
     _named_to_hex,
+    _states,
     _to_filename,
     get_states,
     read_config,
@@ -299,6 +302,9 @@ def test_update_key_image(config: Config, state: dict[str, dict[str, Any]]) -> N
     """Test update_key_image with MockDeck."""
     deck = MockDeck()
     update_key_image(deck, key=0, config=config, complete_state=state)
+    page = config.current_page()
+    for key, _ in enumerate(page.buttons):
+        update_key_image(deck, key=key, config=config, complete_state=state)
 
 
 def test_download_spotify_image() -> None:
@@ -307,3 +313,36 @@ def test_download_spotify_image() -> None:
     filename = _to_filename(icon, ".jpeg")
     _download_spotify_image(icon, filename)
     assert filename.exists()
+
+
+def test_is_state_attr(state: dict[str, dict[str, Any]]) -> None:
+    """Test is_state_attr jinja template function."""
+    for entity_id, e_state in state.items():
+        if attrs := e_state.get("attributes"):
+            for attr, value in attrs.items():
+                _is_state_attr(
+                    entity_id=entity_id,
+                    attr=attr,
+                    value=value,
+                    complete_state=state,
+                )
+
+
+def test_states(state: dict[str, dict[str, Any]]) -> None:
+    """Test states jinja template function."""
+    for entity_id, e_state in state.items():
+        if current_state := e_state.get("state"):
+            assert _states(entity_id=entity_id, complete_state=state) == current_state
+
+    assert _states(entity_id="domain.does_not_exist", complete_state=state) is None
+
+
+def test_is_state(state: dict[str, dict[str, Any]]) -> None:
+    """Test is_state jinja template function."""
+    for entity_id, e_state in state.items():
+        if current_state := e_state.get("state"):
+            assert _is_state(
+                entity_id=entity_id,
+                state=current_state,
+                complete_state=state,
+            )

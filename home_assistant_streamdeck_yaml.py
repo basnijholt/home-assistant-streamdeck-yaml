@@ -133,8 +133,9 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         if special_type == "light-control":
             data = values.get("special_type_data")
             if data is None:
-                return v
+                return {}
             assert isinstance(data, dict)
+            assert data.keys()
             assert "colormap" in data
         return v
 
@@ -218,7 +219,7 @@ def _generate_colors(num_colors: int, colormap: str = "hsv") -> list[str]:
 def _light_page(
     entity_id: str,
     n_colors: int = 10,
-    colormap: str = "plasma",
+    colormap: str = "hsv",
 ) -> Page:
     """Return a page of buttons for controlling lights."""
     # List of 10 colors
@@ -667,12 +668,13 @@ async def _handle_key_press(
         deck.reset()
         update_all_key_images(deck, config, complete_state)
     elif button.special_type == "light-control":
-        assert config.special_page is not None
+        assert isinstance(button.special_type_data, dict)
         page = _light_page(
             entity_id=button.entity_id,
             n_colors=10,
-            colormap=config.special_page["colormap"],
+            colormap=button.special_type_data.get("colormap"),
         )
+        assert config.special_page is None
         config.special_page = page
         deck.reset()
         update_all_key_images(deck, config, complete_state)

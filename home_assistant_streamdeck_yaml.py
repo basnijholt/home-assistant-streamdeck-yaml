@@ -131,7 +131,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             msg = f"special_type_data needs to be empty with {special_type=}"
             raise AssertionError(msg)
         if special_type == "light-control":
-            data = values["special_type_data"]
+            data = values.get("special_type_data")
             if data is None:
                 return v
             assert isinstance(data, dict)

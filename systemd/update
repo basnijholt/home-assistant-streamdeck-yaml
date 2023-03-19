@@ -1,0 +1,3 @@
+#!/bin/bash
+git pull
+sudo systemctl restart home-assistant-streamdeck-yaml.service

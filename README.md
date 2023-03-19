@@ -20,7 +20,7 @@ Just run `pip install -e .` in the repo folder to install the required dependenc
 
 ## Usage
 
-1. Create a `configuration.yaml` file in the same directory as the `home-assistant-streamdeck-yaml.py` file.
+1. Create a `configuration.yaml` file in the same directory as the `home_-_assistant_-_streamdeck_-_yaml.py` file.
 
 ### (Option 1) With environment variables
 

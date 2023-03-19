@@ -1,7 +1,7 @@
 pages:
   - name: Home
     buttons:
-      - entity_id: light.living_room_lights_z2m
+      - entity_id: light.living_room_lights
         service: light.toggle
         text: |
           Living room
@@ -99,29 +99,29 @@ pages:
           White
           lights
       - icon_mdi: lightbulb
-        entity_id: light.living_room_lights_z2m
+        entity_id: light.living_room_lights
         service: light.turn_on
         service_data:
-          entity_id: light.living_room_lights_z2m
+          entity_id: light.living_room_lights
           brightness_pct: 1
         text: |
           1%
           brightness
       - icon_mdi: lightbulb
-        entity_id: light.living_room_lights_z2m
+        entity_id: light.living_room_lights
         service: light.turn_on
         service_data:
           brightness_pct: 50
-          entity_id: light.living_room_lights_z2m
+          entity_id: light.living_room_lights
         text: |
           50%
           brightness
       - icon_mdi: lightbulb
-        entity_id: light.living_room_lights_z2m
+        entity_id: light.living_room_lights
         service: light.turn_on
         service_data:
           brightness_pct: 100
-          entity_id: light.living_room_lights_z2m
+          entity_id: light.living_room_lights
         text: |
           100%
           brightness

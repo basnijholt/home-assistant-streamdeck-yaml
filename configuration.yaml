@@ -8,7 +8,7 @@ pages:
           lights
         special_type: light-control
         special_type_data:
-          colormap: hsv
+          colormap: plasma
       - entity_id: light.bedroom_lights_z2m
         service: light.toggle
         text: |

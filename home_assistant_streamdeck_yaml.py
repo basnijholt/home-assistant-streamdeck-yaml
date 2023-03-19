@@ -131,10 +131,15 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             msg = f"special_type_data needs to be empty with {special_type=}"
             raise AssertionError(msg)
         if special_type == "light-control":
-            data = values.get("special_type_data")
-            if data is None:
-                return {}
-            assert isinstance(data, dict)
+            data = values.setdefault("special_type_data", {})
+            if not isinstance(data, dict):
+                msg = (
+                    "With 'light-control', 'special_type_data' must"
+                    f" be a dict, not {data}"
+                )
+                raise AssertionError(msg)
+            if "colormap" not in data:
+                data["colormap"] = "inferno"
             assert data.keys()
             assert "colormap" in data
         return v
@@ -218,8 +223,8 @@ def _generate_colors(num_colors: int, colormap: str) -> list[str]:
 @ft.lru_cache(maxsize=16)
 def _light_page(
     entity_id: str,
-    n_colors: int = 10,
-    colormap: str = "hsv",
+    n_colors: int,
+    colormap: str,
 ) -> Page:
     """Return a page of buttons for controlling lights."""
     colors = _generate_colors(n_colors, colormap)
@@ -672,7 +677,7 @@ async def _handle_key_press(
         page = _light_page(
             entity_id=button.entity_id,
             n_colors=10,
-            colormap=button.special_type_data.get("colormap"),
+            colormap=button.special_type_data["colormap"],
         )
         assert config.special_page is None
         config.special_page = page

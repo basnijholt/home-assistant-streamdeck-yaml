@@ -208,7 +208,7 @@ def _next_id() -> int:
     return _ID_COUNTER
 
 
-def _generate_colors(num_colors: int, colormap: str = "hsv") -> list[str]:
+def _generate_colors(num_colors: int, colormap: str) -> list[str]:
     """Returns `num_colors` number of colors in hexadecimal format, sampled from colormaps."""
     cmap = plt.get_cmap(colormap)
     colors = cmap(np.linspace(0, 1, num_colors))
@@ -222,7 +222,6 @@ def _light_page(
     colormap: str = "hsv",
 ) -> Page:
     """Return a page of buttons for controlling lights."""
-    # List of 10 colors
     colors = _generate_colors(n_colors, colormap)
     buttons_colors = [
         Button(

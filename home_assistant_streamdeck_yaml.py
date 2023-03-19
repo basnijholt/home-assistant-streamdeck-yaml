@@ -609,6 +609,7 @@ def update_key_image(
         label_text=text,
         text_color=text_color if not key_pressed else "green",
         icon_mdi=icon_mdi,
+        icon_background_color=button.icon_background_color,
         icon_filename=button.render_icon(),
         icon_mdi_color=button.icon_mdi_color,
         icon_convert_to_grayscale=icon_convert_to_grayscale,
@@ -664,7 +665,7 @@ async def _handle_key_press(
         deck.reset()
         update_all_key_images(deck, config, complete_state)
     elif button.special_type == "light-control":
-        page = _light_page(entity_id=button.special_type_data, n_colors=10)
+        page = _light_page(entity_id=button.entity_id, n_colors=10)
         config.special_page = page
         deck.reset()
         update_all_key_images(deck, config, complete_state)

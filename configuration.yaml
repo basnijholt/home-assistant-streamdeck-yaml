@@ -83,7 +83,11 @@ pages:
         service: script.start_xbox
       - special_type: empty
       - special_type: empty
-      - special_type: empty
+      - icon_mdi: restart
+        service: homeassistant.restart
+        text: |
+          Restart
+          HA
       - icon_mdi: lightbulb
         service: script.cozy_lights_living_room
         text: |
@@ -150,11 +154,18 @@ pages:
         icon: "spotify:playlist/37i9dQZF1DX4fgrmoIzHtd"
         service: script.start_spotify
 
-      # Hijos del Sol
+      # # Hijos del Sol
+      # - service_data:
+      #     album: 6gnYcXVaffdG0vwVM34cr8
+      #     source: KEF LS50
+      #   icon: "spotify:album/6gnYcXVaffdG0vwVM34cr8"
+      #   service: script.start_spotify
+
+      # Lofi
       - service_data:
-          album: 6gnYcXVaffdG0vwVM34cr8
+          playlist: 6gnYcXVaffdG0vwVM34cr8
           source: KEF LS50
-        icon: "spotify:album/6gnYcXVaffdG0vwVM34cr8"
+        icon: "spotify:playlist/0vvXsWCC9xrXsKd4FyS8kM"
         service: script.start_spotify
 
       # Whiskey Bar playlist

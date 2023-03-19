@@ -163,7 +163,7 @@ pages:
 
       # Lofi
       - service_data:
-          playlist: 6gnYcXVaffdG0vwVM34cr8
+          playlist: 0vvXsWCC9xrXsKd4FyS8kM
           source: KEF LS50
         icon: "spotify:playlist/0vvXsWCC9xrXsKd4FyS8kM"
         service: script.start_spotify

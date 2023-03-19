@@ -364,7 +364,7 @@ def test_is_state(state: dict[str, dict[str, Any]]) -> None:
 
 def test_light_page() -> None:
     """Test light page."""
-    page = _light_page(entity_id="light.bedroom")
+    page = _light_page(entity_id="light.bedroom", n_colors=10, colormap="hsv")
     buttons = page.buttons
     assert len(buttons) == BUTTONS_PER_PAGE
     assert buttons[0].icon_background_color is not None

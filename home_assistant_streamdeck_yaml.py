@@ -6,13 +6,14 @@ import asyncio
 import functools as ft
 import io
 import json
-import random
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import cairosvg
 import jinja2
+import matplotlib.pyplot as plt
+import numpy as np
 import requests
 import websockets
 import yaml
@@ -129,6 +130,12 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         if special_type in {"next-page", "previous-page", "empty"} and v is not None:
             msg = f"special_type_data needs to be empty with {special_type=}"
             raise AssertionError(msg)
+        if special_type == "light-control":
+            data = values["special_type_data"]
+            if data is None:
+                return v
+            assert isinstance(data, dict)
+            assert "colormap" in data
         return v
 
 
@@ -200,30 +207,22 @@ def _next_id() -> int:
     return _ID_COUNTER
 
 
-def _generate_colors(n: int) -> list[str]:
-    """Generate n random colors."""
-    colors = []
-    for _i in range(n):
-        # Generate a random RGB tuple
-        r, g, b = (
-            random.randint(0, 255),
-            random.randint(0, 255),
-            random.randint(0, 255),
-        )
-        # Convert RGB to hexadecimal
-        color_hex = f"#{r:02x}{g:02x}{b:02x}"
-        colors.append(color_hex)
-    return colors
+def _generate_colors(num_colors: int, colormap: str = "hsv") -> list[str]:
+    """Returns `num_colors` number of colors in hexadecimal format, sampled from colormaps."""
+    cmap = plt.get_cmap(colormap)
+    colors = cmap(np.linspace(0, 1, num_colors))
+    return [plt.matplotlib.colors.to_hex(color) for color in colors]
 
 
 @ft.lru_cache(maxsize=16)
 def _light_page(
     entity_id: str,
     n_colors: int = 10,
+    colormap: str = "plasma",
 ) -> Page:
     """Return a page of buttons for controlling lights."""
     # List of 10 colors
-    colors = _generate_colors(n_colors)
+    colors = _generate_colors(n_colors, colormap)
     buttons_colors = [
         Button(
             icon_background_color=color,
@@ -243,7 +242,7 @@ def _light_page(
             text=f"{brightness}%",
             service_data={
                 "entity_id": entity_id,
-                "brightness": brightness,
+                "brightness_pct": brightness,
             },
         )
         for brightness in [0, 10, 30, 60, 100]
@@ -668,7 +667,12 @@ async def _handle_key_press(
         deck.reset()
         update_all_key_images(deck, config, complete_state)
     elif button.special_type == "light-control":
-        page = _light_page(entity_id=button.entity_id, n_colors=10)
+        assert config.special_page is not None
+        page = _light_page(
+            entity_id=button.entity_id,
+            n_colors=10,
+            colormap=config.special_page["colormap"],
+        )
         config.special_page = page
         deck.reset()
         update_all_key_images(deck, config, complete_state)

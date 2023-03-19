@@ -44,9 +44,17 @@ addopts = """
     --cov=home_assistant_streamdeck_yaml
     --cov-report term
     --cov-report html
-    --cov-fail-under=61
+    --cov-fail-under=64
     --asyncio-mode=auto
 """
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
 
 [tool.black]
 line_length = 88

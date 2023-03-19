@@ -150,6 +150,7 @@ class Config(BaseModel):
 
     pages: list[Page] = Field(default_factory=list)
     current_page_index: int = 0
+    special_page: Page | None = None
 
     def next_page(self) -> Page:
         """Go to the next page."""
@@ -173,6 +174,8 @@ class Config(BaseModel):
 
     def current_page(self) -> Page:
         """Return the current page."""
+        if self.special_page is not None:
+            return self.special_page
         return self.pages[self.current_page_index]
 
     def button(self, key: int) -> Button:
@@ -213,6 +216,7 @@ def _generate_colors(n: int) -> list[str]:
     return colors
 
 
+@ft.lru_cache(maxsize=16)
 def _light_page(
     entity_id: str,
     n_colors: int = 10,
@@ -572,15 +576,19 @@ def update_key_image(
     icon_mdi = button.icon_mdi
 
     if button.special_type == "next-page":
-        text = "Next\nPage"
-        icon_mdi = "chevron-right"
+        text = button.text or "Next\nPage"
+        icon_mdi = button.icon_mdi or "chevron-right"
     elif button.special_type == "previous-page":
-        text = "Previous\nPage"
-        icon_mdi = "chevron-left"
+        text = button.text or "Previous\nPage"
+        icon_mdi = button.icon_mdi or "chevron-left"
     elif button.special_type == "go-to-page":
         page = button.special_type_data
-        text = f"Go to\nPage\n{page}"
-        icon_mdi = "book-open-page-variant"
+        text = button.text or f"Go to\nPage\n{page}"
+        icon_mdi = button.icon_mdi or "book-open-page-variant"
+    elif button.special_type == "light-control":
+        assert isinstance(button.special_type_data, str)
+        page = _light_page(entity_id=button.special_type_data, n_colors=10)
+        config.special_page = page
     elif button.entity_id in complete_state:
         # Has entity_id
         state = complete_state[button.entity_id]
@@ -659,6 +667,8 @@ async def _handle_key_press(
         config.to_page(button.special_type_data)  # type: ignore[arg-type]
         deck.reset()
         update_all_key_images(deck, config, complete_state)
+    elif button.special_type == "light-control":
+        _light_page
     elif button.service is not None:
         button = button.rendered_button(complete_state)
         if button.service_data is None:

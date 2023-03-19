@@ -514,7 +514,8 @@ def _init_icon(
             margin=icon_mdi_margin,
             size=size,
         )
-    assert icon_background_color is not None
+    if icon_background_color is None:
+        icon_background_color = "white"
     color = _named_to_hex(icon_background_color)
     rgb_color = _hex_to_rgb(color)
     return Image.new("RGB", size, rgb_color)

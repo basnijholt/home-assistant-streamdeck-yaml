@@ -237,9 +237,9 @@ def _light_page(
     ]
     buttons_brightness = [
         Button(
-            icon_background_color="white",
+            icon_background_color=_scale_hex_color("#FFFFFF", brightness / 100),
             service="light.turn_on",
-            text_color=_scale_hex_color("#FFFFFF", brightness / 100),
+            text_color=_scale_hex_color("#FFFFFF", 0.8 - brightness / 100),
             text=f"{brightness}%",
             service_data={
                 "entity_id": entity_id,
@@ -515,7 +515,9 @@ def _init_icon(
             size=size,
         )
     assert icon_background_color is not None
-    return Image.new("RGB", size, _hex_to_rgb(icon_background_color))
+    color = _named_to_hex(icon_background_color)
+    rgb_color = _hex_to_rgb(color)
+    return Image.new("RGB", size, rgb_color)
 
 
 def render_key_image(
@@ -702,7 +704,13 @@ def _on_press_callback(
                 key_pressed=key_pressed,
             )
             if key_pressed:
+                has_special_page = config.special_page is not None
                 await _handle_key_press(websocket, complete_state, config, key, deck)
+                if has_special_page:
+                    # Reset after a keypress
+                    config.special_page = None
+                    # Reset all icons
+                    update_all_key_images(deck, config, complete_state)
         except Exception as e:  # noqa: BLE001
             console.print_exception(show_locals=True)
             console.log(f"key_change_callback failed with a {type(e)}: {e}")
@@ -733,6 +741,7 @@ def _scale_hex_color(hex_color: str, scale: float) -> str:
     -------
     A scaled HEX color in the format "#RRGGBB".
     """
+    scale = max(0, min(1, scale))
     # Convert HEX color to RGB values
     r = int(hex_color[1:3], 16)
     g = int(hex_color[3:5], 16)

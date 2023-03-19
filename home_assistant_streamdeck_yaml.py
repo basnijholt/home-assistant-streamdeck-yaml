@@ -6,6 +6,7 @@ import asyncio
 import functools as ft
 import io
 import json
+import random
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Literal
@@ -49,6 +50,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     text_size: int = 12
     icon: str | None = None
     icon_mdi: str | None = None
+    icon_background_color: str = "#000000"
     icon_mdi_color: str | None = None
     icon_gray_when_off: bool = False
     special_type: Literal[
@@ -56,6 +58,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         "previous-page",
         "empty",
         "go-to-page",
+        "light-control",
     ] | None = None
     special_type_data: Any | None = None
 
@@ -192,6 +195,56 @@ def _next_id() -> int:
     global _ID_COUNTER
     _ID_COUNTER += 1
     return _ID_COUNTER
+
+
+def _generate_colors(n: int) -> list[str]:
+    """Generate n random colors."""
+    colors = []
+    for _i in range(n):
+        # Generate a random RGB tuple
+        r, g, b = (
+            random.randint(0, 255),
+            random.randint(0, 255),
+            random.randint(0, 255),
+        )
+        # Convert RGB to hexadecimal
+        color_hex = f"#{r:02x}{g:02x}{b:02x}"
+        colors.append(color_hex)
+    return colors
+
+
+def _light_page(
+    entity_id: str,
+    n_colors: int = 10,
+) -> Page:
+    """Return a page of buttons for controlling lights."""
+    # List of 10 colors
+    colors = _generate_colors(n_colors)
+    buttons_colors = [
+        Button(
+            icon_background_color=color,
+            service="light.turn_on",
+            service_data={
+                "entity_id": entity_id,
+                "rgb_color": _hex_to_rgb(color),
+            },
+        )
+        for color in colors
+    ]
+    buttons_brightness = [
+        Button(
+            icon_background_color="white",
+            service="light.turn_on",
+            text_color=_scale_hex_color("#FFFFFF", brightness / 100),
+            text=f"{brightness}%",
+            service_data={
+                "entity_id": entity_id,
+                "brightness": brightness,
+            },
+        )
+        for brightness in [0, 10, 30, 60, 100]
+    ]
+    return Page(name="Lights", buttons=buttons_colors + buttons_brightness)
 
 
 @asynccontextmanager
@@ -391,6 +444,18 @@ def _rgb_to_hex(rgb: tuple[int, int, int]) -> str:
     return "#{:02x}{:02x}{:02x}".format(*rgb)
 
 
+def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
+    # Remove '#' if present
+    if hex_color.startswith("#"):
+        hex_color = hex_color[1:]
+
+    # Convert hexadecimal to RGB
+    r, g, b = tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
+
+    # Return RGB tuple
+    return (r, g, b)
+
+
 def _named_to_hex(color: str) -> str:
     """Convert a named color to a hex color."""
     rgb: tuple[int, int, int] | str = ImageColor.getrgb(color)
@@ -424,6 +489,7 @@ def _init_icon(
     icon_mdi: str | None = None,
     icon_mdi_margin: int | None = None,
     icon_mdi_color: str | None = None,  # hex color
+    icon_background_color: str | None = None,  # hex color
     icon_convert_to_grayscale: bool = False,
     size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
 ) -> Image.Image:
@@ -439,11 +505,13 @@ def _init_icon(
         return _convert_svg_to_png(
             filename_svg=filename_svg,
             color=icon_mdi_color,
+            background_color=icon_background_color,
             opacity=0.3,
             margin=icon_mdi_margin,
             size=size,
         )
-    return Image.new("RGB", size, "black")
+    assert icon_background_color is not None
+    return Image.new("RGB", size, _hex_to_rgb(icon_background_color))
 
 
 def render_key_image(
@@ -451,6 +519,7 @@ def render_key_image(
     *,
     text_color: str = "white",
     icon_filename: str | None = None,
+    icon_background_color: str = "#000000",
     icon_convert_to_grayscale: bool = False,
     icon_mdi: str | None = None,
     icon_mdi_margin: int = 0,
@@ -462,6 +531,7 @@ def render_key_image(
     """Render an image for a key."""
     size = (deck.KEY_PIXEL_WIDTH, deck.KEY_PIXEL_HEIGHT)
     icon = _init_icon(
+        icon_background_color=icon_background_color,
         icon_filename=icon_filename,
         icon_mdi=icon_mdi,
         icon_mdi_margin=icon_mdi_margin,
@@ -640,6 +710,8 @@ def _download(url: str) -> bytes:
 def _scale_hex_color(hex_color: str, scale: float) -> str:
     """Scales a HEX color by a given factor.
 
+    0 is black, 1 is the original color.
+
     Parameters
     ----------
     hex_color
@@ -670,6 +742,7 @@ def _convert_svg_to_png(
     *,
     filename_svg: Path,
     color: str,
+    background_color: str,
     opacity: float,
     margin: int,
     filename_png: str | Path | None = None,
@@ -686,6 +759,8 @@ def _convert_svg_to_png(
         The file name of the SVG file.
     color
         The HEX color to use for the icon.
+    background_color
+        The HEX color to use for the background.
     opacity
         The opacity of the icon. 0 is black, 1 is full color.
     margin
@@ -701,13 +776,13 @@ def _convert_svg_to_png(
     svg_tree = etree.fromstring(svg_content)
     fill_color = _scale_hex_color(color, opacity)
     svg_tree.attrib["fill"] = fill_color
-    svg_tree.attrib["style"] = "background-color: #000000"
+    svg_tree.attrib["style"] = f"background-color: {background_color}"
     modified_svg_content = etree.tostring(svg_tree)
 
     # Convert the modified SVG content to PNG format using cairosvg
     png_content = cairosvg.svg2png(
         bytestring=modified_svg_content,
-        background_color="#000000",
+        background_color=background_color,
         scale=4,
     )
 

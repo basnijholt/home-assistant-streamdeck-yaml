@@ -585,10 +585,6 @@ def update_key_image(
         page = button.special_type_data
         text = button.text or f"Go to\nPage\n{page}"
         icon_mdi = button.icon_mdi or "book-open-page-variant"
-    elif button.special_type == "light-control":
-        assert isinstance(button.special_type_data, str)
-        page = _light_page(entity_id=button.special_type_data, n_colors=10)
-        config.special_page = page
     elif button.entity_id in complete_state:
         # Has entity_id
         state = complete_state[button.entity_id]
@@ -668,7 +664,10 @@ async def _handle_key_press(
         deck.reset()
         update_all_key_images(deck, config, complete_state)
     elif button.special_type == "light-control":
-        _light_page
+        page = _light_page(entity_id=button.special_type_data, n_colors=10)
+        config.special_page = page
+        deck.reset()
+        update_all_key_images(deck, config, complete_state)
     elif button.service is not None:
         button = button.rendered_button(complete_state)
         if button.service_data is None:

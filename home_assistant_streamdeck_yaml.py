@@ -372,7 +372,7 @@ def _states(
             state += f" {unit}"
     if rounded:
         state = round(float(state))
-    return state  # noqa: RET504
+    return state
 
 
 def _is_state(

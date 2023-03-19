@@ -37,10 +37,9 @@ TEST_STATE_FILENAME = ROOT / "tests" / "state.json"
 IS_CONNECTED_TO_HOMEASSISTANT = False
 
 
-@pytest.fixture()
-def config() -> Config:
-    """Config fixture."""
-    return read_config(DEFAULT_CONFIG)
+def test_read_config() -> None:
+    """Test read_config."""
+    read_config(DEFAULT_CONFIG)
 
 
 @pytest.fixture()
@@ -131,6 +130,14 @@ def buttons(button_dict: dict[str, dict[str, Any]]) -> list[Button]:
     buttons_per_page = 15
     assert len(button_order) == buttons_per_page
     return [Button(**button_dict[key]) for key in button_order]
+
+
+@pytest.fixture()
+def config(buttons: list[Button]) -> Config:
+    """Config fixture."""
+    page_1 = Page(buttons=buttons, name="Home")
+    page_2 = Page(buttons=buttons[::-1], name="Second")
+    return Config(pages=[page_1, page_2])
 
 
 def test_named_to_hex() -> None:
@@ -303,8 +310,14 @@ def test_update_key_image(config: Config, state: dict[str, dict[str, Any]]) -> N
     deck = MockDeck()
     update_key_image(deck, key=0, config=config, complete_state=state)
     page = config.current_page()
+    assert config.current_page_index == 0
     for key, _ in enumerate(page.buttons):
         update_key_image(deck, key=key, config=config, complete_state=state)
+
+    key_empty = next(
+        (i for i, b in enumerate(page.buttons) if b.special_type == "empty"),
+    )
+    assert key_empty is not None
 
 
 def test_download_spotify_image() -> None:

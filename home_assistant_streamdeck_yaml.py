@@ -220,6 +220,17 @@ def _generate_colors(num_colors: int, colormap: str) -> list[str]:
     return [plt.matplotlib.colors.to_hex(color) for color in colors]
 
 
+def _max_contrast_color(hex_color: str) -> str:
+    """Given hex color return a color with maximal contrast."""
+    # Convert hex color to RGB format
+    r, g, b = _hex_to_rgb(hex_color)
+    # Convert RGB color to grayscale
+    gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
+    # Determine whether white or black will have higher contrast
+    middle_range = 128
+    return "#FFFFFF" if gray < middle_range else "#000000"
+
+
 @ft.lru_cache(maxsize=16)
 def _light_page(
     entity_id: str,
@@ -239,19 +250,20 @@ def _light_page(
         )
         for color in colors
     ]
-    buttons_brightness = [
-        Button(
-            icon_background_color=_scale_hex_color("#FFFFFF", brightness / 100),
+    buttons_brightness = []
+    for brightness in [0, 10, 30, 60, 100]:
+        background_color = _scale_hex_color("#FFFFFF", brightness / 100)
+        button = Button(
+            icon_background_color=background_color,
             service="light.turn_on",
-            text_color=_scale_hex_color("#FFFFFF", 0.8 - brightness / 100),
+            text_color=_max_contrast_color(background_color),
             text=f"{brightness}%",
             service_data={
                 "entity_id": entity_id,
                 "brightness_pct": brightness,
             },
         )
-        for brightness in [0, 10, 30, 60, 100]
-    ]
+        buttons_brightness.append(button)
     return Page(name="Lights", buttons=buttons_colors + buttons_brightness)
 
 

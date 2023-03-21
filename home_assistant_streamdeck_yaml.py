@@ -86,19 +86,19 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
 
     def rendered_button(self, complete_state: dict[str, dict[str, Any]]) -> Button:
         """Return a button with the rendered text."""
-        rendered_button = self.copy()
-        for field_name in self.templatable:
-            field_value = getattr(self, field_name)
-            if isinstance(field_value, dict):  # e.g., service_data
-                new = {}
-                for k, v in field_value.items():
-                    new[k] = _render_jinja(v, complete_state)
-            elif isinstance(field_value, str):
-                new = _render_jinja(field_value, complete_state)  # type: ignore[assignment]
+        dct = self.dict(exclude_unset=True)
+        for key in self.templatable:
+            if key not in dct:
+                continue
+            val = dct[key]
+            if isinstance(val, dict):  # e.g., service_data
+                for k, v in val.items():
+                    val[k] = _render_jinja(v, complete_state)
+            elif isinstance(val, str):
+                dct[key] = _render_jinja(val, complete_state)  # type: ignore[assignment]
             else:
-                new = field_value
-            setattr(rendered_button, field_name, new)
-        return rendered_button
+                dct[key] = val
+        return Button(**dct)
 
     def render_icon(
         self,

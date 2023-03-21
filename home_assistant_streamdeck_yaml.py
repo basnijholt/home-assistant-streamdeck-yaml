@@ -10,7 +10,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Literal, TypeAlias
 
-import cairosvg
 import jinja2
 import matplotlib.pyplot as plt
 import numpy as np
@@ -63,10 +62,10 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     text: str = Field(
         default="",
         allow_template=True,
-        description=r"The text to display on the button."
-        "If empty, no text is displayed."
-        " You might want to add '\n' characters to spread the text over several"
-        " lines, or use the '|' character in YAML to create a multi-line string.",
+        description="The text to display on the button."
+        " If empty, no text is displayed."
+        r" You might want to add `\n` characters to spread the text over several"
+        r" lines, or use the `\|` character in YAML to create a multi-line string.",
     )
     text_color: str | None = Field(
         default=None,
@@ -140,6 +139,30 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " If `light-control`, the data should optionally be a dictionary with the"
         " 'colormap' key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html).",
     )
+
+    @classmethod
+    def to_markdown_table(cls: type[Button]) -> str:
+        """Return a markdown table with the schema."""
+        import pandas as pd
+
+        rows = []
+        for k, field in cls.__fields__.items():
+            info = field.field_info
+            if info.description is None:
+                continue
+
+            def code(text: str) -> str:
+                return f"`{text}`"
+
+            row = {
+                "Variable name": code(k),
+                "Type": code(field._type_display()),  # noqa: SLF001
+                "Default": code(info.default) if info.default else "",
+                "Allow template": code(info.extra.get("allow_template", "")),
+                "Description": info.description,
+            }
+            rows.append(row)
+        return pd.DataFrame(rows).to_markdown(index=False)
 
     @property
     def domain(self) -> str | None:
@@ -888,6 +911,8 @@ def _convert_svg_to_png(
     size
         The size of the resulting PNG image.
     """
+    import cairosvg  # importing here because it requires a non Python dep
+
     with filename_svg.open() as f:
         svg_content = f.read()
     # Modify the SVG content to set the fill and background colors

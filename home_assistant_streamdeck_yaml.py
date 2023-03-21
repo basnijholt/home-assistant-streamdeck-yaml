@@ -94,10 +94,8 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             if isinstance(val, dict):  # e.g., service_data
                 for k, v in val.items():
                     val[k] = _render_jinja(v, complete_state)
-            elif isinstance(val, str):
-                dct[key] = _render_jinja(val, complete_state)  # type: ignore[assignment]
             else:
-                dct[key] = val
+                dct[key] = _render_jinja(val, complete_state)  # type: ignore[assignment]
         return Button(**dct)
 
     def render_icon(
@@ -458,11 +456,11 @@ def _is_state(
 
 def _render_jinja(text: str, complete_state: dict[str, dict[str, Any]]) -> str:
     """Render a Jinja template."""
+    if not isinstance(text, str):
+        return text
+    if "{" not in text:
+        return text
     try:
-        if not isinstance(text, str):
-            return text
-        if "{" not in text:
-            return text
         template = jinja2.Template(text)
         return template.render(  # noqa: TRY300
             min=min,

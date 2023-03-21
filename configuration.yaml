@@ -67,7 +67,7 @@ pages:
       - icon: fireplace.png
         service: script.start_fireplace_netflix
       - service_data:
-          playlist: 37i9dQZF1DXaRycgyh6kXP
+          id: playlist:37i9dQZF1DXaRycgyh6kXP
           source: KEF LS50
         icon: spotify.png
         service: script.start_spotify
@@ -142,80 +142,80 @@ pages:
     buttons:
       # Electronica Romantica
       - service_data:
-          playlist: 37i9dQZF1DXaRycgyh6kXP
+          id: playlist:37i9dQZF1DXaRycgyh6kXP
           source: KEF LS50
         icon: "spotify:playlist/37i9dQZF1DXaRycgyh6kXP"
         service: script.start_spotify
 
       # Gui Borato's track IDs
       - service_data:
-          playlist: 37i9dQZF1DX4fgrmoIzHtd
+          id: playlist:37i9dQZF1DX4fgrmoIzHtd
           source: KEF LS50
         icon: "spotify:playlist/37i9dQZF1DX4fgrmoIzHtd"
         service: script.start_spotify
 
-      # # Hijos del Sol
-      # - service_data:
-      #     album: 6gnYcXVaffdG0vwVM34cr8
-      #     source: KEF LS50
-      #   icon: "spotify:album/6gnYcXVaffdG0vwVM34cr8"
-      #   service: script.start_spotify
+      # Hijos del Sol
+      - service_data:
+          id: album:6gnYcXVaffdG0vwVM34cr8
+          source: KEF LS50
+        icon: "spotify:album/6gnYcXVaffdG0vwVM34cr8"
+        service: script.start_spotify
 
       # Lofi
       - service_data:
-          playlist: 0vvXsWCC9xrXsKd4FyS8kM
+          id: playlist:0vvXsWCC9xrXsKd4FyS8kM
           source: KEF LS50
         icon: "spotify:playlist/0vvXsWCC9xrXsKd4FyS8kM"
         service: script.start_spotify
 
       # Whiskey Bar playlist
       - service_data:
-          playlist: 7fAwscs01z0Rji0HIIB19l
+          id: playlist:7fAwscs01z0Rji0HIIB19l
           source: KEF LS50
         icon: "spotify:playlist/7fAwscs01z0Rji0HIIB19l"
         service: script.start_spotify
 
       # Deep House Relax
       - service_data:
-          playlist: 37i9dQZF1DX2TRYkJECvfC
+          id: playlist:37i9dQZF1DX2TRYkJECvfC
           source: KEF LS50
         icon: "spotify:playlist/37i9dQZF1DX2TRYkJECvfC"
         service: script.start_spotify
 
       # Discover Weekly
       - service_data:
-          playlist: 37i9dQZEVXcJ4MCS0sT9Qc
+          id: playlist:37i9dQZEVXcJ4MCS0sT9Qc
           source: KEF LS50
         icon: "spotify:playlist/37i9dQZEVXcJ4MCS0sT9Qc"
         service: script.start_spotify
 
       # Bas Nijholt's playlist
       - service_data:
-          playlist: 6rPTm9dYftKcFAfwyRqmDZ
+          id: playlist:6rPTm9dYftKcFAfwyRqmDZ
           source: KEF LS50
         icon: "spotify:playlist/6rPTm9dYftKcFAfwyRqmDZ"
         service: script.start_spotify
 
       # Techno Yoga
       - service_data:
-          playlist: 78MrlTajauLF07fztVmEv3
+          id: playlist:78MrlTajauLF07fztVmEv3
           source: KEF LS50
         icon: "spotify:playlist/78MrlTajauLF07fztVmEv3"
         service: script.start_spotify
 
       # Nicolas Jaar Essential Mix
       - service_data:
-          playlist: 5DKwqbNTYB384iW7TGQGAh
+          id: playlist:5DKwqbNTYB384iW7TGQGAh
           source: KEF LS50
         icon: "spotify:playlist/5DKwqbNTYB384iW7TGQGAh"
         service: script.start_spotify
 
-      # Coding mode
-      - service_data:
-          playlist: 37i9dQZF1DX5trt9i14X7j
-          source: KEF LS50
-        icon: "spotify:playlist/37i9dQZF1DX5trt9i14X7j"
-        service: script.start_spotify
+      # # Coding mode
+      # - service_data:
+      #     id: playlist:37i9dQZF1DX5trt9i14X7j
+      #     source: KEF LS50
+      #   icon: "spotify:playlist/37i9dQZF1DX5trt9i14X7j"
+      #   service: script.start_spotify
 
       # Next song
       - service: media_player.media_next_track

@@ -100,19 +100,79 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             setattr(rendered_button, field_name, new)
         return rendered_button
 
-    def render_icon(self) -> str | None:
+    def render_icon(
+        self,
+        complete_state: dict[str, dict[str, Any]],
+        *,
+        key_pressed: bool = False,
+        size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
+        icon_mdi_margin: int = 0,
+        font_filename: str = "Roboto-Regular.ttf",
+        font_size: int = 12,
+    ) -> Image.Image | None:
         """Render the icon."""
-        if self.icon is None:
-            return None
-
-        if ":" in self.icon:
+        if isinstance(self.icon, str) and ":" in self.icon:
             which, id_ = self.icon.split(":", 1)
             if which == "spotify":
                 filename = _to_filename(self.icon, ".jpeg")
-                _download_spotify_image(id_, filename)
-                return str(filename)
+                return _download_spotify_image(id_, filename)
 
-        return self.icon
+        if self.special_type == "empty":
+            return None
+
+        button = self.rendered_button(complete_state)
+
+        icon_convert_to_grayscale = False
+        text = button.text
+        text_color = button.text_color or "white"
+        icon_mdi = button.icon_mdi
+
+        if button.special_type == "next-page":
+            text = button.text or "Next\nPage"
+            icon_mdi = button.icon_mdi or "chevron-right"
+        elif button.special_type == "previous-page":
+            text = button.text or "Previous\nPage"
+            icon_mdi = button.icon_mdi or "chevron-left"
+        elif button.special_type == "go-to-page":
+            page = button.special_type_data
+            text = button.text or f"Go to\nPage\n{page}"
+            icon_mdi = button.icon_mdi or "book-open-page-variant"
+        elif button.entity_id in complete_state:
+            # Has entity_id
+            state = complete_state[button.entity_id]
+
+            if button.text_color is not None:
+                text_color = button.text_color
+            elif state["state"] == "on":
+                text_color = "orangered"
+
+            if (
+                button.icon_mdi is None
+                and button.icon is None
+                and button.domain in DEFAULT_MDI_ICONS
+            ):
+                icon_mdi = DEFAULT_MDI_ICONS[button.domain]
+
+            if state["state"] == "off":
+                icon_convert_to_grayscale = button.icon_gray_when_off
+
+        image = _init_icon(
+            icon_background_color=button.icon_background_color,
+            icon_filename=button.icon,
+            icon_mdi=icon_mdi,
+            icon_mdi_margin=icon_mdi_margin,
+            icon_mdi_color=_named_to_hex(button.icon_mdi_color or text_color),
+            icon_convert_to_grayscale=icon_convert_to_grayscale,
+            size=size,
+        )
+        _add_text(
+            image,
+            font_filename,
+            font_size,
+            text,
+            text_color=text_color if not key_pressed else "green",
+        )
+        return image
 
     @validator("special_type_data")
     def _validate_special_type(
@@ -537,43 +597,23 @@ def _init_icon(
     return Image.new("RGB", size, rgb_color)
 
 
-def render_key_image(
-    deck: StreamDeck,
-    *,
-    text_color: str = "white",
-    icon_filename: str | None = None,
-    icon_background_color: str = "#000000",
-    icon_convert_to_grayscale: bool = False,
-    icon_mdi: str | None = None,
-    icon_mdi_margin: int = 0,
-    icon_mdi_color: str | None = None,
-    font_filename: str = "Roboto-Regular.ttf",
-    font_size: int = 12,
-    label_text: str = "",
-) -> memoryview:
-    """Render an image for a key."""
-    size = (deck.KEY_PIXEL_WIDTH, deck.KEY_PIXEL_HEIGHT)
-    icon = _init_icon(
-        icon_background_color=icon_background_color,
-        icon_filename=icon_filename,
-        icon_mdi=icon_mdi,
-        icon_mdi_margin=icon_mdi_margin,
-        icon_mdi_color=_named_to_hex(icon_mdi_color or text_color),
-        icon_convert_to_grayscale=icon_convert_to_grayscale,
-        size=size,
-    )
-    image = PILHelper.create_scaled_image(deck, icon, margins=[0, 0, 0, 0])
+def _add_text(
+    image: Image.Image,
+    font_filename: str,
+    font_size: int,
+    text: str,
+    text_color: str,
+) -> None:
     draw = ImageDraw.Draw(image)
     font = ImageFont.truetype(str(ASSETS_PATH / font_filename), font_size)
     draw.text(
         (image.width / 2, image.height / 2),
-        text=label_text,
+        text=text,
         font=font,
         anchor="ms",
         fill=text_color,
         align="center",
     )
-    return PILHelper.to_native_format(deck, image)
 
 
 def update_key_image(
@@ -586,56 +626,15 @@ def update_key_image(
 ) -> None:
     """Update the image for a key."""
     button = config.button(key)
-    if button.special_type == "empty":
-        return
-    button = button.rendered_button(complete_state)
-    icon_convert_to_grayscale = False
-    text = button.text
-    text_color = button.text_color or "white"
-    icon_mdi = button.icon_mdi
-
-    if button.special_type == "next-page":
-        text = button.text or "Next\nPage"
-        icon_mdi = button.icon_mdi or "chevron-right"
-    elif button.special_type == "previous-page":
-        text = button.text or "Previous\nPage"
-        icon_mdi = button.icon_mdi or "chevron-left"
-    elif button.special_type == "go-to-page":
-        page = button.special_type_data
-        text = button.text or f"Go to\nPage\n{page}"
-        icon_mdi = button.icon_mdi or "book-open-page-variant"
-    elif button.entity_id in complete_state:
-        # Has entity_id
-        state = complete_state[button.entity_id]
-
-        if button.text_color is not None:
-            text_color = button.text_color
-        elif state["state"] == "on":
-            text_color = "orangered"
-
-        if (
-            button.icon_mdi is None
-            and button.icon is None
-            and button.domain in DEFAULT_MDI_ICONS
-        ):
-            icon_mdi = DEFAULT_MDI_ICONS[button.domain]
-
-        if state["state"] == "off":
-            icon_convert_to_grayscale = button.icon_gray_when_off
-
-    image = render_key_image(
-        deck,
-        label_text=text,
-        text_color=text_color if not key_pressed else "green",
-        icon_mdi=icon_mdi,
-        icon_background_color=button.icon_background_color,
-        icon_filename=button.render_icon(),
-        icon_mdi_color=button.icon_mdi_color,
-        icon_convert_to_grayscale=icon_convert_to_grayscale,
-        font_size=button.text_size,
+    image = button.render_icon(
+        complete_state=complete_state,
+        key_pressed=key_pressed,
+        size=deck.key_image_format()["size"],
     )
-    with deck:
-        deck.set_key_image(key, image)
+    if image is not None:
+        image = PILHelper.to_native_format(deck, image)
+        with deck:
+            deck.set_key_image(key, image)
 
 
 def get_deck() -> StreamDeck:

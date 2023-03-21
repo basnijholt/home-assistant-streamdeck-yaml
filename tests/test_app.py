@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 from dotenv import dotenv_values
+from PIL import Image
 from pydantic import ValidationError
 from StreamDeck.Devices.StreamDeckOriginal import StreamDeckOriginal
 
@@ -203,7 +204,8 @@ def test_buttons(buttons: list[Button], state: dict[str, dict[str, Any]]) -> Non
 
     b = rendered_buttons[0]  # LIGHT
     assert b.domain == "light"
-    assert b.render_icon() is None
+    icon = b.render_icon(state)
+    assert isinstance(icon, Image.Image)
 
     b = rendered_buttons[1]  # VOLUME_DOWN
     assert b.entity_id in state
@@ -215,16 +217,17 @@ def test_buttons(buttons: list[Button], state: dict[str, dict[str, Any]]) -> Non
     assert float(b.service_data["volume_level"]) == volume - 0.05
 
     b = rendered_buttons[3]  # SCRIPT_WITH_TEXT_AND_ICON
-    assert b.render_icon() == b.icon
+    icon = b.render_icon(state)
+    assert isinstance(icon, Image.Image)
 
     b = rendered_buttons[4]  # INPUT_SELECT_WITH_TEMPLATE
     assert b.text == "Sleep off"
 
     b = rendered_buttons[6]  # SPOTIFY_PLAYLIST
-    icon = b.render_icon()
+    icon = b.render_icon(state)
     assert b.icon is not None
+    # render_icon should create a file
     filename = _to_filename(b.icon, ".jpeg")
-    assert icon == str(filename.absolute())
     assert Path(filename).exists()
 
     b = rendered_buttons[14]  # SPECIAL_NEXT_PAGE

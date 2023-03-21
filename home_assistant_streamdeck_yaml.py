@@ -578,6 +578,9 @@ def _init_icon(
         icon = Image.open(ASSETS_PATH / icon_filename)
         if icon_convert_to_grayscale:
             icon = _convert_to_grayscale(icon)
+        # Convert to RGB if needed
+        if icon.mode != "RGB":
+            icon = icon.convert("RGB")
         return icon
     if icon_mdi is not None:
         assert icon_mdi_margin is not None
@@ -589,7 +592,7 @@ def _init_icon(
             opacity=0.3,
             margin=icon_mdi_margin,
             size=size,
-        )
+        ).copy()  # copy to avoid modifying the cached image
     if icon_background_color is None:
         icon_background_color = "white"
     color = _named_to_hex(icon_background_color)

@@ -8,7 +8,7 @@ import io
 import json
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Callable, Literal, TypeAlias
 
 import cairosvg
 import jinja2
@@ -24,9 +24,6 @@ from rich.console import Console
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.ImageHelpers import PILHelper
 
-console = Console()
-
-
 if TYPE_CHECKING:
     from collections.abc import Coroutine
 
@@ -38,6 +35,9 @@ DEFAULT_CONFIG = SCRIPT_DIR / "configuration.yaml"
 DEFAULT_MDI_ICONS = {"light": "lightbulb", "switch": "power-socket-eu"}
 ICON_PIXELS = 72
 _ID_COUNTER = 0
+
+console = Console()
+StateDict: TypeAlias = dict[str, dict[str, Any]]
 
 
 class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
@@ -84,7 +84,10 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             "icon_mdi_color",
         }
 
-    def rendered_button(self, complete_state: dict[str, dict[str, Any]]) -> Button:
+    def rendered_template_button(
+        self,
+        complete_state: StateDict,
+    ) -> Button:
         """Return a button with the rendered text."""
         dct = self.dict(exclude_unset=True)
         for key in self.templatable:
@@ -100,7 +103,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
 
     def render_icon(
         self,
-        complete_state: dict[str, dict[str, Any]],
+        complete_state: StateDict,
         *,
         key_pressed: bool = False,
         size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
@@ -118,7 +121,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         if self.special_type == "empty":
             return None
 
-        button = self.rendered_button(complete_state)
+        button = self.rendered_template_button(complete_state)
 
         icon_convert_to_grayscale = False
         text = button.text
@@ -162,7 +165,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             icon_mdi_color=_named_to_hex(button.icon_mdi_color or text_color),
             icon_convert_to_grayscale=icon_convert_to_grayscale,
             size=size,
-        )
+        ).copy()  # copy to avoid modifying the cached image
         _add_text(
             image,
             font_filename,
@@ -362,7 +365,7 @@ async def subscribe_state_changes(
 
 async def handle_state_changes(
     websocket: websockets.WebSocketClientProtocol,
-    complete_state: dict[str, dict[str, Any]],
+    complete_state: StateDict,
     deck: StreamDeck,
     config: Config,
 ) -> None:
@@ -379,7 +382,7 @@ def _keys(entity_id: str, buttons: list[Button]) -> list[int]:
 
 
 def _update_state(
-    complete_state: dict[str, dict[str, Any]],
+    complete_state: StateDict,
     data: dict[str, Any],
     config: Config,
     deck: StreamDeck,
@@ -407,7 +410,7 @@ def _update_state(
 def _state_attr(
     entity_id: str,
     attr: str,
-    complete_state: dict[str, dict[str, Any]],
+    complete_state: StateDict,
 ) -> Any:
     """Get the state attribute for an entity."""
     return complete_state.get(entity_id, {}).get("attributes", {}).get(attr)
@@ -417,7 +420,7 @@ def _is_state_attr(
     entity_id: str,
     attr: str,
     value: Any,
-    complete_state: dict[str, dict[str, Any]],
+    complete_state: StateDict,
 ) -> bool:
     """Check if the state attribute for an entity is a value."""
     return _state_attr(entity_id, attr, complete_state) == value
@@ -428,7 +431,7 @@ def _states(
     *,
     with_unit: bool = False,
     rounded: bool = False,
-    complete_state: dict[str, dict[str, Any]] | None = None,
+    complete_state: StateDict | None = None,
 ) -> Any:
     """Get the state for an entity."""
     assert complete_state is not None
@@ -448,13 +451,13 @@ def _states(
 def _is_state(
     entity_id: str,
     state: str,
-    complete_state: dict[str, dict[str, Any]],
+    complete_state: StateDict,
 ) -> bool:
     """Check if the state for an entity is a value."""
     return _states(entity_id, complete_state=complete_state) == state
 
 
-def _render_jinja(text: str, complete_state: dict[str, dict[str, Any]]) -> str:
+def _render_jinja(text: str, complete_state: StateDict) -> str:
     """Render a Jinja template."""
     if not isinstance(text, str):
         return text
@@ -561,6 +564,7 @@ def _download_and_save_mdi(icon_mdi: str) -> Path:
     return filename_svg
 
 
+@ft.lru_cache(maxsize=128)  # storing 128 72x72 icons in memory takes ≈2MB
 def _init_icon(
     *,
     icon_filename: str | None = None,
@@ -622,7 +626,7 @@ def update_key_image(
     *,
     key: int,
     config: Config,
-    complete_state: dict[str, dict[str, Any]],
+    complete_state: StateDict,
     key_pressed: bool = False,
 ) -> None:
     """Update the image for a key."""
@@ -665,7 +669,7 @@ def read_config(fname: Path) -> Config:
 
 async def _handle_key_press(
     websocket: websockets.WebSocketClientProtocol,
-    complete_state: dict[str, dict[str, Any]],
+    complete_state: StateDict,
     config: Config,
     key: int,
     deck: StreamDeck,
@@ -696,7 +700,7 @@ async def _handle_key_press(
         deck.reset()
         update_all_key_images(deck, config, complete_state)
     elif button.service is not None:
-        button = button.rendered_button(complete_state)
+        button = button.rendered_template_button(complete_state)
         if button.service_data is None:
             service_data = {}
             if button.entity_id is not None:
@@ -710,7 +714,7 @@ async def _handle_key_press(
 
 def _on_press_callback(
     websocket: websockets.WebSocketClientProtocol,
-    complete_state: dict[str, dict[str, Any]],
+    complete_state: StateDict,
     config: Config,
 ) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:
     async def key_change_callback(
@@ -875,7 +879,7 @@ def _download_spotify_image(
 def update_all_key_images(
     deck: StreamDeck,
     config: Config,
-    complete_state: dict[str, dict[str, Any]],
+    complete_state: StateDict,
 ) -> None:
     """Update all key images."""
     for key in range(deck.key_count()):

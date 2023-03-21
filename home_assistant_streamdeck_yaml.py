@@ -43,25 +43,103 @@ StateDict: TypeAlias = dict[str, dict[str, Any]]
 class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     """Button configuration."""
 
-    entity_id: str | None = None
-    service: str | None = None
-    service_data: dict[str, Any] | None = None
-    text: str = ""
-    text_color: str | None = None
-    text_size: int = 12
-    icon: str | None = None
-    icon_mdi: str | None = None
-    icon_background_color: str = "#000000"
-    icon_mdi_color: str | None = None
-    icon_gray_when_off: bool = False
+    entity_id: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="The `entity_id` that this button controls."
+        "This entitity will be passed to the `service` when the button is pressed.",
+    )
+    service: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="The `service` that will be called when the button is pressed.",
+    )
+    service_data: dict[str, Any] | None = Field(
+        default=None,
+        allow_template=True,
+        description="The `service_data` that will be passed to the `service` when the button is pressed."
+        " If empty, the `entity_id` will be passed.",
+    )
+    text: str = Field(
+        default="",
+        allow_template=True,
+        description=r"The text to display on the button."
+        "If empty, no text is displayed."
+        " You might want to add '\n' characters to spread the text over several"
+        " lines, or use the '|' character in YAML to create a multi-line string.",
+    )
+    text_color: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="Color of the text."
+        " If empty, the color is `white`, unless an `entity_id` is specified, in"
+        " which case the color is `amber` when the state is `on`, and `white` when it is `off`.",
+    )
+    text_size: int = Field(
+        default=12,
+        allow_template=False,
+        description="Integer size of the text.",
+    )
+    icon: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="The icon filename to display on the button."
+        " If empty, a icon with `icon_background_color` and `text` is displayed."
+        " The icon can be a URL to an image, or a `spotify:` icon, like `'spotify:album/6gnYcXVaffdG0vwVM34cr8'`."
+        " If the icon is a `spotify:` icon, the icon will be downloaded and cached.",
+    )
+    icon_mdi: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="The Material Design Icon to display on the button."
+        " If empty, no icon is displayed."
+        " See https://mdi.bessarabov.com/ for a list of icons."
+        " The SVG icon will be downloaded and cached.",
+    )
+    icon_background_color: str = Field(
+        default="#000000",
+        allow_template=True,
+        description="A color (in hex format, e.g., '#FF0000') for the background of the icon (if no `icon` is specified).",
+    )
+    icon_mdi_color: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="The color of the Material Design Icon (in hex format, e.g., '#FF0000')."
+        " If empty, the color is derived from `text_color` but is less saturated (gray is mixed in).",
+    )
+    icon_gray_when_off: bool = Field(
+        default=False,
+        allow_template=False,
+        description="When specifying `icon` and `entity_id`, if the state is `off`, the icon will be converted to grayscale.",
+    )
     special_type: Literal[
         "next-page",
         "previous-page",
         "empty",
         "go-to-page",
         "light-control",
-    ] | None = None
-    special_type_data: Any | None = None
+    ] | None = Field(
+        default=None,
+        allow_template=False,
+        description="Special type of button."
+        " If no specified, the button is a normal button."
+        " If `next-page`, the button will go to the next page."
+        " If `previous-page`, the button will go to the previous page."
+        " If `empty`, the button will be empty."
+        " If `go-to-page`, the button will go to the page specified by `special_type_data`"
+        " (either an `int` or `str` (name of the page))."
+        " If `light-control`, the button will control a light, and the `special_type_data`"
+        " should optionally be a dictionary with the 'colormap' key and a value a"
+        " colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html).",
+    )
+    special_type_data: Any | None = Field(
+        default=None,
+        allow_template=True,
+        description="Data for the special type of button."
+        " If `go-to-page`, the data should be an `int` or `str` (name of the page)."
+        " If `light-control`, the data should optionally be a dictionary with the"
+        " 'colormap' key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html).",
+    )
 
     @property
     def domain(self) -> str | None:
@@ -70,19 +148,12 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             return None
         return self.service.split(".", 1)[0]
 
-    @property
-    def templatable(self) -> set[str]:
+    @classmethod
+    def templatable(cls: type[Button]) -> set[str]:
         """Return if an attribute is templatable, which is if the type-annotation is str."""
-        return {  # TODO: use Field and add templatable attribute to fields
-            "entity_id",
-            "service",
-            "service_data",
-            "text",
-            "text_color",
-            "icon",
-            "icon_mdi",
-            "icon_mdi_color",
-        }
+        schema = cls.schema()
+        properties = schema["properties"]
+        return {k for k, v in properties.items() if v["allow_template"]}
 
     def rendered_template_button(
         self,
@@ -90,7 +161,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     ) -> Button:
         """Return a button with the rendered text."""
         dct = self.dict(exclude_unset=True)
-        for key in self.templatable:
+        for key in self.templatable():
             if key not in dct:
                 continue
             val = dct[key]

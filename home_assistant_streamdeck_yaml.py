@@ -73,7 +73,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     @property
     def templatable(self) -> set[str]:
         """Return if an attribute is templatable, which is if the type-annotation is str."""
-        return {
+        return {  # TODO: use Field and add templatable attribute to fields
             "entity_id",
             "service",
             "service_data",

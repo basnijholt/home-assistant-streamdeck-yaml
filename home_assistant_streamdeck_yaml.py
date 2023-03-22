@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import functools as ft
+import hashlib
 import io
 import json
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Literal, TypeAlias
@@ -84,7 +86,9 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         allow_template=True,
         description="The icon filename to display on the button."
         " If empty, a icon with `icon_background_color` and `text` is displayed."
-        " The icon can be a URL to an image, or a `spotify:` icon, like `'spotify:album/6gnYcXVaffdG0vwVM34cr8'`."
+        " The icon can be a URL to an image,"
+        " like `'url:https://www.nijho.lt/authors/admin/avatar.jpg'`, or a `spotify:`"
+        " icon, like `'spotify:album/6gnYcXVaffdG0vwVM34cr8'`."
         " If the icon is a `spotify:` icon, the icon will be downloaded and cached.",
     )
     icon_mdi: str | None = Field(
@@ -211,6 +215,9 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             if which == "spotify":
                 filename = _to_filename(self.icon, ".jpeg")
                 return _download_spotify_image(id_, filename)
+            if which == "url":
+                filename = _url_to_filename(id_)
+                return _download_image(id_, filename)
 
         if self.special_type == "empty":
             return None
@@ -847,6 +854,28 @@ def _download(url: str) -> bytes:
     return response.content
 
 
+def _url_to_filename(url: str, hash_len: int = 8) -> Path:
+    """Converts a URL to a Path on disk with an optional hash.
+
+    Parameters
+    ----------
+    url
+        The URL to convert to a filename.
+    hash_len
+        The length of the hash to include in the filename, by default 8.
+
+    Returns
+    -------
+    Path
+        The filename with the hash included, if specified.
+    """
+    domain, path = re.findall(r"(?<=://)([a-zA-Z\.]+).*?(/.*)", url)[0]
+    h = hashlib.sha256(f"{domain}{path}".encode()).hexdigest()[:hash_len]
+    extension = Path(path).suffix
+    filename = f"{domain.replace('.', '_')}-{h}{extension}"
+    return ASSETS_PATH / Path(filename)
+
+
 def _scale_hex_color(hex_color: str, scale: float) -> str:
     """Scales a HEX color by a given factor.
 
@@ -964,7 +993,18 @@ def _download_spotify_image(
     content = _download(url)
     data = json.loads(content)
     image_url = data["thumbnail_url"]
-    image_content = _download(image_url)
+    return _download_image(image_url, filename)
+
+
+@ft.lru_cache(maxsize=32)  # Change only a few images, because they might be large
+def _download_image(
+    url: str,
+    filename: Path | None = None,
+) -> Image.Image | None:
+    """Download an image for a given url."""
+    if filename is not None and filename.exists():
+        return Image.open(filename)
+    image_content = _download(url)
     image = Image.open(io.BytesIO(image_content))
     if filename is not None:
         image.save(filename)

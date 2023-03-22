@@ -13,6 +13,7 @@ from pydantic import ValidationError
 from StreamDeck.Devices.StreamDeckOriginal import StreamDeckOriginal
 
 from home_assistant_streamdeck_yaml import (
+    ASSETS_PATH,
     DEFAULT_CONFIG,
     Button,
     Config,
@@ -27,6 +28,7 @@ from home_assistant_streamdeck_yaml import (
     _named_to_hex,
     _states,
     _to_filename,
+    _url_to_filename,
     get_states,
     read_config,
     setup_ws,
@@ -60,6 +62,11 @@ def button_dict() -> dict[str, dict[str, Any]]:
             "entity_id": "light.living_room_lights_z2m",
             "service": "light.toggle",
             "text": "Living room\nlights\n",
+        },
+        "icon_from_url": {
+            "icon": "url:https://www.nijho.lt/authors/admin/avatar.jpg",
+            # Normally one would use `person.bas`, however, that state is not in the test JSON.
+            "text": "{% if is_state('light.living_room_lights_z2m', 'on') %}Home{% else %}Away{% endif %}",
         },
         "volume_down": {
             "entity_id": "media_player.kef_ls50",
@@ -121,7 +128,7 @@ def buttons(button_dict: dict[str, dict[str, Any]]) -> list[Button]:
         "input_select_with_template",
         "script_with_icon",
         "spotify_playlist",
-        "special_empty",
+        "icon_from_url",
         "special_empty",
         "special_empty",
         "special_empty",
@@ -200,7 +207,9 @@ def test_buttons(buttons: list[Button], state: dict[str, dict[str, Any]]) -> Non
     page = Page(name="Home", buttons=buttons)
     config = Config(pages=[page])
     first_page = config.to_page(0)
-    rendered_buttons = [button.rendered_button(state) for button in first_page.buttons]
+    rendered_buttons = [
+        button.rendered_template_button(state) for button in first_page.buttons
+    ]
 
     b = rendered_buttons[0]  # LIGHT
     assert b.domain == "light"
@@ -371,3 +380,10 @@ def test_light_page() -> None:
     buttons = page.buttons
     assert len(buttons) == BUTTONS_PER_PAGE
     assert buttons[0].icon_background_color is not None
+
+
+def test_url_to_filename() -> None:
+    """Test url_to_filename."""
+    url = "https://www.example.com/path/to/file.html"
+    expected_filename = ASSETS_PATH / "www_example_com-1f8a388e.html"
+    assert str(_url_to_filename(url)) == str(expected_filename)

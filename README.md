@@ -19,6 +19,8 @@ Unfortunately, the native Stream Deck software doesn't support Linux, but we've 
 
 Are you ready to give it a try? Great!
 
+https://user-images.githubusercontent.com/6897215/226788119-6c198ea6-2950-4f95-95dc-346c9e5b5cee.mp4
+
 ## Installation
 
 Just run `pip install -e .` in the repo folder to install the required dependencies.

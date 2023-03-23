@@ -353,9 +353,12 @@ class Config(BaseModel):
             return self.special_page
         return self.pages[self.current_page_index]
 
-    def button(self, key: int) -> Button:
+    def button(self, key: int) -> Button | None:
         """Return the button for a key."""
-        return self.current_page().buttons[key]
+        buttons = self.current_page().buttons
+        if key < len(buttons):
+            return buttons[key]
+        return None
 
     def to_page(self, page: int | str) -> Page:
         """Go to a page based on the page name or index."""
@@ -732,6 +735,8 @@ def update_key_image(
 ) -> None:
     """Update the image for a key."""
     button = config.button(key)
+    if button is None:
+        return
     image = button.render_icon(
         complete_state=complete_state,
         key_pressed=key_pressed,
@@ -776,6 +781,8 @@ async def _handle_key_press(
     deck: StreamDeck,
 ) -> None:
     button = config.button(key)
+    if button is None:
+        return
     if button.special_type == "next-page":
         config.next_page()
         deck.reset()

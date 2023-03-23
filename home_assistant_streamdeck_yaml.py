@@ -162,7 +162,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 "Variable name": code(k),
                 "Type": code(field._type_display()),  # noqa: SLF001
                 "Default": code(info.default) if info.default else "",
-                "Allow template": code(info.extra.get("allow_template", "")),
+                "Allow template": "✅" if info.extra["allow_template"] else "❌",
                 "Description": info.description,
             }
             rows.append(row)

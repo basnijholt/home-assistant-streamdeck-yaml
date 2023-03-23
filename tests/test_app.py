@@ -387,3 +387,19 @@ def test_url_to_filename() -> None:
     url = "https://www.example.com/path/to/file.html"
     expected_filename = ASSETS_PATH / "www_example_com-1f8a388e.html"
     assert str(_url_to_filename(url)) == str(expected_filename)
+
+
+def test_not_enough_buttons() -> None:
+    """Test not enough buttons."""
+    page = Page(
+        buttons=[
+            Button(
+                entity_id="light.bedroom",
+                icon="mdi:lightbulb",
+                icon_background_color="#000000",
+            ),
+        ],
+        name="test",
+    )
+    config = Config(pages=[page])
+    assert config.button(2) is None

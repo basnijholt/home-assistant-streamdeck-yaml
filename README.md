@@ -61,8 +61,9 @@ Run `home-assistant-streamdeck-yaml -h` to see the available options.
 For example, you can use
 
 ```bash
-home-assistant-streamdeck-yaml --host "klasdhkjashdhaksdl.ui.nabu.casa" --token "SOME_TOKEN_FROM_YOUR_PROFILE" --config "my_configuration.yml"
+home-assistant-streamdeck-yaml --host "klasdhkjashdhaksdl.ui.nabu.casa" --token "SOME_TOKEN_FROM_YOUR_PROFILE" --config "my_configuration.yml --protocol "wss"
 ```
+
 to customize your setup even further.
 
 That's it! With just a little bit of setup, you can enjoy controlling your smart home devices with ease.

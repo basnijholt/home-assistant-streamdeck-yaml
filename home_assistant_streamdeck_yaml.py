@@ -433,9 +433,13 @@ def _light_page(
 
 
 @asynccontextmanager
-async def setup_ws(host: str, token: str) -> websockets.WebSocketClientProtocol:
+async def setup_ws(
+    host: str,
+    token: str,
+    protocol: Literal["wss", "ws"],
+) -> websockets.WebSocketClientProtocol:
     """Set up the connection to Home Assistant."""
-    uri = f"wss://{host}/api/websocket"
+    uri = f"{protocol}://{host}/api/websocket"
     while True:
         try:
             async with websockets.connect(uri) as websocket:
@@ -1035,10 +1039,15 @@ def update_all_key_images(
         )
 
 
-async def run(host: str, token: str, config: Config) -> None:
+async def run(
+    host: str,
+    token: str,
+    protocol: Literal["wss", "ws"],
+    config: Config,
+) -> None:
     """Main entry point for the Stream Deck integration."""
     deck = get_deck()
-    async with setup_ws(host, token) as websocket:
+    async with setup_ws(host, token, protocol) as websocket:
         complete_state = await get_states(websocket)
         update_all_key_images(deck, config, complete_state)
         deck.set_key_callback_async(
@@ -1066,9 +1075,21 @@ def main() -> None:
         default=os.environ.get("STREAMDECK_CONFIG", DEFAULT_CONFIG),
         type=Path,
     )
+    parser.add_argument(
+        "--protocol",
+        default=os.environ.get("WEBSOCKET_PROTOCOL", "wss"),
+        choices=["wss", "ws"],
+    )
     args = parser.parse_args()
     config = read_config(args.config)
-    asyncio.run(run(host=args.host, token=args.token, config=config))
+    asyncio.run(
+        run(
+            host=args.host,
+            token=args.token,
+            protocol=args.protocol,
+            config=config,
+        ),
+    )
 
 
 if __name__ == "__main__":

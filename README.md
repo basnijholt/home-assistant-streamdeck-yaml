@@ -61,7 +61,7 @@ Run `home-assistant-streamdeck-yaml -h` to see the available options.
 For example, you can use
 
 ```bash
-home-assistant-streamdeck-yaml --host "klasdhkjashdhaksdl.ui.nabu.casa" --token "SOME_TOKEN_FROM_YOUR_PROFILE" --config "my_configuration.yml --protocol "wss"
+home-assistant-streamdeck-yaml --host "klasdhkjashdhaksdl.ui.nabu.casa" --token "SOME_TOKEN_FROM_YOUR_PROFILE" --config "my_configuration.yml" --protocol "wss"
 ```
 
 to customize your setup even further.

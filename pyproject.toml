@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "home_assistant_streamdeck_yaml"
 description = "Home Assistant on Stream Deck: configured via YAML (with templates) and running on Linux, MacOS, and Windows"
 version = "0.1.0"
-authors = [{ name = "Bas Nijholt", email = "bas@nijho.length" }]
+authors = [{ name = "Bas Nijholt", email = "bas@nijho.lt" }]
 dependencies = [
     "cairosvg",
     "jinja2",

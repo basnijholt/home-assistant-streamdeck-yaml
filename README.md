@@ -25,6 +25,27 @@ https://user-images.githubusercontent.com/6897215/226788119-6c198ea6-2950-4f95-9
 
 Just run `pip install -e .` in the repo folder to install the required dependencies.
 
+On **Linux** you need to install some extra dependencies:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y libudev-dev libusb-1.0-0-dev libhidapi-libusb0 libffi-dev
+```
+
+and add a udev rule to allow access to the Stream Deck, run `sudo nano /etc/udev/rules.d/99-streamdeck.rules` and add the following line:
+
+```bash
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0fd9", GROUP="users", TAG+="uaccess"
+```
+
+On **MacOS** you need to install some extra dependencies:
+
+```bash
+brew install hidapi cairo libffi
+```
+
+For **Windows**, see [this](https://python-elgato-streamdeck.readthedocs.io/en/stable/pages/backend_libusb_hidapi.html#windows) page.
+
 ## Configuration
 
 Then, create a `configuration.yaml` file in the same directory.

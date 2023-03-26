@@ -7,17 +7,14 @@ RUN apk update && apk add --no-cache \
     libusb-dev \
     hidapi-dev \
     libffi-dev \
-    # Needed for cairosvg
-    cairo-dev \
     # Needed for git clone
     git \
     # Needed to run pip install our requirements
     musl-dev gcc \
+    # Needed for cairosvg
+    cairo-dev \
+    # Needed for lxml
     libxml2-dev libxslt-dev \
-    && rm -rf /var/cache/apk/*
-
-# Install numpy and matplotlib with apk
-RUN apk add --no-cache \
     && rm -rf /var/cache/apk/*
 
 # Add udev rule for the Stream Deck
@@ -32,6 +29,9 @@ WORKDIR /app
 
 # Install the required dependencies
 RUN pip3 install -e .
+
+# Remove musl-dev and gcc
+RUN apk del musl-dev gcc && rm -rf /var/cache/apk/*
 
 # Set the entrypoint to run the application
 ENTRYPOINT ["/bin/sh", "-c", "home-assistant-streamdeck-yaml"]

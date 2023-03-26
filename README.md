@@ -37,7 +37,7 @@ docker build -t streamdeck .
 And run it with:
 
 ```bash
-docker run --rm -it --privileged --env-file=$(pwd)/.env -v $(pwd)/configuration.yaml:/root/ho-assistant-streamdeck-yaml/configuration.yaml streamdeck
+docker run --rm -it --privileged --env-file=$(pwd)/.env -v $(pwd)/configuration.yaml:/app/configuration.yaml streamdeck
 ```
 
 ## Installation without Docker

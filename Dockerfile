@@ -32,10 +32,10 @@ SHELL ["bash", "-l" ,"-c"]
 RUN micromamba activate && micromamba install --yes --channel conda-forge python=3.11
 
 # Clone the repository
-RUN git clone https://github.com/basnijholt/home-assistant-streamdeck-yaml.git
+RUN git clone https://github.com/basnijholt/home-assistant-streamdeck-yaml.git /app
 
 # Set the working directory to the repository
-WORKDIR /home-assistant-streamdeck-yaml
+WORKDIR /app
 
 # Install the required dependencies
 RUN micromamba activate && pip install -e .

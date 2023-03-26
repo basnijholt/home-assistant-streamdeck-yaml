@@ -21,6 +21,25 @@ Are you ready to give it a try? Great!
 
 https://user-images.githubusercontent.com/6897215/226788119-6c198ea6-2950-4f95-95dc-346c9e5b5cee.mp4
 
+## Installation with Docker
+
+The easiest way to get started is to use Docker.
+
+Edit the [`.env.example`](.env.example) file and rename it to `.env`.
+Also setup a [`configuration.yaml` file (see below)](#configuration).
+
+Then build the Docker image with:
+
+```bash
+docker build -t streamdeck .
+```
+
+And run it with:
+
+```bash
+docker run --rm -it --privileged --env-file=$(pwd)/.env -v $(pwd)/configuration.yaml:/root/ho-assistant-streamdeck-yaml/configuration.yaml streamdeck
+```
+
 ## Installation
 
 Just run `pip install -e .` in the repo folder to install the required dependencies.

@@ -9,14 +9,15 @@ RUN apk update && apk add --no-cache \
     libffi-dev \
     # Needed for git clone
     git \
-    # Needed to run pip install our requirements
-    musl-dev gcc \
     # Needed for cairosvg
     cairo-dev \
     # Needed for lxml
     libxml2-dev libxslt-dev \
     # Needed for Pillow
     jpeg-dev zlib-dev freetype-dev libpng-dev \
+    # Needed for pip install
+    && apk add --virtual build-deps \
+    gcc python3-dev musl-dev \
     && rm -rf /var/cache/apk/*
 
 # Add udev rule for the Stream Deck
@@ -33,7 +34,7 @@ WORKDIR /app
 RUN pip3 install -e .
 
 # Remove musl-dev and gcc
-RUN apk del musl-dev gcc && rm -rf /var/cache/apk/*
+RUN apk del build-deps && rm -rf /var/cache/apk/*
 
 # Set the entrypoint to run the application
 ENTRYPOINT ["/bin/sh", "-c", "home-assistant-streamdeck-yaml"]

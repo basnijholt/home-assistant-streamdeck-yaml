@@ -1081,6 +1081,9 @@ def main() -> None:
         choices=["wss", "ws"],
     )
     args = parser.parse_args()
+    console.log(
+        f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}",
+    )
     config = read_config(args.config)
     asyncio.run(
         run(

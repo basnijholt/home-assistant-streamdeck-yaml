@@ -9,7 +9,6 @@ version = "0.1.0"
 authors = [{ name = "Bas Nijholt", email = "bas@nijho.lt" }]
 dependencies = [
     "cairosvg",
-    "colorcet",
     "jinja2",
     "lxml",
     "pillow",
@@ -33,6 +32,7 @@ Homepage = "https://github.com/basnijholt/home-assistant-streamdeck-yaml"
 [project.optional-dependencies]
 test = ["pytest", "pre-commit", "pytest-asyncio", "coverage", "pytest-cov"]
 docs = ["pandas", "tabulate", "tqdm"]
+colormap = ["matplotlib"]
 
 [project.scripts]
 home-assistant-streamdeck-yaml = "home_assistant_streamdeck_yaml:main"

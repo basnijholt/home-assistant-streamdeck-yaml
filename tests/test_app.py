@@ -20,6 +20,7 @@ from home_assistant_streamdeck_yaml import (
     Page,
     _download_and_save_mdi,
     _download_spotify_image,
+    _generate_uniform_hex_colors,
     _init_icon,
     _is_state,
     _is_state_attr,
@@ -380,7 +381,7 @@ def test_is_state(state: dict[str, dict[str, Any]]) -> None:
 
 def test_light_page() -> None:
     """Test light page."""
-    page = _light_page(entity_id="light.bedroom", n_colors=10, colormap="CET_C6")
+    page = _light_page(entity_id="light.bedroom", n_colors=10, colormap="hsv")
     buttons = page.buttons
     assert len(buttons) == BUTTONS_PER_PAGE
     assert buttons[0].icon_background_color is not None
@@ -407,3 +408,15 @@ def test_not_enough_buttons() -> None:
     )
     config = Config(pages=[page])
     assert config.button(2) is None
+
+
+def test_generate_uniform_hex_colors() -> None:
+    """Test _generate_uniform_hex_colors."""
+    assert _generate_uniform_hex_colors(3) == ["#ffffff", "#000000", "#808080"]
+    n = 10
+    assert len(_generate_uniform_hex_colors(n)) == n
+    hex_str_length = 7
+    assert all(
+        isinstance(color, str) and len(color) == hex_str_length and color[0] == "#"
+        for color in _generate_uniform_hex_colors(20)
+    )

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import colorsys
 import functools as ft
 import hashlib
 import io
@@ -12,7 +13,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Literal, TypeAlias
 
-import colorcet
 import jinja2
 import requests
 import websockets
@@ -132,7 +132,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " (either an `int` or `str` (name of the page))."
         " If `light-control`, the button will control a light, and the `special_type_data`"
         " should optionally be a dictionary with the 'colormap' key and a value a"
-        " colormap (https://colorcet.holoviz.org/user_guide/index.html#complete-list).",
+        " colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html).",
     )
     special_type_data: Any | None = Field(
         default=None,
@@ -140,7 +140,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         description="Data for the special type of button."
         " If `go-to-page`, the data should be an `int` or `str` (name of the page)."
         " If `light-control`, the data should optionally be a dictionary with the"
-        " 'colormap' key and a value a colormap (https://colorcet.holoviz.org/user_guide/index.html#complete-list).",
+        " 'colormap' key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html).",
     )
 
     @classmethod
@@ -385,18 +385,66 @@ def _linspace(start: float, stop: float, num: int) -> list[float]:
     return [start + i * step for i in range(num)]
 
 
-def _generate_colors(num_colors: int, colormap: str) -> list[str]:
+def _generate_colors_from_colormap(num_colors: int, colormap: str) -> list[str]:
     """Returns `num_colors` number of colors in hexadecimal format, sampled from colormaps."""
     try:
-        cmap = colorcet.cm[colormap]
-    except KeyError:
-        msg = f"Colormap {colormap} not found, try one of {colorcet.cm.keys()}"
-        raise ValueError(msg) from None
-    colors = cmap(_linspace(0, 1, num_colors))
-    return [
-        colorcet.rgb_to_hex(int(r * 255), int(g * 255), int(b * 255))
-        for r, g, b, _transparency in colors
-    ]
+        import matplotlib.pyplot as plt
+        import numpy as np
+    except ModuleNotFoundError:
+        msg = "You need to install matplotlib to use the colormap feature."
+        raise ModuleNotFoundError(msg) from None
+
+    cmap = plt.get_cmap(colormap)
+    colors = cmap(np.linspace(0, 1, num_colors))
+    return [plt.matplotlib.colors.to_hex(color) for color in colors]
+
+
+def _generate_uniform_hex_colors(n_colors: int) -> list[str]:
+    """Generate a list of `n_colors` hex colors that are uniformly perceptually spaced.
+
+    Parameters
+    ----------
+    n_colors
+        The number of colors to generate.
+
+    Returns
+    -------
+    list[str]
+        A list of `n_colors` hex colors, represented as strings.
+
+    Examples
+    --------
+    >>> _generate_uniform_hex_colors(3)
+    ['#0000ff', '#00ff00', '#ff0000']
+    """
+
+    def generate_hues(n_hues: int) -> list[float]:
+        """Generate `n_hues` hues that are uniformly spaced around the color wheel."""
+        return _linspace(0, 1, n_hues)
+
+    def generate_saturations(n_saturations: int) -> list[float]:
+        """Generate `n_saturations` saturations that increase linearly from 0 to 1."""
+        return _linspace(0, 1, n_saturations)
+
+    def generate_values(n_values: int) -> list[float]:
+        """Generate `n_values` values that increase linearly from 1 to 0.5 and then decrease to 0."""
+        values = _linspace(1, 0.5, n_values // 2)
+        if n_values % 2 == 1:
+            values.append(0.0)
+        values += _linspace(0.5, 0, n_values // 2)
+        return values
+
+    def hsv_to_hex(hsv: tuple[float, float, float]) -> str:
+        """Convert an HSV color tuple to a hex color string."""
+        rgb = tuple(int(round(x * 255)) for x in colorsys.hsv_to_rgb(*hsv))
+        return "#{:02x}{:02x}{:02x}".format(*rgb)
+
+    hues = generate_hues(n_colors)
+    saturations = generate_saturations(n_colors)
+    values = generate_values(n_colors)
+    hsv_colors = [(h, s, v) for h in hues for s in saturations for v in values]
+    hex_colors = [hsv_to_hex(hsv) for hsv in hsv_colors]
+    return hex_colors[:n_colors]
 
 
 def _max_contrast_color(hex_color: str) -> str:
@@ -414,10 +462,14 @@ def _max_contrast_color(hex_color: str) -> str:
 def _light_page(
     entity_id: str,
     n_colors: int,
-    colormap: str,
+    colormap: str | None,
 ) -> Page:
     """Return a page of buttons for controlling lights."""
-    colors = _generate_colors(n_colors, colormap)
+    colors = (
+        _generate_uniform_hex_colors(n_colors)
+        if colormap is None
+        else _generate_colors_from_colormap(n_colors, colormap)
+    )
     buttons_colors = [
         Button(
             icon_background_color=color,

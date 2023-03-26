@@ -15,9 +15,14 @@ RUN apk update && apk add --no-cache \
     libxml2-dev libxslt-dev \
     # Needed for Pillow
     jpeg-dev zlib-dev freetype-dev libpng-dev \
+    # Openblas for Matplotlib (numpy)
+    openblas-dev \
     # Needed for pip install
     && apk add --virtual build-deps \
+    # General
     gcc python3-dev musl-dev \
+    # Needed for matplotlib
+    g++ gfortran py-pip build-base wget \
     && rm -rf /var/cache/apk/*
 
 # Add udev rule for the Stream Deck
@@ -31,10 +36,13 @@ RUN git clone https://github.com/basnijholt/home-assistant-streamdeck-yaml.git /
 WORKDIR /app
 
 # Install the required dependencies
-RUN pip3 install -e .
+RUN pip3 install -e ".[colormap]"
 
 # Remove musl-dev and gcc
 RUN apk del build-deps && rm -rf /var/cache/apk/*
+
+# Purge the pip cache
+RUN pip3 cache purge
 
 # Set the entrypoint to run the application
 ENTRYPOINT ["/bin/sh", "-c", "home-assistant-streamdeck-yaml"]

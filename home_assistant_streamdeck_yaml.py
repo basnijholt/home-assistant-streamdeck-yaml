@@ -12,9 +12,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Literal, TypeAlias
 
+import colorcet
 import jinja2
-import matplotlib.pyplot as plt
-import numpy as np
 import requests
 import websockets
 import yaml
@@ -133,7 +132,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " (either an `int` or `str` (name of the page))."
         " If `light-control`, the button will control a light, and the `special_type_data`"
         " should optionally be a dictionary with the 'colormap' key and a value a"
-        " colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html).",
+        " colormap (https://colorcet.holoviz.org/user_guide/index.html#complete-list).",
     )
     special_type_data: Any | None = Field(
         default=None,
@@ -141,7 +140,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         description="Data for the special type of button."
         " If `go-to-page`, the data should be an `int` or `str` (name of the page)."
         " If `light-control`, the data should optionally be a dictionary with the"
-        " 'colormap' key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html).",
+        " 'colormap' key and a value a colormap (https://colorcet.holoviz.org/user_guide/index.html#complete-list).",
     )
 
     @classmethod
@@ -378,11 +377,26 @@ def _next_id() -> int:
     return _ID_COUNTER
 
 
+def _linspace(start: float, stop: float, num: int) -> list[float]:
+    """Return evenly spaced numbers over a specified interval."""
+    if num == 1:
+        return [start]
+    step = (stop - start) / (num - 1)
+    return [start + i * step for i in range(num)]
+
+
 def _generate_colors(num_colors: int, colormap: str) -> list[str]:
     """Returns `num_colors` number of colors in hexadecimal format, sampled from colormaps."""
-    cmap = plt.get_cmap(colormap)
-    colors = cmap(np.linspace(0, 1, num_colors))
-    return [plt.matplotlib.colors.to_hex(color) for color in colors]
+    try:
+        cmap = colorcet.cm[colormap]
+    except KeyError:
+        msg = f"Colormap {colormap} not found, try one of {colorcet.cm.keys()}"
+        raise ValueError(msg) from None
+    colors = cmap(_linspace(0, 1, num_colors))
+    return [
+        colorcet.rgb_to_hex(int(r * 255), int(g * 255), int(b * 255))
+        for r, g, b, _transparency in colors
+    ]
 
 
 def _max_contrast_color(hex_color: str) -> str:

@@ -183,7 +183,11 @@ def test_example_config_browsing_pages(config: Config) -> None:
 async def test_websocket_connection(buttons: list[Button]) -> None:
     """Test websocket connection."""
     config = dotenv_values(ROOT / ".env")
-    async with setup_ws(config["HASS_HOST"], config["HASS_TOKEN"]) as websocket:
+    async with setup_ws(
+        config["HASS_HOST"],
+        config["HASS_TOKEN"],
+        config["WEBSOCKET_PROTOCOL"],
+    ) as websocket:
         complete_state = await get_states(websocket)
         save_and_extract_relevant_state(buttons, complete_state)
         websocket.close()
@@ -376,7 +380,7 @@ def test_is_state(state: dict[str, dict[str, Any]]) -> None:
 
 def test_light_page() -> None:
     """Test light page."""
-    page = _light_page(entity_id="light.bedroom", n_colors=10, colormap="hsv")
+    page = _light_page(entity_id="light.bedroom", n_colors=10, colormap="CET_C6")
     buttons = page.buttons
     assert len(buttons) == BUTTONS_PER_PAGE
     assert buttons[0].icon_background_color is not None

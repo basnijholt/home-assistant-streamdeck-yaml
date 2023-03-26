@@ -9,9 +9,9 @@ version = "0.1.0"
 authors = [{ name = "Bas Nijholt", email = "bas@nijho.lt" }]
 dependencies = [
     "cairosvg",
+    "colorcet",
     "jinja2",
     "lxml",
-    "matplotlib",
     "pillow",
     "pydantic",
     "python-dotenv",

@@ -23,22 +23,23 @@ https://user-images.githubusercontent.com/6897215/226788119-6c198ea6-2950-4f95-9
 
 ## Installation with Docker
 
-The easiest way to get started is to use Docker.
+The easiest way to get started is to use Docker using the image [`basnijholt/home-assistant-streamdeck-yaml:latest`](https://hub.docker.com/r/basnijholt/home-assistant-streamdeck-yaml).
 
 Edit the [`.env.example`](.env.example) file and rename it to `.env`.
 Also setup a [`configuration.yaml` file (see below)](#configuration).
 
-Then build the Docker image with:
-
-```bash
-docker build -t streamdeck .
-```
-
 And run it with:
 
 ```bash
-docker run --rm -it --privileged --env-file=$(pwd)/.env -v $(pwd)/configuration.yaml:/app/configuration.yaml streamdeck
+docker run --rm -it --privileged --env-file=$(pwd)/.env -v $(pwd)/configuration.yaml:/app/configuration.yaml basnijholt/home-assistant-streamdeck-yaml:latest
 ```
+
+Optionally, you can build the Docker image yourself with:
+
+```bash
+docker build -t basnijholt/home-assistant-streamdeck-yaml:latest .
+```
+
 
 ## Installation without Docker
 

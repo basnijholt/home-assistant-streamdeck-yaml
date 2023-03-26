@@ -16,7 +16,9 @@ RUN apk update && apk add --no-cache \
     # Needed for lxml
     libxml2-dev libxslt-dev \
     # Needed for Pillow
-    libjpeg libtiff libfreetype zlib \
+    tiff-dev jpeg-dev openjpeg-dev zlib-dev freetype-dev lcms2-dev \
+    libwebp-dev tcl-dev tk-dev harfbuzz-dev fribidi-dev libimagequant-dev \
+    libxcb-dev libpng-dev \
     && rm -rf /var/cache/apk/*
 
 # Add udev rule for the Stream Deck

@@ -40,7 +40,7 @@ And run it with:
 docker run --rm -it --privileged --env-file=$(pwd)/.env -v $(pwd)/configuration.yaml:/root/ho-assistant-streamdeck-yaml/configuration.yaml streamdeck
 ```
 
-## Installation
+## Installation without Docker
 
 Just run `pip install -e .` in the repo folder to install the required dependencies.
 

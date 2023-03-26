@@ -11,9 +11,9 @@ RUN apk update && apk add --no-cache \
     cairo-dev \
     # Needed for git clone
     git \
-    openssh-client \
     # Needed to run pip install our requirements
     musl-dev gcc \
+    libxml2-dev libxslt-dev \
     && rm -rf /var/cache/apk/*
 
 # Install numpy and matplotlib with apk

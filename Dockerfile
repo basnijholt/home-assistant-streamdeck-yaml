@@ -15,6 +15,8 @@ RUN apk update && apk add --no-cache \
     cairo-dev \
     # Needed for lxml
     libxml2-dev libxslt-dev \
+    # Needed for Pillow
+    libjpeg libtiff libfreetype zlib \
     && rm -rf /var/cache/apk/*
 
 # Add udev rule for the Stream Deck

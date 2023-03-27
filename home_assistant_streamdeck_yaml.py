@@ -891,8 +891,8 @@ async def _handle_key_press(
         page = _light_page(
             entity_id=button.entity_id,
             n_colors=10,
-            colormap=button.special_type_data["colormap"],
-            colors=button.special_type_data["colors"],
+            colormap=button.special_type_data.get("colormap", None),
+            colors=button.special_type_data.get("colors", None),
         )
         assert config.special_page is None
         config.special_page = page

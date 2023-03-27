@@ -131,16 +131,19 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " If `go-to-page`, the button will go to the page specified by `special_type_data`"
         " (either an `int` or `str` (name of the page))."
         " If `light-control`, the button will control a light, and the `special_type_data`"
-        " should optionally be a dictionary with the 'colormap' key and a value a"
-        " colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html).",
+        " can be a dictionary, see its description.",
     )
     special_type_data: Any | None = Field(
         default=None,
         allow_template=True,
         description="Data for the special type of button."
         " If `go-to-page`, the data should be an `int` or `str` (name of the page)."
-        " If `light-control`, the data should optionally be a dictionary with the"
-        " 'colormap' key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html).",
+        " If `light-control`, the data should optionally be a dictionary."
+        " The dictionary can contain the following keys:"
+        " The `colors` key and a value a list of max (keys on `SteamDeck - 5`) hex colors."
+        " The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html)"
+        " can be used. This requires the `matplotlib` package to be installed. If no"
+        " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",
     )
 
     @classmethod
@@ -292,17 +295,33 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             msg = f"special_type_data needs to be empty with {special_type=}"
             raise AssertionError(msg)
         if special_type == "light-control":
-            data = values.setdefault("special_type_data", {})
-            if not isinstance(data, dict):
+            if v is None:
+                v = {}
+            if not isinstance(v, dict):
                 msg = (
                     "With 'light-control', 'special_type_data' must"
-                    f" be a dict, not {data}"
+                    f" be a dict, not {v}"
                 )
                 raise AssertionError(msg)
-            if "colormap" not in data:
-                data["colormap"] = "inferno"
-            assert data.keys()
-            assert "colormap" in data
+            # Can only have the following keys: colors and colormap
+            allowed_keys = {"colors", "colormap"}
+            invalid_keys = v.keys() - allowed_keys
+            if invalid_keys:
+                msg = (
+                    f"Invalid keys in 'special_type_data', only {allowed_keys} allowed"
+                )
+                raise AssertionError(msg)
+            # If colors is present, it must be a list of strings
+            if "colors" in v:
+                if not isinstance(v["colors"], (tuple, list)):
+                    msg = "If 'colors' is present, it must be a list"
+                    raise AssertionError(msg)
+                for color in v["colors"]:
+                    if not isinstance(color, str):
+                        msg = "All colors must be strings"
+                        raise AssertionError(msg)  # noqa: TRY004
+                # Cast colors to tuple (to make it hashable)
+                v["colors"] = tuple(v["colors"])
         return v
 
 
@@ -385,7 +404,7 @@ def _linspace(start: float, stop: float, num: int) -> list[float]:
     return [start + i * step for i in range(num)]
 
 
-def _generate_colors_from_colormap(num_colors: int, colormap: str) -> list[str]:
+def _generate_colors_from_colormap(num_colors: int, colormap: str) -> tuple[str, ...]:
     """Returns `num_colors` number of colors in hexadecimal format, sampled from colormaps."""
     try:
         import matplotlib.pyplot as plt
@@ -396,10 +415,10 @@ def _generate_colors_from_colormap(num_colors: int, colormap: str) -> list[str]:
 
     cmap = plt.get_cmap(colormap)
     colors = cmap(np.linspace(0, 1, num_colors))
-    return [plt.matplotlib.colors.to_hex(color) for color in colors]
+    return tuple(plt.matplotlib.colors.to_hex(color) for color in colors)
 
 
-def _generate_uniform_hex_colors(n_colors: int) -> list[str]:
+def _generate_uniform_hex_colors(n_colors: int) -> tuple[str, ...]:
     """Generate a list of `n_colors` hex colors that are uniformly perceptually spaced.
 
     Parameters
@@ -444,7 +463,7 @@ def _generate_uniform_hex_colors(n_colors: int) -> list[str]:
     values = generate_values(n_colors)
     hsv_colors = [(h, s, v) for h in hues for s in saturations for v in values]
     hex_colors = [hsv_to_hex(hsv) for hsv in hsv_colors]
-    return hex_colors[:n_colors]
+    return tuple(hex_colors[:n_colors])
 
 
 def _max_contrast_color(hex_color: str) -> str:
@@ -462,14 +481,15 @@ def _max_contrast_color(hex_color: str) -> str:
 def _light_page(
     entity_id: str,
     n_colors: int,
+    colors: tuple[str, ...] | None,
     colormap: str | None,
 ) -> Page:
     """Return a page of buttons for controlling lights."""
-    colors = (
-        _generate_uniform_hex_colors(n_colors)
-        if colormap is None
-        else _generate_colors_from_colormap(n_colors, colormap)
-    )
+    if colormap is None and colors is None:
+        colors = _generate_uniform_hex_colors(n_colors)
+    elif colormap is not None:
+        colors = _generate_colors_from_colormap(n_colors, colormap)
+    assert colors is not None
     buttons_colors = [
         Button(
             icon_background_color=color,
@@ -872,6 +892,7 @@ async def _handle_key_press(
             entity_id=button.entity_id,
             n_colors=10,
             colormap=button.special_type_data["colormap"],
+            colors=button.special_type_data["colors"],
         )
         assert config.special_page is None
         config.special_page = page

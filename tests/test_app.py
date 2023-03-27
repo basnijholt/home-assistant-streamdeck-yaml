@@ -64,6 +64,24 @@ def button_dict() -> dict[str, dict[str, Any]]:
             "service": "light.toggle",
             "text": "Living room\nlights\n",
         },
+        "light-control": {
+            "entity_id": "light.living_room_lights_z2m",
+            "special_type": "light-control",
+            "special_type_data": {
+                "colors": [
+                    "#FF0000",  # red
+                    "#00FF00",  # green
+                    "#0000FF",  # blue
+                    "#FFFF00",  # yellow
+                    "#FFC0CB",  # pink
+                    "#800080",  # purple
+                    "#FFA500",  # orange
+                    "#00FFFF",  # cyan
+                    "#FFD700",  # gold
+                    "#008000",  # dark green
+                ],
+            },
+        },
         "icon_from_url": {
             "icon": "url:https://www.nijho.lt/authors/admin/avatar.jpg",
             # Normally one would use `person.bas`, however, that state is not in the test JSON.
@@ -130,7 +148,7 @@ def buttons(button_dict: dict[str, dict[str, Any]]) -> list[Button]:
         "script_with_icon",
         "spotify_playlist",
         "icon_from_url",
-        "special_empty",
+        "light-control",
         "special_empty",
         "special_empty",
         "special_goto_0",
@@ -212,9 +230,9 @@ def test_buttons(buttons: list[Button], state: dict[str, dict[str, Any]]) -> Non
     page = Page(name="Home", buttons=buttons)
     config = Config(pages=[page])
     first_page = config.to_page(0)
-    rendered_buttons = [
-        button.rendered_template_button(state) for button in first_page.buttons
-    ]
+    rendered_buttons = []
+    for button in first_page.buttons:
+        rendered_buttons.append(button.rendered_template_button(state))
 
     b = rendered_buttons[0]  # LIGHT
     assert b.domain == "light"
@@ -249,7 +267,7 @@ def test_buttons(buttons: list[Button], state: dict[str, dict[str, Any]]) -> Non
 
     b = rendered_buttons[0]  # LIGHT
     assert b.entity_id is not None
-    assert _keys(b.entity_id, page.buttons) == [0]
+    assert _keys(b.entity_id, page.buttons) == [0, 8]
 
 
 def test_validate_special_type(button_dict: dict[str, dict[str, Any]]) -> None:
@@ -381,10 +399,46 @@ def test_is_state(state: dict[str, dict[str, Any]]) -> None:
 
 def test_light_page() -> None:
     """Test light page."""
-    page = _light_page(entity_id="light.bedroom", n_colors=10, colormap="hsv")
+    page = _light_page(
+        entity_id="light.bedroom",
+        n_colors=10,
+        colormap="hsv",
+        colors=None,
+    )
     buttons = page.buttons
     assert len(buttons) == BUTTONS_PER_PAGE
     assert buttons[0].icon_background_color is not None
+
+    page = _light_page(
+        entity_id="light.bedroom",
+        n_colors=10,
+        colormap=None,
+        colors=None,
+    )
+    buttons = page.buttons
+    assert len(buttons) == BUTTONS_PER_PAGE
+    assert buttons[0].icon_background_color is not None
+
+    hex_colors = (
+        "#FF0000",  # red
+        "#00FF00",  # green
+        "#0000FF",  # blue
+        "#FFFF00",  # yellow
+        "#FFC0CB",  # pink
+        "#800080",  # purple
+        "#FFA500",  # orange
+        "#00FFFF",  # cyan
+        "#FFD700",  # gold
+        "#008000",  # dark green
+    )
+
+    page = _light_page(
+        entity_id="light.bedroom",
+        n_colors=10,
+        colormap=None,
+        colors=hex_colors,
+    )
+    buttons = page.buttons
 
 
 def test_url_to_filename() -> None:
@@ -412,7 +466,7 @@ def test_not_enough_buttons() -> None:
 
 def test_generate_uniform_hex_colors() -> None:
     """Test _generate_uniform_hex_colors."""
-    assert _generate_uniform_hex_colors(3) == ["#ffffff", "#000000", "#808080"]
+    assert _generate_uniform_hex_colors(3) == ("#ffffff", "#000000", "#808080")
     n = 10
     assert len(_generate_uniform_hex_colors(n)) == n
     hex_str_length = 7

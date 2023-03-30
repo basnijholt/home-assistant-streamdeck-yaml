@@ -93,7 +93,7 @@ Check out the [`configuration.yaml`](configuration.yaml) file for an example con
 
 Happy controlling! 🏠💡🎮
 
-## `configuration.yaml`
+### `configuration.yaml`
 
 Here's an example `configuration.yaml` file to help
 

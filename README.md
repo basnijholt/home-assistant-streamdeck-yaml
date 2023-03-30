@@ -1,34 +1,42 @@
 <img src="https://user-images.githubusercontent.com/6897215/225175629-28f80bfb-3b0a-44ac-8b52-b719953958d7.png" align="right" style="width: 300px;" />
 
-# Home Assistant on Stream Deck: configured via YAML (with templates) and running on Linux, MacOS, and Windows
+<h1 align="center">Home Assistant on Stream Deck</h1>
+<h3 align="center">Configured via YAML (with templates) and running on Linux, MacOS, and Windows</h3>
 
 Introducing: Home Assistant on Stream Deck!
 
-Do you use Home Assistant and wish to control it more easily?
-Look no further!
-With this simple Python script, you can control your Home Assistant instance via a Stream Deck.
-That's right, with just a few clicks, you can control your smart home devices and scenes right from your Stream Deck.
+If you use Home Assistant and want a seamless way to control it, you've come to the right place.
+With this Python script, you can control your Home Assistant instance via a Stream Deck, making it easier than ever to manage your smart home devices and scenes.
 
-Not only is it easy to use, but it's also highly customizable.
-You can configure it via a YAML file, making it incredibly flexible.
-Plus, it runs on Linux, MacOS, and Windows, so you can use it on the same machine as Home Assistant or on a separate machine like a Raspberry Pi or any other computer.
+**Key Features:**
 
-"But wait," you say, "I've seen similar projects on Github before. [[†](https://github.com/cgiesche/streamdeck-homeassistant)]" Yes, you're right.
-But our solution is more versatile and allows you to connect a Stream Deck to the same Linux machine where Home Assistant is running.
-Unfortunately, the native Stream Deck software doesn't support Linux, but we've got you covered with the help of the [`python-elgato-streamdeck`](https://github.com/abcminiuser/python-elgato-streamdeck) library.
+- ✅ Easy to use
+- 🛠️ Highly customizable
+- 🏠 Runs from same machine as Home Assistant
+- 🐧 Supports Linux, MacOS, and Windows
+- 📁 YAML configuration
+- 🚀 Template support for advanced customization
 
-Are you ready to give it a try? Great!
+**Why choose our solution over others?**
+
+You might have seen similar projects on Github before [[†](https://github.com/cgiesche/streamdeck-homeassistant)].
+However, our solution is more versatile and allows you to connect a Stream Deck to the same Linux machine where Home Assistant is running.
+The native Stream Deck software doesn't support Linux, but we've got you covered with the help of the [`python-elgato-streamdeck`](https://github.com/abcminiuser/python-elgato-streamdeck) library.
+
+**Check out the video below to see it in action!**
 
 https://user-images.githubusercontent.com/6897215/226788119-6c198ea6-2950-4f95-95dc-346c9e5b5cee.mp4
 
-## Installation with Docker
+## 🚀 Getting Started
 
-The easiest way to get started is to use Docker using the image [`basnijholt/home-assistant-streamdeck-yaml:latest`](https://hub.docker.com/r/basnijholt/home-assistant-streamdeck-yaml).
+Follow the steps below to get up and running with Home Assistant on Stream Deck.
 
-Edit the [`.env.example`](.env.example) file and rename it to `.env`.
-Also setup a [`configuration.yaml` file (see below)](#configuration).
+### Installation with Docker
 
-And run it with:
+1. Use Docker image [`basnijholt/home-assistant-streamdeck-yaml:latest`](https://hub.docker.com/r/basnijholt/home-assistant-streamdeck-yaml).
+2. Edit the [`.env.example`](.env.example) file and rename it to `.env`.
+3. Setup a [`configuration.yaml` file (see below)](#configuration).
+4. Run it with:
 
 ```bash
 docker run --rm -it --privileged --env-file=$(pwd)/.env -v $(pwd)/configuration.yaml:/app/configuration.yaml basnijholt/home-assistant-streamdeck-yaml:latest
@@ -40,10 +48,12 @@ Optionally, you can build the Docker image yourself with:
 docker build -t basnijholt/home-assistant-streamdeck-yaml:latest .
 ```
 
+### Installation without Docker
 
-## Installation without Docker
+1. Run `pip install -e .` in the repo folder to install the required dependencies.
+2. Follow the platform-specific steps for [Linux](#linux), [MacOS](#macos), or [Windows](#windows).
 
-Just run `pip install -e .` in the repo folder to install the required dependencies.
+#### Linux
 
 On **Linux** you need to install some extra dependencies:
 
@@ -58,42 +68,35 @@ and add a udev rule to allow access to the Stream Deck, run `sudo nano /etc/udev
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="0fd9", GROUP="users", TAG+="uaccess"
 ```
 
+#### MacOS
+
 On **MacOS** you need to install some extra dependencies:
 
 ```bash
 brew install hidapi cairo libffi
 ```
 
+#### Windows
+
 For **Windows**, see [this](https://python-elgato-streamdeck.readthedocs.io/en/stable/pages/backend_libusb_hidapi.html#windows) page.
 
 ## Configuration
 
-Then, create a `configuration.yaml` file in the same directory.
+1. Create a configuration.yaml file in the same directory.
+2. Choose one of the two usage options:
+  - Option 1: With environment variables. (See [`.env.example`](.env.example) for details)
+  - Option 2: With command-line arguments. (Run home-assistant-streamdeck-yaml -h to see the available options)
 
-Now, for the fun part! You have two options for usage:
+You're all set! 🎉
+Now you can enjoy controlling your smart home devices with ease.
+Check out the [`configuration.yaml`](configuration.yaml) file for an example configuration or feel free to share your own with the community.
 
-Option 1: With environment variables.
-Edit the [`.env.example`](.env.example) file and rename it to `.env`.
-Then, run the program without any arguments (just `home-assistant-streamdeck-yaml`), and the script will automatically load the environment variables from the `.env` file.
-
-Option 2: With command-line arguments.
-Run `home-assistant-streamdeck-yaml -h` to see the available options.
-For example, you can use
-
-```bash
-home-assistant-streamdeck-yaml --host "klasdhkjashdhaksdl.ui.nabu.casa" --token "SOME_TOKEN_FROM_YOUR_PROFILE" --config "my_configuration.yml" --protocol "wss"
-```
-
-to customize your setup even further.
-
-That's it! With just a little bit of setup, you can enjoy controlling your smart home devices with ease.
-Check out the [configuration.yaml](configuration.yaml) file for an example configuration, or feel free to share your own with the community.
-
-Happy controlling!
+Happy controlling! 🏠💡🎮
 
 ## `configuration.yaml`
 
-Example `configuration.yaml`:
+Here's an example `configuration.yaml` file to help
+
 ```yaml
 pages:
   - name: Home

@@ -84,12 +84,13 @@ For **Windows**, see [this](https://python-elgato-streamdeck.readthedocs.io/en/s
 
 ## Configuration
 
-1. Create a configuration.yaml file in the same directory.
+1. Create a `configuration.yaml` file in the same directory.
 2. Choose one of the two usage options:
   - Option 1: With environment variables. (See [`.env.example`](.env.example) for details)
-  - Option 2: With command-line arguments. (Run home-assistant-streamdeck-yaml -h to see the available options)
+  - Option 2: With command-line arguments. (Run `home-assistant-streamdeck-yaml -h` to see the available options)
 
 You're all set! 🎉
+
 Now you can enjoy controlling your smart home devices with ease.
 Check out the [`configuration.yaml`](configuration.yaml) file for an example configuration or feel free to share your own with the community.
 

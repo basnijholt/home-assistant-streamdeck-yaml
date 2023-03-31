@@ -484,14 +484,6 @@ def test_generate_uniform_hex_colors() -> None:
     )
 
 
-# def test_setting_target():
-#             'group_members': [
-#                 'media_player.2',
-#                 'media_player.3',
-#                 'media_player.4'
-#         },
-
-
 @pytest.fixture()
 def websocket_mock() -> Mock:
     """Mock websocket client protocol."""
@@ -542,3 +534,39 @@ async def test_handle_key_press_next_page(
 
     # Ensure that the next_page method is called
     assert config.current_page_index == 1
+
+
+async def test_button_with_target(websocket_mock: Mock) -> None:
+    """Test button with target."""
+    button = Button(
+        service="media_player.join",
+        service_data={
+            "group_members": ["media_player.2", "media_player.3", "media_player.4"],
+        },
+        target={"entity_id": "media_player.1"},
+    )
+    config = Config(pages=[Page(buttons=[button], name="test")])
+    _button = config.button(0)
+    assert _button is not None
+    assert _button.service == "media_player.join"
+    await _handle_key_press(websocket_mock, {}, config, 0, MockDeck())
+    # Check that the send method was called with the correct payload
+    called_payload = json.loads(websocket_mock.send.call_args.args[0])
+    expected_payload = {
+        "id": called_payload["id"],  # Use the called id to match it
+        "type": "call_service",
+        "domain": "media_player",
+        "service": "join",
+        "service_data": {
+            "group_members": [
+                "media_player.2",
+                "media_player.3",
+                "media_player.4",
+            ],
+        },
+        "target": {
+            "entity_id": "media_player.1",
+        },
+    }
+
+    assert called_payload == expected_payload

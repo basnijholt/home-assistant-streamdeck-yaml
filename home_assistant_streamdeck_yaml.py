@@ -900,6 +900,8 @@ def read_config(fname: Path) -> Config:
 def turn_on(config: Config, deck: StreamDeck, complete_state: StateDict) -> None:
     """Turn on the Stream Deck and update all key images."""
     console.log(f"Calling turn_on, with {config.is_on=}")
+    if config.is_on:
+        return
     config.is_on = True
     update_all_key_images(deck, config, complete_state)
     deck.set_brightness(config.brightness)
@@ -908,6 +910,8 @@ def turn_on(config: Config, deck: StreamDeck, complete_state: StateDict) -> None
 def turn_off(config: Config, deck: StreamDeck) -> None:
     """Turn off the Stream Deck."""
     console.log(f"Calling turn_off, with {config.is_on=}")
+    if not config.is_on:
+        return
     config.is_on = False
     # This resets all buttons except the turn-off button that
     # was just pressed, however, this doesn't matter with the

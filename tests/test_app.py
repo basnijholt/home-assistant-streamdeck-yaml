@@ -136,7 +136,7 @@ def button_dict() -> dict[str, dict[str, Any]]:
         },
         "special_prev_page": {"special_type": "previous-page"},
         "special_next_page": {"special_type": "next-page"},
-        "turn_off": {"special_type": "previous-page"},
+        "turn_off": {"special_type": "turn-off"},
     }
 
 

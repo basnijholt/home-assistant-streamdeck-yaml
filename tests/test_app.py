@@ -5,8 +5,10 @@ import json
 import sys
 from pathlib import Path
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
+import websockets
 from dotenv import dotenv_values
 from PIL import Image
 from pydantic import ValidationError
@@ -21,6 +23,7 @@ from home_assistant_streamdeck_yaml import (
     _download_and_save_mdi,
     _download_spotify_image,
     _generate_uniform_hex_colors,
+    _handle_key_press,
     _init_icon,
     _is_state,
     _is_state_attr,
@@ -308,47 +311,44 @@ def test_init_icon() -> None:
     _init_icon(size=(100, 100))
 
 
-class MockDeck:
+@pytest.fixture()
+def mock_deck() -> Mock:
     """Mocks a StreamDeck."""
+    deck_mock = Mock(spec=StreamDeckOriginal)
 
-    KEY_PIXEL_WIDTH = StreamDeckOriginal.KEY_PIXEL_WIDTH
-    KEY_PIXEL_HEIGHT = StreamDeckOriginal.KEY_PIXEL_HEIGHT
-    KEY_FLIP = StreamDeckOriginal.KEY_FLIP
-    KEY_ROTATION = StreamDeckOriginal.KEY_ROTATION
-    KEY_IMAGE_FORMAT = StreamDeckOriginal.KEY_IMAGE_FORMAT
+    deck_mock.KEY_PIXEL_WIDTH = StreamDeckOriginal.KEY_PIXEL_WIDTH
+    deck_mock.KEY_PIXEL_HEIGHT = StreamDeckOriginal.KEY_PIXEL_HEIGHT
+    deck_mock.KEY_FLIP = StreamDeckOriginal.KEY_FLIP
+    deck_mock.KEY_ROTATION = StreamDeckOriginal.KEY_ROTATION
+    deck_mock.KEY_IMAGE_FORMAT = StreamDeckOriginal.KEY_IMAGE_FORMAT
 
-    def key_image_format(self) -> dict[str, Any]:
-        """Same as original device."""
-        return {
-            "size": (self.KEY_PIXEL_WIDTH, self.KEY_PIXEL_HEIGHT),
-            "format": self.KEY_IMAGE_FORMAT,
-            "flip": self.KEY_FLIP,
-            "rotation": self.KEY_ROTATION,
-        }
+    deck_mock.key_image_format.return_value = {
+        "size": (deck_mock.KEY_PIXEL_WIDTH, deck_mock.KEY_PIXEL_HEIGHT),
+        "format": deck_mock.KEY_IMAGE_FORMAT,
+        "flip": deck_mock.KEY_FLIP,
+        "rotation": deck_mock.KEY_ROTATION,
+    }
 
-    def set_key_image(self, key: int, image: memoryview) -> None:
-        """Mock set_key_image."""
+    deck_mock.key_count.return_value = 15
 
-    def __enter__(self) -> MockDeck:
-        """Mock context manager."""
-        return self
+    # Add the context manager methods
+    deck_mock.__enter__ = Mock(return_value=deck_mock)
+    deck_mock.__exit__ = Mock(return_value=False)
 
-    def __exit__(self, *exc: Any) -> bool:  # type: ignore[exit-return]
-        """Mock context manager."""
-        return False
-
-    def reset(self) -> None:
-        """Mock reset."""
+    return deck_mock
 
 
-def test_update_key_image(config: Config, state: dict[str, dict[str, Any]]) -> None:
+def test_update_key_image(
+    mock_deck: Mock,
+    config: Config,
+    state: dict[str, dict[str, Any]],
+) -> None:
     """Test update_key_image with MockDeck."""
-    deck = MockDeck()
-    update_key_image(deck, key=0, config=config, complete_state=state)
+    update_key_image(mock_deck, key=0, config=config, complete_state=state)
     page = config.current_page()
     assert config.current_page_index == 0
     for key, _ in enumerate(page.buttons):
-        update_key_image(deck, key=key, config=config, complete_state=state)
+        update_key_image(mock_deck, key=key, config=config, complete_state=state)
 
     key_empty = next(
         (i for i, b in enumerate(page.buttons) if b.special_type == "empty"),
@@ -474,3 +474,85 @@ def test_generate_uniform_hex_colors() -> None:
         isinstance(color, str) and len(color) == hex_str_length and color[0] == "#"
         for color in _generate_uniform_hex_colors(20)
     )
+
+
+@pytest.fixture()
+def websocket_mock() -> Mock:
+    """Mock websocket client protocol."""
+    return Mock(spec=websockets.WebSocketClientProtocol)
+
+
+async def test_handle_key_press_toggle_light(
+    mock_deck: Mock,
+    websocket_mock: Mock,
+    state: dict[str, dict[str, Any]],
+    config: Config,
+) -> None:
+    """Test handle_key_press toggle light."""
+    key = 0
+    await _handle_key_press(websocket_mock, state, config, key, mock_deck)
+
+    websocket_mock.send.assert_called_once()
+    send_call_args = websocket_mock.send.call_args.args[0]
+    payload = json.loads(send_call_args)
+
+    assert payload["type"] == "call_service"
+    assert payload["domain"] == "light"
+    assert payload["service"] == "toggle"
+    assert payload["service_data"] == {"entity_id": "light.living_room_lights_z2m"}
+
+
+async def test_handle_key_press_next_page(
+    websocket_mock: Mock,
+    mock_deck: Mock,
+    state: dict[str, dict[str, Any]],
+    config: Config,
+) -> None:
+    """Test handle_key_press next page."""
+    key = 14
+    await _handle_key_press(websocket_mock, state, config, key, mock_deck)
+
+    # No service should be called
+    websocket_mock.send.assert_not_called()
+
+    # Ensure that the next_page method is called
+    assert config.current_page_index == 1
+
+
+async def test_button_with_target(
+    websocket_mock: Mock,
+    mock_deck: Mock,
+) -> None:
+    """Test button with target."""
+    button = Button(
+        service="media_player.join",
+        service_data={
+            "group_members": ["media_player.2", "media_player.3", "media_player.4"],
+        },
+        target={"entity_id": "media_player.1"},
+    )
+    config = Config(pages=[Page(buttons=[button], name="test")])
+    _button = config.button(0)
+    assert _button is not None
+    assert _button.service == "media_player.join"
+    await _handle_key_press(websocket_mock, {}, config, 0, mock_deck)
+    # Check that the send method was called with the correct payload
+    called_payload = json.loads(websocket_mock.send.call_args.args[0])
+    expected_payload = {
+        "id": called_payload["id"],  # Use the called id to match it
+        "type": "call_service",
+        "domain": "media_player",
+        "service": "join",
+        "service_data": {
+            "group_members": [
+                "media_player.2",
+                "media_player.3",
+                "media_player.4",
+            ],
+        },
+        "target": {
+            "entity_id": "media_player.1",
+        },
+    }
+
+    assert called_payload == expected_payload

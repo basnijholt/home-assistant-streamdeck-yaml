@@ -169,10 +169,10 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
 
             row = {
                 "Variable name": code(k),
-                "Type": code(field._type_display()),  # noqa: SLF001
-                "Default": code(info.default) if info.default else "",
-                "Allow template": "✅" if info.extra["allow_template"] else "❌",
                 "Description": info.description,
+                "Allow template": "✅" if info.extra["allow_template"] else "❌",
+                "Default": code(info.default) if info.default else "",
+                "Type": code(field._type_display()),  # noqa: SLF001
             }
             rows.append(row)
         return pd.DataFrame(rows).to_markdown(index=False)

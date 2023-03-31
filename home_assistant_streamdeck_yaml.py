@@ -528,7 +528,8 @@ async def setup_ws(
     uri = f"{protocol}://{host}/api/websocket"
     while True:
         try:
-            async with websockets.connect(uri) as websocket:
+            # limit size to 10 MiB
+            async with websockets.connect(uri, max_size=10485760) as websocket:
                 # Send an authentication message to Home Assistant
                 auth_payload = {"type": "auth", "access_token": token}
                 await websocket.send(json.dumps(auth_payload))
@@ -1043,7 +1044,7 @@ def _convert_svg_to_png(
     with filename_svg.open() as f:
         svg_content = f.read()
     # Modify the SVG content to set the fill and background colors
-    svg_tree = etree.fromstring(svg_content)
+    svg_tree = etree.fromstring(svg_content)  # noqa: S320
     fill_color = _scale_hex_color(color, opacity)
     svg_tree.attrib["fill"] = fill_color
     svg_tree.attrib["style"] = f"background-color: {background_color}"

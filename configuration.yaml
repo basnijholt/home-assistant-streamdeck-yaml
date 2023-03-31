@@ -246,3 +246,9 @@ pages:
       # Change pages
       - special_type: previous-page
       - special_type: next-page
+
+  - name: Testing
+    buttons:
+      - special_type: turn-off
+      - special_type: previous-page
+      - special_type: next-page

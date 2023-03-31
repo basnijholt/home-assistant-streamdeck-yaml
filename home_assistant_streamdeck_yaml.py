@@ -124,6 +124,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         "previous-page",
         "empty",
         "go-to-page",
+        "turn-off",
         "light-control",
     ] | None = Field(
         default=None,
@@ -132,6 +133,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " If no specified, the button is a normal button."
         " If `next-page`, the button will go to the next page."
         " If `previous-page`, the button will go to the previous page."
+        " If `turn-off`, the button will turn off the SteamDeck until any button is pressed."
         " If `empty`, the button will be empty."
         " If `go-to-page`, the button will go to the page specified by `special_type_data`"
         " (either an `int` or `str` (name of the page))."
@@ -206,7 +208,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 dct[key] = _render_jinja(val, complete_state)  # type: ignore[assignment]
         return Button(**dct)
 
-    def render_icon(
+    def render_icon(  # noqa: PLR0912
         self,
         complete_state: StateDict,
         *,
@@ -246,6 +248,9 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             page = button.special_type_data
             text = button.text or f"Go to\nPage\n{page}"
             icon_mdi = button.icon_mdi or "book-open-page-variant"
+        elif button.special_type == "turn-off":
+            text = button.text or "Turn off"
+            icon_mdi = button.icon_mdi or "power"
         elif button.entity_id in complete_state:
             # Has entity_id
             state = complete_state[button.entity_id]
@@ -296,7 +301,10 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 "If special_type is go-to-page, special_type_data must be an int or str"
             )
             raise AssertionError(msg)
-        if special_type in {"next-page", "previous-page", "empty"} and v is not None:
+        if (
+            special_type in {"next-page", "previous-page", "empty", "turn-off"}
+            and v is not None
+        ):
             msg = f"special_type_data needs to be empty with {special_type=}"
             raise AssertionError(msg)
         if special_type == "light-control":
@@ -349,6 +357,7 @@ class Config(BaseModel):
     pages: list[Page] = Field(default_factory=list)
     current_page_index: int = 0
     special_page: Page | None = None
+    is_on: bool = True
 
     def next_page(self) -> Page:
         """Go to the next page."""
@@ -879,6 +888,11 @@ async def _handle_key_press(
     key: int,
     deck: StreamDeck,
 ) -> None:
+    if not config.is_on:
+        config.is_on = True
+        update_all_key_images(deck, config, complete_state)
+        deck.set_brightness(100)
+        return
     button = config.button(key)
     if button is None:
         return
@@ -895,6 +909,13 @@ async def _handle_key_press(
         config.to_page(button.special_type_data)  # type: ignore[arg-type]
         deck.reset()
         update_all_key_images(deck, config, complete_state)
+    elif button.special_type == "turn-off":
+        config.is_on = False
+        deck.reset()
+        # This resets all buttons except the turn-off button that
+        # was just pressed, however, this doesn't matter with the
+        # 0 brightness.
+        deck.set_brightness(0)
     elif button.special_type == "light-control":
         assert isinstance(button.special_type_data, dict)
         page = _light_page(

@@ -5,11 +5,14 @@ import json
 import sys
 from pathlib import Path
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
+import websockets
 from dotenv import dotenv_values
 from PIL import Image
 from pydantic import ValidationError
+from StreamDeck.Devices import StreamDeck
 from StreamDeck.Devices.StreamDeckOriginal import StreamDeckOriginal
 
 from home_assistant_streamdeck_yaml import (
@@ -21,6 +24,7 @@ from home_assistant_streamdeck_yaml import (
     _download_and_save_mdi,
     _download_spotify_image,
     _generate_uniform_hex_colors,
+    _handle_key_press,
     _init_icon,
     _is_state,
     _is_state_attr,
@@ -340,6 +344,10 @@ class MockDeck:
     def reset(self) -> None:
         """Mock reset."""
 
+    def key_count(self) -> int:
+        """Mock key_count."""
+        return 15
+
 
 def test_update_key_image(config: Config, state: dict[str, dict[str, Any]]) -> None:
     """Test update_key_image with MockDeck."""
@@ -474,3 +482,63 @@ def test_generate_uniform_hex_colors() -> None:
         isinstance(color, str) and len(color) == hex_str_length and color[0] == "#"
         for color in _generate_uniform_hex_colors(20)
     )
+
+
+# def test_setting_target():
+#             'group_members': [
+#                 'media_player.2',
+#                 'media_player.3',
+#                 'media_player.4'
+#         },
+
+
+@pytest.fixture()
+def websocket_mock() -> Mock:
+    """Mock websocket client protocol."""
+    return Mock(spec=websockets.WebSocketClientProtocol)
+
+
+@pytest.fixture()
+def deck_mock() -> Mock:
+    """Mock StreamDeck."""
+    mock = Mock(spec=StreamDeck)
+    mock.reset = Mock()  # Add the 'reset' attribute
+    mock.key_count = Mock(return_value=15)  # Set 'key_count' to a callable returning 15
+    return mock
+
+
+async def test_handle_key_press_toggle_light(
+    websocket_mock: Mock,
+    state: dict[str, dict[str, Any]],
+    config: Config,
+) -> None:
+    """Test handle_key_press toggle light."""
+    deck_mock = MockDeck()
+    key = 0
+    await _handle_key_press(websocket_mock, state, config, key, deck_mock)
+
+    websocket_mock.send.assert_called_once()
+    send_call_args = websocket_mock.send.call_args.args[0]
+    payload = json.loads(send_call_args)
+
+    assert payload["type"] == "call_service"
+    assert payload["domain"] == "light"
+    assert payload["service"] == "toggle"
+    assert payload["service_data"] == {"entity_id": "light.living_room_lights_z2m"}
+
+
+async def test_handle_key_press_next_page(
+    websocket_mock: Mock,
+    state: dict[str, dict[str, Any]],
+    config: Config,
+) -> None:
+    """Test handle_key_press next page."""
+    deck_mock = MockDeck()
+    key = 14
+    await _handle_key_press(websocket_mock, state, config, key, deck_mock)
+
+    # No service should be called
+    websocket_mock.send.assert_not_called()
+
+    # Ensure that the next_page method is called
+    assert config.current_page_index == 1

@@ -60,6 +60,11 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         description="The `service_data` that will be passed to the `service` when the button is pressed."
         " If empty, the `entity_id` will be passed.",
     )
+    target: dict[str, Any] | None = Field(
+        default=None,
+        allow_template=True,
+        description="The `target` that will be passed to the `service` when the button is pressed.",
+    )
     text: str = Field(
         default="",
         allow_template=True,
@@ -194,7 +199,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             if key not in dct:
                 continue
             val = dct[key]
-            if isinstance(val, dict):  # e.g., service_data
+            if isinstance(val, dict):  # e.g., service_data, target
                 for k, v in val.items():
                     val[k] = _render_jinja(v, complete_state)
             else:
@@ -702,6 +707,7 @@ async def call_service(
     websocket: websockets.WebSocketClientProtocol,
     service: str,
     data: dict[str, Any],
+    target: dict[str, Any] | None = None,
 ) -> None:
     """Call a service."""
     domain, service = service.split(".")
@@ -712,6 +718,8 @@ async def call_service(
         "service": service,
         "service_data": data,
     }
+    if target is not None:
+        subscribe_payload["target"] = target
     await websocket.send(json.dumps(subscribe_payload))
 
 
@@ -909,7 +917,7 @@ async def _handle_key_press(
             service_data = button.service_data
         console.log(f"Calling service {button.service} with data {service_data}")
         assert button.service is not None  # for mypy
-        await call_service(websocket, button.service, service_data)
+        await call_service(websocket, button.service, service_data, button.target)
 
 
 def _on_press_callback(

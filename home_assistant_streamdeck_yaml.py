@@ -891,6 +891,7 @@ async def _handle_key_press(
     if not config.is_on:
         config.is_on = True
         update_all_key_images(deck, config, complete_state)
+        deck.set_brightness(100)
         return
     button = config.button(key)
     if button is None:
@@ -911,6 +912,7 @@ async def _handle_key_press(
     elif button.special_type == "turn-off":
         config.is_on = False
         deck.reset()
+        deck.set_brightness(0)
     elif button.special_type == "light-control":
         assert isinstance(button.special_type_data, dict)
         page = _light_page(

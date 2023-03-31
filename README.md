@@ -13,6 +13,7 @@ With this Python script, you can control your Home Assistant instance via a Stre
 - ✅ Easy to use
 - 🛠️ Highly customizable
 - 🏠 Runs from same machine as Home Assistant
+- 🧩 [Home Assistant Add-on support](#house_with_garden-installation-as-home-assistant-add-on)
 - 🐧 Supports Linux, MacOS, and Windows
 - 📁 YAML configuration
 - 🚀 Template support for advanced customization
@@ -39,6 +40,15 @@ I truly appreciate your support!
 ## :rocket: Getting Started
 
 Follow the steps below to get up and running with Home Assistant on Stream Deck.
+
+### :house_with_garden: Installation as Home Assistant Add-on
+
+1. In your Home Assistant instance, navigate to **Supervisor** > **Add-on Store**.
+2. Click the menu icon (three vertical dots) in the top right corner and select **Repositories**.
+3. Add the following repository URL: `https://github.com/basnijholt/home-assistant-streamdeck-yaml-addon`.
+4. The add-on should now appear in the **Add-on Store**. Click on "Home Assistant Stream Deck YAML" and then click "Install".
+5. After the installation is complete, configure the add-on using either the `.env` file or the individual configuration options (see the [add-on configuration documentation](https://github.com/basnijholt/home-assistant-streamdeck-yaml-addon#add-on-configuration-gear) for more information).
+6. Start the add-on and check the logs for any errors.
 
 ### :whale: Installation with Docker
 

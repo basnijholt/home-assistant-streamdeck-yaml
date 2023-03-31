@@ -599,16 +599,6 @@ def _update_state(
     deck: StreamDeck,
 ) -> None:
     """Update the state dictionary and update the keys."""
-    if config.state_entity_id is not None and (
-        config.state_entity_id in complete_state
-    ):
-        is_on = complete_state[config.state_entity_id] == "on"
-        if is_on and not config.is_on:
-            _turn_on(config, deck, complete_state)
-            return
-        if not is_on and config.is_on:
-            _turn_off(config, deck)
-            return
     buttons = config.current_page().buttons
     if data["type"] == "event":
         event_data = data["event"]
@@ -616,6 +606,16 @@ def _update_state(
             event_data = event_data["data"]
             eid = event_data["entity_id"]
             complete_state[eid] = event_data["new_state"]
+
+            if eid == config.state_entity_id:
+                is_on = complete_state[config.state_entity_id] == "on"
+                if not is_on:
+                    if not config.is_on:
+                        turn_on(config, deck, complete_state)
+                    else:
+                        turn_off(config, deck)
+                    return
+
             keys = _keys(eid, buttons)
             for key in keys:
                 console.log(f"Updating key {key} for {eid}")
@@ -897,15 +897,17 @@ def read_config(fname: Path) -> Config:
         )
 
 
-def _turn_on(config: Config, deck: StreamDeck, complete_state: StateDict) -> None:
+def turn_on(config: Config, deck: StreamDeck, complete_state: StateDict) -> None:
     """Turn on the Stream Deck and update all key images."""
+    console.log(f"Calling turn_on, with {config.is_on=}")
     config.is_on = True
     update_all_key_images(deck, config, complete_state)
     deck.set_brightness(config.brightness)
 
 
-def _turn_off(config: Config, deck: StreamDeck) -> None:
+def turn_off(config: Config, deck: StreamDeck) -> None:
     """Turn off the Stream Deck."""
+    console.log(f"Calling turn_off, with {config.is_on=}")
     config.is_on = False
     # This resets all buttons except the turn-off button that
     # was just pressed, however, this doesn't matter with the
@@ -922,7 +924,7 @@ async def _handle_key_press(
     deck: StreamDeck,
 ) -> None:
     if not config.is_on:
-        _turn_on(config, deck, complete_state)
+        turn_on(config, deck, complete_state)
         return
     button = config.button(key)
     if button is None:
@@ -941,7 +943,7 @@ async def _handle_key_press(
         deck.reset()
         update_all_key_images(deck, config, complete_state)
     elif button.special_type == "turn-off":
-        _turn_off(config, deck)
+        turn_off(config, deck)
     elif button.special_type == "light-control":
         assert isinstance(button.special_type_data, dict)
         page = _light_page(

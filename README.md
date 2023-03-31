@@ -16,6 +16,7 @@ With this Python script, you can control your Home Assistant instance via a Stre
 - 🐧 Supports Linux, MacOS, and Windows
 - 📁 YAML configuration
 - 🚀 Template support for advanced customization
+- 💤 Automatically sync state of `entity_id` to turn display on/off
 
 **Why choose our solution over others?**
 
@@ -101,6 +102,8 @@ Happy controlling! 🏠💡🎮
 Here's an example `configuration.yaml` file to help
 
 ```yaml
+brightness: 100  # Default brightness of the Stream Deck (0-100)
+state_entity_id: binary_sensor.anyone_home  # Entity to sync display state with
 pages:
   - name: Home
     buttons:

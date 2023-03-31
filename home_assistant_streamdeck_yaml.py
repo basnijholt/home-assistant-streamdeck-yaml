@@ -912,6 +912,9 @@ async def _handle_key_press(
     elif button.special_type == "turn-off":
         config.is_on = False
         deck.reset()
+        # This resets all buttons except the turn-off button that
+        # was just pressed, however, this doesn't matter with the
+        # 0 brightness.
         deck.set_brightness(0)
     elif button.special_type == "light-control":
         assert isinstance(button.special_type_data, dict)

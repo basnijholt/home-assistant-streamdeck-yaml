@@ -102,8 +102,8 @@ Happy controlling! 🏠💡🎮
 Here's an example `configuration.yaml` file to help
 
 ```yaml
-brightness: 100
-state_entity_id: input_select.streamdeck
+brightness: 100  # Default brightness of the Stream Deck (0-100)
+state_entity_id: input_select.streamdeck  # Entity ID to sync state with
 pages:
   - name: Home
     buttons:

@@ -608,7 +608,7 @@ def _update_state(
             complete_state[eid] = event_data["new_state"]
 
             if eid == config.state_entity_id:
-                is_on = complete_state[config.state_entity_id] == "on"
+                is_on = complete_state[config.state_entity_id]["state"] == "on"
                 if is_on:
                     turn_on(config, deck, complete_state)
                 else:

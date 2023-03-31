@@ -609,12 +609,11 @@ def _update_state(
 
             if eid == config.state_entity_id:
                 is_on = complete_state[config.state_entity_id] == "on"
-                if not is_on:
-                    if not config.is_on:
-                        turn_on(config, deck, complete_state)
-                    else:
-                        turn_off(config, deck)
-                    return
+                if is_on:
+                    turn_on(config, deck, complete_state)
+                else:
+                    turn_off(config, deck)
+                return
 
             keys = _keys(eid, buttons)
             for key in keys:

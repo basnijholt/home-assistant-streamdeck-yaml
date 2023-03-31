@@ -124,6 +124,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         "previous-page",
         "empty",
         "go-to-page",
+        "turn-off",
         "light-control",
     ] | None = Field(
         default=None,
@@ -300,7 +301,10 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 "If special_type is go-to-page, special_type_data must be an int or str"
             )
             raise AssertionError(msg)
-        if special_type in {"next-page", "previous-page", "empty"} and v is not None:
+        if (
+            special_type in {"next-page", "previous-page", "empty", "turn-off"}
+            and v is not None
+        ):
             msg = f"special_type_data needs to be empty with {special_type=}"
             raise AssertionError(msg)
         if special_type == "light-control":

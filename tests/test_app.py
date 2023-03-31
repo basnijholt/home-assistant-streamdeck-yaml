@@ -136,6 +136,7 @@ def button_dict() -> dict[str, dict[str, Any]]:
         },
         "special_prev_page": {"special_type": "previous-page"},
         "special_next_page": {"special_type": "next-page"},
+        "turn_off": {"special_type": "previous-page"},
     }
 
 
@@ -153,7 +154,7 @@ def buttons(button_dict: dict[str, dict[str, Any]]) -> list[Button]:
         "icon_from_url",
         "light-control",
         "special_empty",
-        "special_empty",
+        "turn_off",
         "special_goto_0",
         "special_goto_home",
         "special_prev_page",

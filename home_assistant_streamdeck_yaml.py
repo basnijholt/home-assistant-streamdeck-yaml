@@ -357,7 +357,9 @@ class Config(BaseModel):
     pages: list[Page] = Field(default_factory=list)
     current_page_index: int = 0
     special_page: Page | None = None
+    state_entity_id: str | None = None
     is_on: bool = True
+    brightness: int = 100
 
     def next_page(self) -> Page:
         """Go to the next page."""
@@ -597,6 +599,16 @@ def _update_state(
     deck: StreamDeck,
 ) -> None:
     """Update the state dictionary and update the keys."""
+    if config.state_entity_id is not None and (
+        config.state_entity_id in complete_state
+    ):
+        is_on = complete_state[config.state_entity_id] == "on"
+        if is_on and not config.is_on:
+            _turn_on(config, deck, complete_state)
+            return
+        if not is_on and config.is_on:
+            _turn_off(config, deck)
+            return
     buttons = config.current_page().buttons
     if data["type"] == "event":
         event_data = data["event"]
@@ -878,7 +890,28 @@ def read_config(fname: Path) -> Config:
     """Read the configuration file."""
     with fname.open() as f:
         data = yaml.safe_load(f)
-        return Config(pages=data["pages"])
+        return Config(
+            pages=data["pages"],
+            state_entity_id=data.get("state_entity_id"),
+            brightness=data.get("brightness", 100),
+        )
+
+
+def _turn_on(config: Config, deck: StreamDeck, complete_state: StateDict) -> None:
+    """Turn on the Stream Deck and update all key images."""
+    config.is_on = True
+    update_all_key_images(deck, config, complete_state)
+    deck.set_brightness(config.brightness)
+
+
+def _turn_off(config: Config, deck: StreamDeck) -> None:
+    """Turn off the Stream Deck."""
+    config.is_on = False
+    # This resets all buttons except the turn-off button that
+    # was just pressed, however, this doesn't matter with the
+    # 0 brightness. Unless no button was pressed.
+    deck.reset()
+    deck.set_brightness(0)
 
 
 async def _handle_key_press(
@@ -889,9 +922,7 @@ async def _handle_key_press(
     deck: StreamDeck,
 ) -> None:
     if not config.is_on:
-        config.is_on = True
-        update_all_key_images(deck, config, complete_state)
-        deck.set_brightness(100)
+        _turn_on(config, deck, complete_state)
         return
     button = config.button(key)
     if button is None:
@@ -910,12 +941,7 @@ async def _handle_key_press(
         deck.reset()
         update_all_key_images(deck, config, complete_state)
     elif button.special_type == "turn-off":
-        config.is_on = False
-        deck.reset()
-        # This resets all buttons except the turn-off button that
-        # was just pressed, however, this doesn't matter with the
-        # 0 brightness.
-        deck.set_brightness(0)
+        _turn_off(config, deck)
     elif button.special_type == "light-control":
         assert isinstance(button.special_type_data, dict)
         page = _light_page(
@@ -1170,7 +1196,7 @@ async def run(
         deck.set_key_callback_async(
             _on_press_callback(websocket, complete_state, config),
         )
-        deck.set_brightness(100)
+        deck.set_brightness(config.brightness)
         await subscribe_state_changes(websocket)
         await handle_state_changes(websocket, complete_state, deck, config)
 

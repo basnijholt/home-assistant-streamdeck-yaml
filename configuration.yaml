@@ -1,3 +1,5 @@
+brightness: 100
+state_entity_id: input_boolean.streamdeck
 pages:
   - name: Home
     buttons:

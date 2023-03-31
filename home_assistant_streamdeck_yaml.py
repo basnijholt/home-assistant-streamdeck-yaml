@@ -541,11 +541,7 @@ async def setup_ws(
     protocol: Literal["wss", "ws"],
 ) -> websockets.WebSocketClientProtocol:
     """Set up the connection to Home Assistant."""
-    uri = (
-        f"{protocol}://supervisor/core/websocket"
-        if host == "supervisor"
-        else f"{protocol}://{host}/api/websocket"
-    )
+    uri = f"{protocol}://{host}/api/websocket"
     while True:
         try:
             # limit size to 10 MiB

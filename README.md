@@ -79,7 +79,7 @@ On **MacOS** you need to install some extra dependencies:
 brew install hidapi cairo libffi
 ```
 
-#### :windows: Windows
+#### :desktop_computer: Windows
 
 For **Windows**, see [this](https://python-elgato-streamdeck.readthedocs.io/en/stable/pages/backend_libusb_hidapi.html#windows) page.
 

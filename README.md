@@ -28,6 +28,14 @@ The native Stream Deck software doesn't support Linux, but we've got you covered
 
 https://user-images.githubusercontent.com/6897215/226788119-6c198ea6-2950-4f95-95dc-346c9e5b5cee.mp4
 
+## 🌟 Share Your Success
+
+I love hearing from users!
+If you're using Home Assistant StreamDeck YAML in your projects, please consider opening an issue on the [GitHub repository](https://github.com/basnijholt/home-assistant-streamdeck-yaml/issues/new) to let me know.
+Your feedback and success stories not only help to improve the library but also inspire others in the community.
+By sharing your experience, you can contribute to the growth and development of Home Assistant StreamDeck YAML.
+I truly appreciate your support!
+
 ## :rocket: Getting Started
 
 Follow the steps below to get up and running with Home Assistant on Stream Deck.

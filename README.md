@@ -28,11 +28,11 @@ The native Stream Deck software doesn't support Linux, but we've got you covered
 
 https://user-images.githubusercontent.com/6897215/226788119-6c198ea6-2950-4f95-95dc-346c9e5b5cee.mp4
 
-## 🚀 Getting Started
+## :rocket: Getting Started
 
 Follow the steps below to get up and running with Home Assistant on Stream Deck.
 
-### Installation with Docker
+### :whale: Installation with Docker
 
 1. Edit the [`.env.example`](.env.example) file and rename it to `.env`.
 2. Setup a [`configuration.yaml` file (see below)](#configuration).
@@ -49,14 +49,14 @@ Optionally, you can build the Docker image yourself with:
 docker build -t basnijholt/home-assistant-streamdeck-yaml:latest .
 ```
 
-### Installation without Docker
+### :computer: Installation without Docker
 
 1. Run `pip install -e .` in the repo folder to install the required dependencies.
 2. Edit the [`.env.example`](.env.example) file and rename it to `.env`.
 3. Setup a [`configuration.yaml` file (see below)](#configuration).
 4. Follow the platform-specific steps for [Linux](#linux), [MacOS](#macos), or [Windows](#windows).
 
-#### Linux
+#### :penguin: Linux
 
 On **Linux** you need to install some extra dependencies:
 
@@ -71,7 +71,7 @@ and add a udev rule to allow access to the Stream Deck, run `sudo nano /etc/udev
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="0fd9", GROUP="users", TAG+="uaccess"
 ```
 
-#### MacOS
+#### :apple: MacOS
 
 On **MacOS** you need to install some extra dependencies:
 
@@ -79,11 +79,11 @@ On **MacOS** you need to install some extra dependencies:
 brew install hidapi cairo libffi
 ```
 
-#### Windows
+#### :windows: Windows
 
 For **Windows**, see [this](https://python-elgato-streamdeck.readthedocs.io/en/stable/pages/backend_libusb_hidapi.html#windows) page.
 
-## Configuration
+## :gear: Configuration
 
 1. Create a `configuration.yaml` file in the same directory.
 2. Choose one of the two usage options:
@@ -97,7 +97,7 @@ Check out the [`configuration.yaml`](configuration.yaml) file for an example con
 
 Happy controlling! 🏠💡🎮
 
-### `configuration.yaml`
+### :page_facing_up: `configuration.yaml`
 
 Here's an example `configuration.yaml` file to help
 

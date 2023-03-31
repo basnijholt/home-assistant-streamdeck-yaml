@@ -101,6 +101,8 @@ Happy controlling! 🏠💡🎮
 Here's an example `configuration.yaml` file to help
 
 ```yaml
+brightness: 100
+state_entity_id: input_select.streamdeck
 pages:
   - name: Home
     buttons:

@@ -1,7 +1,7 @@
 FROM python:3.11-alpine3.17
 
 # Install dependencies
-RUN apk --update --no-cache \
+RUN apk --update --no-cache add \
     # Stream Deck dependencies
     libusb \
     libusb-dev \
@@ -34,11 +34,9 @@ COPY . /app
 WORKDIR /app
 
 # Install the required dependencies
-RUN pip3 install -e ".[colormap]" && \
+RUN pip3 install -e ".[colormap]" --no-cache-dir && \
     # Remove musl-dev and gcc
     apk del build-deps && rm -rf /var/cache/apk/* && \
-    # Purge the pip cache
-    pip3 cache purge
 
 # Set the entrypoint to run the application
 ENTRYPOINT ["/bin/sh", "-c", "home-assistant-streamdeck-yaml"]

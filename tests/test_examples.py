@@ -713,7 +713,7 @@ activate_voice_assistant = {
           text: Voice Assistant
         """,
     ),
-    "state": [{}],
+    "state": [[{}]],
     "result": [
         Button(
             service="script.activate_voice_assistant",

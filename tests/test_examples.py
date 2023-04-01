@@ -591,7 +591,9 @@ toggle_smart_plug = {
         - entity_id: switch.smart_plug
           service: switch.toggle
           icon_mdi: "{{ 'power-socket' if is_state('switch.smart_plug', 'on') else 'power-socket-off' }}"
-          text: "{{ 'Turn Off' if is_state('switch.smart_plug', 'on') else 'Turn On' }} Smart Plug"
+          text: |
+            {{ 'Turn Off' if is_state('switch.smart_plug', 'on') else 'Turn On' }}
+            Smart Plug
         """,
     ),
     "state": {"switch.smart_plug": {"state": "on"}},
@@ -599,7 +601,7 @@ toggle_smart_plug = {
         entity_id="switch.smart_plug",
         service="switch.toggle",
         icon_mdi="power-socket",
-        text="Turn Off Smart Plug",
+        text="Turn Off\nSmart Plug",
     ),
 }
 
@@ -610,7 +612,9 @@ toggle_fan = {
         - entity_id: fan.bedroom_fan
           service: fan.toggle
           icon_mdi: "{{ 'fan' if is_state('fan.bedroom_fan', 'on') else 'fan-off' }}"
-          text: "{{ 'Turn Off' if is_state('fan.bedroom_fan', 'on') else 'Turn On' }} Fan"
+          text: |
+            {{ 'Turn Off' if is_state('fan.bedroom_fan', 'on') else 'Turn On' }}
+            Fan
         """,
     ),
     "state": {"fan.bedroom_fan": {"state": "on"}},
@@ -618,7 +622,7 @@ toggle_fan = {
         entity_id="fan.bedroom_fan",
         service="fan.toggle",
         icon_mdi="fan",
-        text="Turn Off Fan",
+        text="Turn Off\nFan",
     ),
 }
 
@@ -629,7 +633,9 @@ irrigation_toggle = {
         - entity_id: switch.irrigation_system
           service: switch.toggle
           icon_mdi: "{{ 'water' if is_state('switch.irrigation_system', 'on') else 'water-off' }}"
-          text: "{{ 'Turn Off' if is_state('switch.irrigation_system', 'on') else 'Turn On' }} Irrigation"
+          text: |
+            {{ 'Turn Off' if is_state('switch.irrigation_system', 'on') else 'Turn On' }}
+            Irrigation
         """,
     ),
     "state": {"switch.irrigation_system": {"state": "on"}},
@@ -637,7 +643,7 @@ irrigation_toggle = {
         entity_id="switch.irrigation_system",
         service="switch.toggle",
         icon_mdi="water",
-        text="Turn Off Irrigation",
+        text="Turn Off\nIrrigation",
     ),
 }
 
@@ -651,7 +657,9 @@ change_cover_position = {
           service_data:
             position: "{{ 0 if state_attr('cover.living_room_blinds', 'current_position') >= 50 else 100 }}"
           icon_mdi: window-shutter
-          text: "{{ 'Close' if state_attr('cover.living_room_blinds', 'current_position') >= 50 else 'Open' }} Blinds"
+          text: |
+            {{ 'Close' if state_attr('cover.living_room_blinds', 'current_position') >= 50 else 'Open' }}
+            Blinds
         """,
     ),
     "state": {
@@ -664,7 +672,7 @@ change_cover_position = {
         service="cover.set_cover_position",
         service_data={"position": "0"},
         icon_mdi="window-shutter",
-        text="Close Blinds",
+        text="Close\nBlinds",
     ),
 }
 
@@ -675,7 +683,9 @@ lock_unlock_door = {
         - entity_id: lock.front_door
           service: "{{ 'lock.lock' if is_state('lock.front_door', 'unlocked') else 'lock.unlock' }}"
           icon_mdi: "{{ 'lock' if is_state('lock.front_door', 'unlocked') else 'lock-open' }}"
-          text: "{{ 'Lock' if is_state('lock.front_door', 'unlocked') else 'Unlock' }} Door"
+          text: |
+            {{ 'Lock' if is_state('lock.front_door', 'unlocked') else 'Unlock' }}
+            Door
         """,
     ),
     "state": {"lock.front_door": {"state": "unlocked"}},
@@ -683,7 +693,7 @@ lock_unlock_door = {
         entity_id="lock.front_door",
         service="lock.lock",
         icon_mdi="lock",
-        text="Lock Door",
+        text="Lock\nDoor",
     ),
 }
 
@@ -694,7 +704,9 @@ toggle_vacuum = {
         - entity_id: vacuum.robot_vacuum
           service: vacuum.toggle
           icon_mdi: "{{ 'robot-vacuum' if is_state('vacuum.robot_vacuum', 'cleaning') else 'robot-vacuum-off' }}"
-          text: "{{ 'Pause' if is_state('vacuum.robot_vacuum', 'cleaning') else 'Start' }} Vacuum"
+          text: |
+            {{ 'Pause' if is_state('vacuum.robot_vacuum', 'cleaning') else 'Start' }}
+            Vacuum
         """,
     ),
     "state": {"vacuum.robot_vacuum": {"state": "cleaning"}},
@@ -702,7 +714,7 @@ toggle_vacuum = {
         entity_id="vacuum.robot_vacuum",
         service="vacuum.toggle",
         icon_mdi="robot-vacuum",
-        text="Pause Vacuum",
+        text="Pause\nVacuum",
     ),
 }
 

@@ -392,16 +392,13 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 
 
 <details>
-<summary>7. 🔒 Lock/unlock a door:</summary>
+<summary>7. 🔓 Lock/unlock a door:</summary>
 
 ```yaml
 - entity_id: lock.front_door
-  service: lock.toggle
-  icon_mdi: "{{ 'door-open' if is_state('lock.front_door', 'unlocked') else 'door-closed' }}"
-  text: |
-    Front Door
-    {{ 'Unlocked' if is_state('lock.front_door', 'unlocked') else 'Locked' }}
-  text_size: 10
+  service: "{{ 'lock.lock' if is_state('lock.front_door', 'unlocked') else 'lock.unlock' }}"
+  icon_mdi: "{{ 'lock' if is_state('lock.front_door', 'unlocked') else 'lock-open' }}"
+  text: "{{ 'Lock' if is_state('lock.front_door', 'unlocked') else 'Unlock' }} Door"
 ```
 
 </details>
@@ -665,8 +662,9 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 - entity_id: switch.smart_fireplace
   service: switch.toggle
   icon_mdi: "{{ 'fire' if is_state('switch.smart_fireplace', 'on') else 'fire-off' }}"
-  text: "{{ 'Turn Off' if is_state('switch.smart_fireplace', 'on') else
-  'Turn On' }} Fireplace"
+  text: |
+    {{ 'Turn Off' if is_state('switch.smart_fireplace', 'on') else 'Turn On' }}
+    Fireplace
 ```
 
 </details>
@@ -706,6 +704,47 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
   service: switch.toggle
   icon_mdi: "{{ 'water' if is_state('switch.irrigation_system', 'on') else 'water-off' }}"
   text: "{{ 'Turn Off' if is_state('switch.irrigation_system', 'on') else 'Turn On' }} Irrigation"
+```
+
+</details>
+
+
+<details>
+<summary>30. 🌤️ Change the position of a cover (e.g., blinds or curtains):</summary>
+
+```yaml
+- entity_id: cover.living_room_blinds
+  service: cover.set_cover_position
+  service_data:
+    position: "{{ 0 if state_attr('cover.living_room_blinds', 'current_position') >= 50 else 100 }}"
+  icon_mdi: window-shutter
+  text: "{{ 'Close' if state_attr('cover.living_room_blinds', 'current_position') >= 50 else 'Open' }} Blinds"
+```
+
+</details>
+
+
+<details>
+<summary>31. 🔓 Lock/unlock a door:</summary>
+
+```yaml
+- entity_id: lock.front_door
+  service: "{{ 'lock.lock' if is_state('lock.front_door', 'unlocked') else 'lock.unlock' }}"
+  icon_mdi: "{{ 'lock' if is_state('lock.front_door', 'unlocked') else 'lock-open' }}"
+  text: "{{ 'Lock' if is_state('lock.front_door', 'unlocked') else 'Unlock' }} Door"
+```
+
+</details>
+
+
+<details>
+<summary>32. 🤖 Toggle a vacuum cleaner:</summary>
+
+```yaml
+- entity_id: vacuum.robot_vacuum
+  service: vacuum.toggle
+  icon_mdi: "{{ 'robot-vacuum' if is_state('vacuum.robot_vacuum', 'cleaning') else 'robot-vacuum-off' }}"
+  text: "{{ 'Pause' if is_state('vacuum.robot_vacuum', 'cleaning') else 'Start' }} Vacuum"
 ```
 
 </details>

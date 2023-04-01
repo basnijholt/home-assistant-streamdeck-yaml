@@ -616,3 +616,76 @@ def test_render_jinja() -> None:
     )
     state_19 = {"sensor.weather_temperature": {"state": "23"}}
     assert _render_jinja(template_19, state_19) == "23°C"
+
+
+def test_render_jinja2() -> None:
+    """Test _render_jinja for volume control."""
+    template_volume = textwrap.dedent(
+        """
+        {{ max(state_attr("media_player.kef_ls50", "volume_level") - 0.05, 0) }}
+        """,
+    )
+    state_volume_1 = {
+        "media_player.kef_ls50": {"attributes": {"volume_level": 0.5}},
+    }
+    state_volume_2 = {
+        "media_player.kef_ls50": {"attributes": {"volume_level": 0.03}},
+    }
+
+    assert float(_render_jinja(template_volume, state_volume_1)) == 0.5 - 0.05
+    assert float(_render_jinja(template_volume, state_volume_2)) == 0
+
+    template_volume_pct = textwrap.dedent(
+        """
+        {{ (100 * state_attr("media_player.kef_ls50", "volume_level")) | int }}%
+        """,
+    )
+    state_volume_pct_1 = {
+        "media_player.kef_ls50": {"attributes": {"volume_level": 0.5}},
+    }
+    state_volume_pct_2 = {
+        "media_player.kef_ls50": {"attributes": {"volume_level": 0.75}},
+    }
+
+    assert _render_jinja(template_volume_pct, state_volume_pct_1) == "50%"
+    assert _render_jinja(template_volume_pct, state_volume_pct_2) == "75%"
+
+
+def test_render_jinja3() -> None:
+    """Test jinja state."""
+    entity_id = "light.living_room_lights"
+    state = {entity_id: {"state": "off"}}
+    assert _render_jinja("{{ states('" + entity_id + "') }}", state) == "off"
+
+    template_volume_down = textwrap.dedent(
+        """
+        {{ max(state_attr("media_player.kef_ls50", "volume_level") - 0.05, 0) }}
+        """,
+    )
+    template_volume_up = textwrap.dedent(
+        """
+        {{ min(state_attr("media_player.kef_ls50", "volume_level") + 0.05, 1) }}
+        """,
+    )
+    state_volume = {
+        "media_player.kef_ls50": {"attributes": {"volume_level": 0.5}},
+    }
+
+    assert float(_render_jinja(template_volume_down, state_volume)) == 0.5 - 0.05
+    assert float(_render_jinja(template_volume_up, state_volume)) == 0.5 + 0.05
+
+    template_brightness = textwrap.dedent(
+        """
+        {% set current_brightness = state_attr('light.living_room_lights', 'brightness') %}
+        {% set next_brightness = (current_brightness + 25.5) % 255 %}
+        {{ min(next_brightness, 255) | int }}
+        """,
+    )
+
+    state_brightness = {
+        "light.living_room_lights": {"attributes": {"brightness": 100}},
+    }
+
+    assert int(_render_jinja(template_brightness, state_brightness)) == int(
+        (100 + 25.5) % 255,
+    )

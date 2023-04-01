@@ -1,7 +1,7 @@
 FROM python:3.11-alpine3.17
 
 # Install dependencies
-RUN apk update && apk add --no-cache \
+RUN apk --update --no-cache \
     # Stream Deck dependencies
     libusb \
     libusb-dev \

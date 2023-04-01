@@ -225,7 +225,7 @@ set_alarm_time_for_next_day = {
           icon_mdi: "alarm"
           text: |
             Set Alarm
-            {{ '07:00' if states('input_datetime.alarm_time') != '07:00:00' else '08:00' }}
+            {{ '7AM' if states('input_datetime.alarm_time') != '07:00:00' else '8AM' }}
         """,
     ),
     "state": {"input_datetime.alarm_time": {"state": "07:00:00"}},

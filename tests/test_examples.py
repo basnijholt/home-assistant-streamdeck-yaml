@@ -900,13 +900,22 @@ toggle_smart_plug = {
             Smart Plug
         """,
     ),
-    "state": [{"switch.smart_plug": {"state": "on"}}],
+    "state": [
+        {"switch.smart_plug": {"state": "on"}},
+        {"switch.smart_plug": {"state": "off"}},
+    ],
     "result": [
         Button(
             entity_id="switch.smart_plug",
             service="switch.toggle",
             icon_mdi="power-socket",
             text="Turn Off\nSmart Plug",
+        ),
+        Button(
+            entity_id="switch.smart_plug",
+            service="switch.toggle",
+            icon_mdi="power-socket-off",
+            text="Turn On\nSmart Plug",
         ),
     ],
 }

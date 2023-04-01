@@ -289,7 +289,6 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 
 </details>
 
-
 <details>
 <summary>2. 🚪 Toggle a cover (e.g., blinds or garage door):</summary>
 
@@ -301,7 +300,6 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 ```
 
 </details>
-
 
 <details>
 <summary>3. 🤖 Start or stop the vacuum robot:</summary>
@@ -324,7 +322,6 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 ```
 
 </details>
-
 
 <details>
 <summary>4. 🔇 Mute/unmute a media player:</summary>
@@ -356,7 +353,6 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 
 </details>
 
-
 <details>
 <summary>5. 🌟 Control the brightness of a light (+10% on press):</summary>
 
@@ -377,7 +373,6 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 
 </details>
 
-
 <details>
 <summary>6. 🌀 Toggle a fan:</summary>
 
@@ -391,7 +386,6 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 ```
 
 </details>
-
 
 <details>
 <summary>7. 🔒 Lock/unlock a door:</summary>
@@ -408,7 +402,6 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 
 </details>
 
-
 <details>
 <summary>8. ⚠️ Arm/disarm an alarm system:</summary>
 
@@ -422,7 +415,6 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 ```
 
 </details>
-
 
 <details>
 <summary>9. ⏰ Set an alarm time for the next day:</summary>
@@ -440,7 +432,6 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 
 </details>
 
-
 <details>
 <summary>10. ⏯️ Control a media player (play/pause):</summary>
 
@@ -453,7 +444,6 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 
 </details>
 
-
 <details>
 <summary>11. 🎵 Control a media player (skip tracks):</summary>
 
@@ -465,7 +455,6 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 ```
 
 </details>
-
 
 <details>
 <summary>12. 🌈 Set a specific color for a light:</summary>
@@ -480,7 +469,6 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 ```
 
 </details>
-
 
 <details>
 <summary>13. 🌡️ Adjust the thermostat between two specific temperatures:</summary>
@@ -499,7 +487,6 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 
 </details>
 
-
 <details>
 <summary>14. 📲 Trigger a script to send a notification to your mobile device:</summary>
 
@@ -508,8 +495,6 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
   icon_mdi: bell
   text: Send Notification
 ```
-
-</details>
 
 
 Which uses this script (which needs to be defined in Home Assistant):
@@ -522,6 +507,9 @@ send_mobile_notification:
       data:
         message: "Your custom notification message."
 ```
+
+
+</details>
 
 <details>
 <summary>15. 🌆 Toggle a day/night mode (using an input_boolean):</summary>
@@ -537,7 +525,6 @@ send_mobile_notification:
 
 </details>
 
-
 <details>
 <summary>16. 📺 Control a TV (e.g., turn on/off or change input source):</summary>
 
@@ -550,7 +537,6 @@ send_mobile_notification:
 ```
 
 </details>
-
 
 <details>
 <summary>17. 🔦 Control a group of lights (e.g., turn on/off or change color):</summary>
@@ -566,7 +552,6 @@ send_mobile_notification:
 
 </details>
 
-
 <details>
 <summary>18. 🔔 Trigger a script to announce the doorbell:</summary>
 
@@ -574,8 +559,6 @@ send_mobile_notification:
 - service: script.trigger_doorbell_announcement
   text: Doorbell Announcement
 ```
-
-</details>
 
 
 Which uses this script (which needs to be defined in Home Assistant):
@@ -589,6 +572,9 @@ trigger_doorbell_announcement:
         entity_id: media_player.<your_media_player>
         message: "Someone is at the door."
 ```
+
+
+</details>
 
 <details>
 <summary>19. ⏰ Enable/disable a sleep timer (using an input_boolean):</summary>
@@ -604,7 +590,6 @@ trigger_doorbell_announcement:
 
 </details>
 
-
 <details>
 <summary>20. 🌡️ Display current temperature:</summary>
 
@@ -616,7 +601,6 @@ trigger_doorbell_announcement:
 ```
 
 </details>
-
 
 <details>
 <summary>21. 📶 Toggle Wi-Fi on/off (using a switch):</summary>
@@ -632,7 +616,6 @@ trigger_doorbell_announcement:
 
 </details>
 
-
 <details>
 <summary>22. 🗣️ Activate voice assistant:</summary>
 
@@ -641,8 +624,6 @@ trigger_doorbell_announcement:
   icon_mdi: microphone
   text: Voice Assistant
 ```
-
-</details>
 
 
 Which uses this script (which needs to be defined in Home Assistant):
@@ -659,6 +640,9 @@ activate_voice_assistant:
         media_content_type: "music"
 ```
 
+
+</details>
+
 <details>
 <summary>23. 🌿 Start/Stop air purifier:</summary>
 
@@ -673,7 +657,6 @@ activate_voice_assistant:
 
 </details>
 
-
 <details>
 <summary>24. 📼 Start/stop a security camera recording:</summary>
 
@@ -682,8 +665,6 @@ activate_voice_assistant:
   icon_mdi: cctv
   text: Toggle Camera Recording
 ```
-
-</details>
 
 
 Which uses this script (which needs to be defined in Home Assistant):
@@ -701,6 +682,9 @@ toggle_security_camera_recording:
         filename: "/config/www/recordings/camera_{{ now().strftime('%Y%m%d_%H%M%S') }}.mp4"
 ```
 
+
+</details>
+
 <details>
 <summary>25. 🌙 Enable/disable a nightlight:</summary>
 
@@ -712,7 +696,6 @@ toggle_security_camera_recording:
 ```
 
 </details>
-
 
 <details>
 <summary>26. 🔥 Control a smart fireplace:</summary>
@@ -728,7 +711,6 @@ toggle_security_camera_recording:
 
 </details>
 
-
 <details>
 <summary>27. 🔌 Toggle a smart plug:</summary>
 
@@ -743,7 +725,6 @@ toggle_security_camera_recording:
 
 </details>
 
-
 <details>
 <summary>28. 💦 Toggle irrigation system:</summary>
 
@@ -757,7 +738,6 @@ toggle_security_camera_recording:
 ```
 
 </details>
-
 
 <details>
 <summary>29. 🌤️ Change the position of a cover (e.g., blinds or curtains):</summary>
@@ -774,7 +754,6 @@ toggle_security_camera_recording:
 ```
 
 </details>
-
 
 
 <!-- END_OUTPUT -->

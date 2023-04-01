@@ -1127,13 +1127,10 @@ def generate_readme_entry() -> str:
         ```yaml
         {{ button.yaml.strip() }}
         ```
-
-        </details>
-
-        {% if button.get("extra") -%}
+        {% if button.get("extra") %}
         {{ button.extra }}
-        {%- endif -%}
-
+        {% endif %}
+        </details>
         {% endfor %}
         """,
     )

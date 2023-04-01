@@ -561,64 +561,348 @@ async def test_button_with_target(
     assert called_payload == expected_payload
 
 
-def test_render_jinja() -> None:
-    """Test _render_jinja."""
-    # Test 3
-    template_3 = textwrap.dedent(
-        """
-        {% if is_state('vacuum.cleaning_robot', 'docked') %}
-        vacuum.start
-        {% else %}
-        vacuum.return_to_base
-        {% endif %}
-        """,
-    )
-    state_3_1 = {"vacuum.cleaning_robot": {"state": "docked"}}
-    state_3_2 = {"vacuum.cleaning_robot": {"state": "cleaning"}}
-    assert _render_jinja(template_3, state_3_1) == "vacuum.start"
-    assert _render_jinja(template_3, state_3_2) == "vacuum.return_to_base"
+@pytest.mark.parametrize(
+    ("template", "state", "expected_output"),
+    [
+        # Test 1: Activate a scene
+        (
+            """
+            scene.turn_on
+            """,
+            {},
+            "scene.turn_on",
+        ),
+        # Test 2: Toggle a cover
+        (
+            """
+            {% if is_state('cover.garage_door', 'open') %}
+            garage-open
+            {% else %}
+            garage-lock
+            {% endif %}
+            """,
+            {"cover.garage_door": {"state": "open"}},
+            "garage-open",
+        ),
+        (
+            """
+            {% if is_state('cover.garage_door', 'open') %}
+            garage-open
+            {% else %}
+            garage-lock
+            {% endif %}
+            """,
+            {"cover.garage_door": {"state": "closed"}},
+            "garage-lock",
+        ),
+        # Test 3: Start or stop the vacuum robot (already provided)
+        (
+            """
+            {% if is_state('vacuum.cleaning_robot', 'docked') %}
+            vacuum.start
+            {% else %}
+            vacuum.return_to_base
+            {% endif %}
+            """,
+            {"vacuum.cleaning_robot": {"state": "docked"}},
+            "vacuum.start",
+        ),
+        (
+            """
+            {% if is_state('vacuum.cleaning_robot', 'docked') %}
+            vacuum.start
+            {% else %}
+            vacuum.return_to_base
+            {% endif %}
+            """,
+            {"vacuum.cleaning_robot": {"state": "cleaning"}},
+            "vacuum.return_to_base",
+        ),
+        # Test 4: Mute/unmute a media player
+        (
+            """
+            {% if is_state_attr('media_player.living_room_speaker', 'is_volume_muted', true) %}
+            volume-off
+            {% else %}
+            volume-high
+            {% endif %}
+            """,
+            {
+                "media_player.living_room_speaker": {
+                    "attributes": {"is_volume_muted": True},
+                },
+            },
+            "volume-off",
+        ),
+        (
+            """
+            {% if is_state_attr('media_player.living_room_speaker', 'is_volume_muted', true) %}
+            volume-off
+            {% else %}
+            volume-high
+            {% endif %}
+            """,
+            {
+                "media_player.living_room_speaker": {
+                    "attributes": {"is_volume_muted": False},
+                },
+            },
+            "volume-high",
+        ),
+        # Test 5: Control the brightness of a light
+        (
+            """
+            {% set current_brightness = state_attr('light.living_room_lights', 'brightness') %}
+            {% set brightness_pct = (current_brightness / 255) * 100 %}
+            {{ brightness_pct | round }}%
+            """,
+            {"light.living_room_lights": {"attributes": {"brightness": 128}}},
+            "50%",
+        ),
+        # Test 6: Toggle a fan
+        (
+            """
+            {% if is_state('fan.bedroom_fan', 'on') %}
+            fan
+            {% else %}
+            fan-off
+            {% endif %}
+            """,
+            {"fan.bedroom_fan": {"state": "on"}},
+            "fan",
+        ),
+        (
+            """
+            {% if is_state('fan.bedroom_fan', 'on') %}
+            fan
+            {% else %}
+            fan-off
+            {% endif %}
+            """,
+            {"fan.bedroom_fan": {"state": "off"}},
+            "fan-off",
+        ),
+        # Test 7: Lock/unlock a door (cont.)
+        (
+            """
+            {% if is_state('lock.front_door', 'unlocked') %}
+            door-open
+            {% else %}
+            door-closed
+            {% endif %}
+            """,
+            {"lock.front_door": {"state": "unlocked"}},
+            "door-open",
+        ),
+        (
+            """
+            {% if is_state('lock.front_door', 'unlocked') %}
+            door-open
+            {% else %}
+            door-closed
+            {% endif %}
+            """,
+            {"lock.front_door": {"state": "locked"}},
+            "door-closed",
+        ),
+        # Test 8: Arm/disarm an alarm system
+        (
+            """
+            {% if is_state('alarm_control_panel.home_alarm', 'armed_away') %}
+            alarm_control_panel.alarm_disarm
+            {% else %}
+            alarm_control_panel.alarm_arm_away
+            {% endif %}
+            """,
+            {"alarm_control_panel.home_alarm": {"state": "armed_away"}},
+            "alarm_control_panel.alarm_disarm",
+        ),
+        (
+            """
+            {% if is_state('alarm_control_panel.home_alarm', 'armed_away') %}
+            alarm_control_panel.alarm_disarm
+            {% else %}
+            alarm_control_panel.alarm_arm_away
+            {% endif %}
+            """,
+            {"alarm_control_panel.home_alarm": {"state": "disarmed"}},
+            "alarm_control_panel.alarm_arm_away",
+        ),
+        # Test 9: Set an alarm time for the next day
+        (
+            """
+            {{ '07:00:00' if states('input_datetime.alarm_time') != '07:00:00' else '08:00:00' }}
+            """,
+            {"input_datetime.alarm_time": {"state": "07:00:00"}},
+            "08:00:00",
+        ),
+        (
+            """
+            {{ '07:00:00' if states('input_datetime.alarm_time') != '07:00:00' else '08:00:00' }}
+            """,
+            {"input_datetime.alarm_time": {"state": "08:00:00"}},
+            "07:00:00",
+        ),
+        # Test 10: Control a media player (e.g., pause/play or skip tracks)
+        (
+            """
+            {% if is_state('media_player.living_room_speaker', 'playing') %}
+            pause
+            {% else %}
+            play
+            {% endif %}
+            """,
+            {"media_player.living_room_speaker": {"state": "playing"}},
+            "pause",
+        ),
+        (
+            """
+            {% if is_state('media_player.living_room_speaker', 'playing') %}
+            pause
+            {% else %}
+            play
+            {% endif %}
+            """,
+            {"media_player.living_room_speaker": {"state": "paused"}},
+            "play",
+        ),
+        # Test 11: Set a specific color for a light
+        (
+            """
+            {% if is_state('light.living_room_light', 'on') %}
+            lightbulb-on
+            {% else %}
+            lightbulb-off
+            {% endif %}
+            """,
+            {"light.living_room_light": {"state": "on"}},
+            "lightbulb-on",
+        ),
+        (
+            """
+            {% if is_state('light.living_room_light', 'on') %}
+            lightbulb-on
+            {% else %}
+            lightbulb-off
+            {% endif %}
+            """,
+            {"light.living_room_light": {"state": "off"}},
+            "lightbulb-off",
+        ),
+        # Test 12: Adjust the thermostat to a specific temperature
+        # No jinja template to test
+        # Test 13: Trigger a script to send a notification to your mobile device
+        # No jinja template to test
+        # Test 14: Toggle day/night mode (using an input_boolean)
+        (
+            """
+            {% if is_state('input_boolean.day_night_mode', 'on') %}
+            weather-night
+            {% else %}
+            weather-sunny
+            {% endif %}
+            """,
+            {"input_boolean.day_night_mode": {"state": "on"}},
+            "weather-night",
+        ),
+        (
+            """
+            {% if is_state('input_boolean.day_night_mode', 'on') %}
+            weather-night
+            {% else %}
+            weather-sunny
+            {% endif %}
+            """,
+            {"input_boolean.day_night_mode": {"state": "off"}},
+            "weather-sunny",
+        ),
+        # Test 15: Control a TV (e.g., turn on/off or change input source)
+        # No jinja template to test
+        # Test 16: Control a group of lights (e.g., turn on/off or change color)
+        (
+            """
+            {% if is_state('group.living_room_lights', 'on') %}
+            lightbulb-group-on
+            {% else %}
+            lightbulb-group-off
+            {% endif %}
+            """,
+            {"group.living_room_lights": {"state": "on"}},
+            "lightbulb-group-on",
+        ),
+        (
+            """
+            {% if is_state('group.living_room_lights', 'on') %}
+            lightbulb-group-on
+            {% else %}
+            lightbulb-group-off
+            {% endif %}
+            """,
+            {"group.living_room_lights": {"state": "off"}},
+            "lightbulb-group-off",
+        ),
+        # Test 17: Trigger a doorbell or camera announcement
+        # No jinja template to test
+        # Test 18: Enable/disable a sleep timer (using an input_boolean)
+        (
+            """
+            {% if is_state('input_boolean.sleep_timer', 'on') %}
+            timer
+            {% else %}
+            timer-off
+            {% endif %}
+            """,
+            {"input_boolean.sleep_timer": {"state": "on"}},
+            "timer",
+        ),
+        (
+            """
+            {% if is_state('input_boolean.sleep_timer', 'on') %}
+            timer
+            {% else %}
+            timer-off
+            {% endif %}
+            """,
+            {"input_boolean.sleep_timer": {"state": "off"}},
+            "timer-off",
+        ),
+        # Test 19: Retrieve weather information and display it on the button
+        # No jinja template to test
+        # Test 20: Toggle Wi-Fi on/off (using a switch)
+        (
+            """
+            {% if is_state('switch.wifi_switch', 'on') %}
+            wifi
+            {% else %}
+            wifi-off
+            {% endif %}
+            """,
+            {"switch.wifi_switch": {"state": "on"}},
+            "wifi",
+        ),
+        (
+            """
+            {% if is_state('switch.wifi_switch', 'on') %}
+            wifi
+            {% else %}
+            wifi-off
+            {% endif %}
+            """,
+            {"switch.wifi_switch": {"state": "off"}},
+            "wifi-off",
+        ),
+    ],
+)
+def test_render_jinja2_from_examples_readme(
+    template: str,
+    state: dict[str, dict[str, Any]],
+    expected_output: str,
+) -> None:
+    """Test _render_jinja for volume control."""
+    assert _render_jinja(template, state) == expected_output
 
-    # Test 4
-    template_4 = textwrap.dedent(
-        """
-        {% if is_state_attr('media_player.living_room_speaker', 'is_volume_muted', true) %}
-        Unmute
-        {% else %}
-        Mute
-        {% endif %}
-        """,
-    )
-    state_4_1 = {
-        "media_player.living_room_speaker": {"attributes": {"is_volume_muted": True}},
-    }
-    state_4_2 = {
-        "media_player.living_room_speaker": {"attributes": {"is_volume_muted": False}},
-    }
-    assert _render_jinja(template_4, state_4_1) == "Unmute"
-    assert _render_jinja(template_4, state_4_2) == "Mute"
 
-    # Test 12
-    template_12 = textwrap.dedent(
-        """
-        {% set current_brightness = state_attr('light.living_room_lights', 'brightness') %}
-        {% set brightness_pct = (current_brightness / 255) * 100 %}
-        {{ brightness_pct | round(0) }}%
-        """,
-    )
-    state_12 = {"light.living_room_lights": {"attributes": {"brightness": 100}}}
-    assert _render_jinja(template_12, state_12) == "39.0%"
-
-    # Test 19
-    template_19 = textwrap.dedent(
-        """
-        {{ states("sensor.weather_temperature") }}°C
-        """,
-    )
-    state_19 = {"sensor.weather_temperature": {"state": "23"}}
-    assert _render_jinja(template_19, state_19) == "23°C"
-
-
-def test_render_jinja2() -> None:
+def test_render_jinja2_from_my_config_and_example_config() -> None:
     """Test _render_jinja for volume control."""
     template_volume_1 = textwrap.dedent(
         """
@@ -656,9 +940,6 @@ def test_render_jinja2() -> None:
     assert _render_jinja(template_volume_pct, state_volume_pct_1) == "50%"
     assert _render_jinja(template_volume_pct, state_volume_pct_2) == "75%"
 
-
-def test_render_jinja3() -> None:
-    """Test jinja state."""
     entity_id = "light.living_room_lights"
     state = {entity_id: {"state": "off"}}
     assert _render_jinja("{{ states('" + entity_id + "') }}", state) == "off"

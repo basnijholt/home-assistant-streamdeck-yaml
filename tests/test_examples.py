@@ -322,7 +322,10 @@ set_alarm_time_for_next_day = {
             {{ '7AM' if states('input_datetime.alarm_time') != '07:00:00' else '8AM' }}
         """,
     ),
-    "state": [{"input_datetime.alarm_time": {"state": "07:00:00"}}],
+    "state": [
+        {"input_datetime.alarm_time": {"state": "07:00:00"}},
+        {"input_datetime.alarm_time": {"state": "08:00:00"}},
+    ],
     "result": [
         Button(
             service="input_datetime.set_datetime",
@@ -332,6 +335,15 @@ set_alarm_time_for_next_day = {
             },
             icon_mdi="alarm",
             text="Set Alarm\n8AM",
+        ),
+        Button(
+            service="input_datetime.set_datetime",
+            service_data={
+                "entity_id": "input_datetime.alarm_time",
+                "time": "07:00:00",
+            },
+            icon_mdi="alarm",
+            text="Set Alarm\n7AM",
         ),
     ],
 }
@@ -346,13 +358,22 @@ media_play_pause = {
           text: "{{ 'Pause' if is_state('media_player.living_room_speaker', 'playing') else 'Play' }}"
         """,
     ),
-    "state": [{"media_player.living_room_speaker": {"state": "playing"}}],
+    "state": [
+        {"media_player.living_room_speaker": {"state": "playing"}},
+        {"media_player.living_room_speaker": {"state": "paused"}},
+    ],
     "result": [
         Button(
             entity_id="media_player.living_room_speaker",
             service="media_player.media_play_pause",
             icon_mdi="pause",
             text="Pause",
+        ),
+        Button(
+            entity_id="media_player.living_room_speaker",
+            service="media_player.media_play_pause",
+            icon_mdi="play",
+            text="Play",
         ),
     ],
 }

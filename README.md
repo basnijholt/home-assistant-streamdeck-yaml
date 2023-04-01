@@ -392,6 +392,8 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
   text: Next Track
 ```
 
+</details>
+
 <details>
 <summary>11. 🌈 Set a specific color for a light:
 

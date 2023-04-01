@@ -386,8 +386,8 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
   service: fan.toggle
   icon_mdi: "{{ 'fan' if is_state('fan.bedroom_fan', 'on') else 'fan-off' }}"
   text: |
-    {{ 'Turn Off' if is_state('fan.bedroom_fan', 'on') else 'Turn On' }}
-    Fan
+    Bedroom
+    {{ 'On' if is_state('fan.bedroom_fan', 'on') else 'Off' }}
 ```
 
 </details>
@@ -512,6 +512,17 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 
+Which uses this script (which needs to be defined in Home Assistant):
+
+```yaml
+send_mobile_notification:
+  alias: "Send Mobile Notification"
+  sequence:
+    - service: notify.mobile_app_<your_device_name>
+      data:
+        message: "Your custom notification message."
+```
+
 <details>
 <summary>15. 🌆 Toggle a day/night mode (using an input_boolean):</summary>
 
@@ -566,6 +577,18 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 
 </details>
 
+
+Which uses this script (which needs to be defined in Home Assistant):
+
+```yaml
+trigger_doorbell_announcement:
+  alias: "Trigger Doorbell Announcement"
+  sequence:
+    - service: tts.google_translate_say
+      data:
+        entity_id: media_player.<your_media_player>
+        message: "Someone is at the door."
+```
 
 <details>
 <summary>19. ⏰ Enable/disable a sleep timer (using an input_boolean):</summary>
@@ -622,6 +645,20 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 
+Which uses this script (which needs to be defined in Home Assistant):
+
+```yaml
+activate_voice_assistant:
+  alias: "Activate Voice Assistant"
+  sequence:
+    - service: media_player.play_media
+      target:
+        entity_id: media_player.<your_media_player>
+      data:
+        media_content_id: "http://<your_url>/<filename>.mp3"
+        media_content_type: "music"
+```
+
 <details>
 <summary>23. 🌿 Start/Stop air purifier:</summary>
 
@@ -648,6 +685,21 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 
 </details>
 
+
+Which uses this script (which needs to be defined in Home Assistant):
+
+```yaml
+toggle_security_camera_recording:
+  alias: "Toggle Security Camera Recording"
+  sequence:
+    - service: camera.record
+      target:
+        entity_id: camera.<your_camera>
+      data:
+        duration: 10
+        lookback: 2
+        filename: "/config/www/recordings/camera_{{ now().strftime('%Y%m%d_%H%M%S') }}.mp4"
+```
 
 <details>
 <summary>25. 🌙 Enable/disable a nightlight:</summary>

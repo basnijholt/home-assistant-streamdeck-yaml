@@ -209,7 +209,7 @@ control_brightness_of_light = {
 }
 
 toggle_fan = {
-    "description": "💨 Toggle a fan",
+    "description": "🌀 Toggle a fan",
     "yaml": textwrap.dedent(
         """
         - entity_id: fan.bedroom_fan
@@ -495,6 +495,20 @@ send_mobile_notification = {
             text="Send Notification",
         ),
     ],
+    "extra": textwrap.dedent(
+        """
+        Which uses this script (which needs to be defined in Home Assistant):
+
+        ```yaml
+        send_mobile_notification:
+          alias: "Send Mobile Notification"
+          sequence:
+            - service: notify.mobile_app_<your_device_name>
+              data:
+                message: "Your custom notification message."
+        ```
+        """,
+    ),
 }
 
 day_night_mode = {
@@ -600,6 +614,21 @@ trigger_doorbell_announcement = {
             text="Doorbell Announcement",
         ),
     ],
+    "extra": textwrap.dedent(
+        """
+        Which uses this script (which needs to be defined in Home Assistant):
+
+        ```yaml
+        trigger_doorbell_announcement:
+          alias: "Trigger Doorbell Announcement"
+          sequence:
+            - service: tts.google_translate_say
+              data:
+                entity_id: media_player.<your_media_player>
+                message: "Someone is at the door."
+        ```
+        """,
+    ),
 }
 
 sleep_timer = {
@@ -773,6 +802,23 @@ activate_voice_assistant = {
             text="Voice Assistant",
         ),
     ],
+    "extra": textwrap.dedent(
+        """
+        Which uses this script (which needs to be defined in Home Assistant):
+
+        ```yaml
+        activate_voice_assistant:
+          alias: "Activate Voice Assistant"
+          sequence:
+            - service: media_player.play_media
+              target:
+                entity_id: media_player.<your_media_player>
+              data:
+                media_content_id: "http://<your_url>/<filename>.mp3"
+                media_content_type: "music"
+        ```
+        """,
+    ),
 }
 
 start_stop_air_purifier = {
@@ -824,6 +870,24 @@ start_stop_security_camera_recording = {
             text="Toggle Camera Recording",
         ),
     ],
+    "extra": textwrap.dedent(
+        """
+        Which uses this script (which needs to be defined in Home Assistant):
+
+        ```yaml
+        toggle_security_camera_recording:
+          alias: "Toggle Security Camera Recording"
+          sequence:
+            - service: camera.record
+              target:
+                entity_id: camera.<your_camera>
+              data:
+                duration: 10
+                lookback: 2
+                filename: "/config/www/recordings/camera_{{ now().strftime('%Y%m%d_%H%M%S') }}.mp4"
+        ```
+        """,
+    ),
 }
 
 enable_disable_nightlight = {
@@ -1065,6 +1129,10 @@ def generate_readme_entry() -> str:
         ```
 
         </details>
+
+        {% if button.get("extra") -%}
+        {{ button.extra }}
+        {%- endif -%}
 
         {% endfor %}
         """,

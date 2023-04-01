@@ -795,6 +795,12 @@ enable_disable_nightlight = {
             icon_mdi="lightbulb-on",
             text="Disable Nightlight",
         ),
+        Button(
+            entity_id="light.nightlight",
+            service="light.toggle",
+            icon_mdi="lightbulb-off",
+            text="Enable Nightlight",
+        ),
     ],
 }
 
@@ -811,8 +817,8 @@ control_smart_fireplace = {
         """,
     ),
     "state": [
-        {"switch.fireplace": {"state": "on"}},
-        {"switch.fireplace": {"state": "off"}},
+        {"switch.smart_fireplace": {"state": "on"}},
+        {"switch.smart_fireplace": {"state": "off"}},
     ],
     "result": [
         Button(
@@ -820,6 +826,12 @@ control_smart_fireplace = {
             service="switch.toggle",
             icon_mdi="fire",
             text="Turn Off\nFireplace",
+        ),
+        Button(
+            entity_id="switch.smart_fireplace",
+            service="switch.toggle",
+            icon_mdi="fire-off",
+            text="Turn On\nFireplace",
         ),
     ],
 }
@@ -978,7 +990,9 @@ BUTTONS = [
 def test_button(button_dct: dict[str, Any]) -> None:
     """Test all buttons."""
     button = Button.from_yaml(button_dct["yaml"])  # type: ignore[arg-type]
-    for state, result in zip(button_dct["state"], button_dct["result"], strict=True):
+    for i, (state, result) in enumerate(
+        zip(button_dct["state"], button_dct["result"], strict=True),
+    ):
         button_template = button.rendered_template_button(state)  # type: ignore[arg-type]
         actual = button_template.dict()
         expected = result.dict()
@@ -986,7 +1000,7 @@ def test_button(button_dct: dict[str, Any]) -> None:
             actual_value = actual[key]
             assert (
                 actual_value == expected_value
-            ), f'{button_dct["description"]}, {key=}, {actual_value=}, {expected_value=}'
+            ), f'{i=}, {button_dct["description"]}, {key=}, {actual_value=}, {expected_value=}'
 
         assert button_template == result, button_dct["description"]
 

@@ -260,10 +260,9 @@ Each button can take the following configuration:
 
 <!-- END_OUTPUT -->
 
+# :bulb: 20 Button Configurations ideas
 
-# :bulb: More button ideas
-
-Here are 10 more interesting uses for the Stream Deck with Home Assistant:
+Here are 20 interesting uses for the Stream Deck with Home Assistant:
 
 <details>
 <summary>1. 🎭 Activate a scene:</summary>
@@ -391,3 +390,123 @@ Here are 10 more interesting uses for the Stream Deck with Home Assistant:
   icon_mdi: skip-next
   text: Next Track
 ```
+
+<details>
+<summary>11. 🌈 Set a specific color for a light:
+
+```yaml
+- entity_id: light.living_room_light
+  service: light.turn_on
+  service_data:
+    color_name: blue
+  text: Blue Light
+```
+
+</details>
+
+<details>
+<summary>12. 🌟 Control the brightness of a light:
+
+```yaml
+- entity_id: light.living_room_light
+  service: light.turn_on
+  service_data:
+    brightness: 128
+  text: 50% Brightness
+```
+
+</details>
+
+<details>
+<summary>13. 🔇 Mute/unmute a media player:
+
+```yaml
+- entity_id: media_player.living_room_speaker
+  service: media_player.volume_mute
+  service_data:
+    is_volume_muted: true
+  text: Mute
+```
+
+</details>
+
+<details>
+<summary>14. 🌆 Toggle day/night mode (using an input\_boolean):
+
+```yaml
+- entity_id: input_boolean.day_night_mode
+  service: input_boolean.toggle
+  text: Day/Night Mode
+```
+
+</details>
+
+<details>
+<summary>15. 📺 Control a TV (e.g., turn on/off or change input source):
+
+```yaml
+- entity_id: media_player.living_room_tv
+  service: media_player.select_source
+  service_data:
+    source: HDMI 1
+  text: HDMI 1
+```
+
+</details>
+
+<details>
+<summary>16. 💡 Control a group of lights (e.g., turn on/off or change color):
+
+```yaml
+- entity_id: group.living_room_lights
+  service: light.turn_on
+  service_data:
+    color_name: red
+  text: Red Group Lights
+```
+
+</details>
+
+<details>
+<summary>17. 🔔 Trigger a doorbell or camera announcement:
+
+```yaml
+- service: script.trigger_doorbell_announcement
+  text: Doorbell Announcement
+```
+
+</details>
+
+<details>
+<summary>18. 💤 Enable/disable a sleep timer (using an input\_boolean):
+
+```yaml
+- entity_id: input_boolean.sleep_timer
+  service: input_boolean.toggle
+  text: Sleep Timer
+```
+
+</details>
+
+<details>
+<summary>19. 🌦️ Retrieve weather information and display it on the button:
+
+```yaml
+- entity_id: sensor.weather_temperature
+  text: '{{ state_attr("sensor.weather_temperature", "state") }}°C'
+  text_size: 16
+  icon_mdi: weather-cloudy
+```
+
+</details>
+
+<details>
+<summary>20. 📶 Toggle Wi-Fi on/off (using a switch):
+
+```yaml
+- entity_id: switch.wifi_switch
+  service: switch.toggle
+  text: Wi-Fi
+```
+
+</details>

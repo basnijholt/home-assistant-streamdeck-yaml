@@ -1,4 +1,4 @@
-FROM python:alpine3.17
+FROM python:3.11-alpine3.17
 
 # Install dependencies
 RUN apk update && apk add --no-cache \
@@ -30,7 +30,7 @@ RUN mkdir -p /etc/udev/rules.d
 RUN echo 'SUBSYSTEMS=="usb", ATTRS{idVendor}=="0fd9", GROUP="users", TAG+="uaccess"' > /etc/udev/rules.d/99-streamdeck.rules
 
 # Clone the repository
-RUN git clone --depth 1 https://github.com/basnijholt/home-assistant-streamdeck-yaml.git /app
+COPY . /app
 
 # Set the working directory to the repository
 WORKDIR /app

@@ -349,7 +349,7 @@ send_mobile_notification = {
 }
 
 day_night_mode = {
-    "description": "🌆 Toggle a day/night mode (using an input\\_boolean)",
+    "description": "🌆 Toggle a day/night mode (using an input_boolean)",
     "yaml": textwrap.dedent(
         """
         - entity_id: input_boolean.day_night_mode
@@ -428,7 +428,7 @@ trigger_doorbell_announcement = {
 }
 
 sleep_timer = {
-    "description": "⏰ Enable/disable a sleep timer (using an input\\_boolean)",
+    "description": "⏰ Enable/disable a sleep timer (using an input_boolean)",
     "yaml": textwrap.dedent(
         """
         - entity_id: input_boolean.sleep_timer

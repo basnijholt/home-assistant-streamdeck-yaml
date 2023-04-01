@@ -620,10 +620,15 @@ def test_render_jinja() -> None:
 
 def test_render_jinja2() -> None:
     """Test _render_jinja for volume control."""
-    template_volume = textwrap.dedent(
+    template_volume_1 = textwrap.dedent(
         """
         {{ max(state_attr("media_player.kef_ls50", "volume_level") - 0.05, 0) }}
         """,
+    )
+    template_volume_2 = textwrap.dedent(
+        """
+            {{ (state_attr("media_player.kef_ls50", "volume_level") - 0.05) | max(0) }}
+            """,
     )
     state_volume_1 = {
         "media_player.kef_ls50": {"attributes": {"volume_level": 0.5}},
@@ -632,8 +637,9 @@ def test_render_jinja2() -> None:
         "media_player.kef_ls50": {"attributes": {"volume_level": 0.03}},
     }
 
-    assert float(_render_jinja(template_volume, state_volume_1)) == 0.5 - 0.05
-    assert float(_render_jinja(template_volume, state_volume_2)) == 0
+    for template in [template_volume_1, template_volume_2]:
+        assert float(_render_jinja(template, state_volume_1)) == 0.5 - 0.05
+        assert float(_render_jinja(template, state_volume_2)) == 0
 
     template_volume_pct = textwrap.dedent(
         """
@@ -657,22 +663,33 @@ def test_render_jinja3() -> None:
     state = {entity_id: {"state": "off"}}
     assert _render_jinja("{{ states('" + entity_id + "') }}", state) == "off"
 
-    template_volume_down = textwrap.dedent(
+    template_volume_down_1 = textwrap.dedent(
         """
         {{ max(state_attr("media_player.kef_ls50", "volume_level") - 0.05, 0) }}
         """,
     )
-    template_volume_up = textwrap.dedent(
+    template_volume_down_2 = textwrap.dedent(
+        """
+        {{ (state_attr("media_player.kef_ls50", "volume_level") - 0.05) | max(0) }}
+        """,
+    )
+    template_volume_up_1 = textwrap.dedent(
         """
         {{ min(state_attr("media_player.kef_ls50", "volume_level") + 0.05, 1) }}
+        """,
+    )
+    template_volume_up_2 = textwrap.dedent(
+        """
+        {{ (state_attr("media_player.kef_ls50", "volume_level") + 0.05) | min(1) }}
         """,
     )
     state_volume = {
         "media_player.kef_ls50": {"attributes": {"volume_level": 0.5}},
     }
-
-    assert float(_render_jinja(template_volume_down, state_volume)) == 0.5 - 0.05
-    assert float(_render_jinja(template_volume_up, state_volume)) == 0.5 + 0.05
+    for template_volume_down in [template_volume_down_1, template_volume_down_2]:
+        assert float(_render_jinja(template_volume_down, state_volume)) == 0.5 - 0.05
+    for template_volume_up in [template_volume_up_1, template_volume_up_2]:
+        assert float(_render_jinja(template_volume_up, state_volume)) == 0.5 + 0.05
 
     template_brightness = textwrap.dedent(
         """
@@ -689,3 +706,11 @@ def test_render_jinja3() -> None:
     assert int(_render_jinja(template_brightness, state_brightness)) == int(
         (100 + 25.5) % 255,
     )
+
+    template_str = textwrap.dedent(
+        """
+        {% set current_brightness = 10 %}
+        {{ current_brightness | min(255) | int }}
+        """,
+    )
+    assert int(_render_jinja(template_str, {})) == 10  # noqa: PLR2004

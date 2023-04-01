@@ -19,13 +19,15 @@ activate_a_scene = {
           text: Movie Night
         """,
     ),
-    "state": {"scene.movie_night": {"state": "on"}},
-    "result": Button(
-        service="scene.turn_on",
-        service_data={"entity_id": "scene.movie_night"},
-        icon_mdi="movie",
-        text="Movie Night",
-    ),
+    "state": [{"scene.movie_night": {"state": "on"}}],
+    "result": [
+        Button(
+            service="scene.turn_on",
+            service_data={"entity_id": "scene.movie_night"},
+            icon_mdi="movie",
+            text="Movie Night",
+        ),
+    ],
 }
 
 toggle_a_cover = {
@@ -38,13 +40,24 @@ toggle_a_cover = {
           text: "{{ 'Open' if is_state('cover.garage_door', 'open') else 'Close' }}"
         """,
     ),
-    "state": {"cover.garage_door": {"state": "open"}},
-    "result": Button(
-        entity_id="cover.garage_door",
-        service="cover.toggle",
-        icon_mdi="garage-open",
-        text="Open",
-    ),
+    "state": [
+        {"cover.garage_door": {"state": "open"}},
+        {"cover.garage_door": {"state": "closed"}},
+    ],
+    "result": [
+        Button(
+            entity_id="cover.garage_door",
+            service="cover.toggle",
+            icon_mdi="garage-open",
+            text="Open",
+        ),
+        Button(
+            entity_id="cover.garage_door",
+            service="cover.toggle",
+            icon_mdi="garage-lock",
+            text="Close",
+        ),
+    ],
 }
 
 start_or_stop_vacuum = {
@@ -67,13 +80,24 @@ start_or_stop_vacuum = {
             {% endif %}
         """,
     ),
-    "state": {"vacuum.cleaning_robot": {"state": "docked"}},
-    "result": Button(
-        entity_id="vacuum.cleaning_robot",
-        service="vacuum.start",
-        icon_mdi="robot-vacuum",
-        text="Start",
-    ),
+    "state": [
+        {"vacuum.cleaning_robot": {"state": "docked"}},
+        {"vacuum.cleaning_robot": {"state": "cleaning"}},
+    ],
+    "result": [
+        Button(
+            entity_id="vacuum.cleaning_robot",
+            service="vacuum.start",
+            icon_mdi="robot-vacuum",
+            text="Start",
+        ),
+        Button(
+            entity_id="vacuum.cleaning_robot",
+            service="vacuum.return_to_base",
+            icon_mdi="robot-vacuum",
+            text="Stop",
+        ),
+    ],
 }
 
 mute_unmute_media_player = {
@@ -104,19 +128,40 @@ mute_unmute_media_player = {
             {% endif %}
         """,
     ),
-    "state": {
-        "media_player.living_room_speaker": {"attributes": {"is_volume_muted": True}},
-    },
-    "result": Button(
-        entity_id="media_player.living_room_speaker",
-        service="media_player.volume_mute",
-        service_data={
-            "entity_id": "media_player.living_room_speaker",
-            "is_volume_muted": "false",
+    "state": [
+        {
+            "media_player.living_room_speaker": {
+                "attributes": {"is_volume_muted": True},
+            },
         },
-        icon_mdi="volume-off",
-        text="Unmute",
-    ),
+        {
+            "media_player.living_room_speaker": {
+                "attributes": {"is_volume_muted": False},
+            },
+        },
+    ],
+    "result": [
+        Button(
+            entity_id="media_player.living_room_speaker",
+            service="media_player.volume_mute",
+            service_data={
+                "entity_id": "media_player.living_room_speaker",
+                "is_volume_muted": "false",
+            },
+            icon_mdi="volume-off",
+            text="Unmute",
+        ),
+        Button(
+            entity_id="media_player.living_room_speaker",
+            service="media_player.volume_mute",
+            service_data={
+                "entity_id": "media_player.living_room_speaker",
+                "is_volume_muted": "true",
+            },
+            icon_mdi="volume-high",
+            text="Mute",
+        ),
+    ],
 }
 
 control_brightness_of_light = {
@@ -137,16 +182,30 @@ control_brightness_of_light = {
             {{ brightness_pct | round }}%
         """,
     ),
-    "state": {"light.living_room_lights": {"attributes": {"brightness": 100}}},
-    "result": Button(
-        entity_id="light.living_room_lights",
-        service="light.turn_on",
-        service_data={
-            "entity_id": "light.living_room_lights",
-            "brightness": f"{int((100 + 25.5) % 255)}",
-        },
-        text="39.0%",
-    ),
+    "state": [
+        {"light.living_room_lights": {"attributes": {"brightness": 100}}},
+        {"light.living_room_lights": {"attributes": {"brightness": 200}}},
+    ],
+    "result": [
+        Button(
+            entity_id="light.living_room_lights",
+            service="light.turn_on",
+            service_data={
+                "entity_id": "light.living_room_lights",
+                "brightness": f"{int((100 + 25.5) % 255)}",
+            },
+            text="39.0%",
+        ),
+        Button(
+            entity_id="light.living_room_lights",
+            service="light.turn_on",
+            service_data={
+                "entity_id": "light.living_room_lights",
+                "brightness": f"{int((200 + 25.5) % 255)}",
+            },
+            text="78.0%",
+        ),
+    ],
 }
 
 toggle_fan = {
@@ -161,13 +220,24 @@ toggle_fan = {
             {{ 'On' if is_state('fan.bedroom_fan', 'on') else 'Off' }}
         """,
     ),
-    "state": {"fan.bedroom_fan": {"state": "on"}},
-    "result": Button(
-        entity_id="fan.bedroom_fan",
-        service="fan.toggle",
-        icon_mdi="fan",
-        text="Bedroom\nOn",
-    ),
+    "state": [
+        {"fan.bedroom_fan": {"state": "on"}},
+        {"fan.bedroom_fan": {"state": "off"}},
+    ],
+    "result": [
+        Button(
+            entity_id="fan.bedroom_fan",
+            service="fan.toggle",
+            icon_mdi="fan",
+            text="Bedroom\nOn",
+        ),
+        Button(
+            entity_id="fan.bedroom_fan",
+            service="fan.toggle",
+            icon_mdi="fan-off",
+            text="Bedroom\nOff",
+        ),
+    ],
 }
 
 lock_unlock_door = {
@@ -183,15 +253,28 @@ lock_unlock_door = {
           text_size: 10
         """,
     ),
-    "state": {"lock.front_door": {"state": "unlocked"}},
-    "result": Button(
-        entity_id="lock.front_door",
-        service="lock.toggle",
-        icon_mdi="door-open",
-        text="Front Door\nUnlocked",
-        text_size=10,
-    ),
+    "state": [
+        {"lock.front_door": {"state": "unlocked"}},
+        {"lock.front_door": {"state": "locked"}},
+    ],
+    "result": [
+        Button(
+            entity_id="lock.front_door",
+            service="lock.toggle",
+            icon_mdi="door-open",
+            text="Front Door\nUnlocked",
+            text_size=10,
+        ),
+        Button(
+            entity_id="lock.front_door",
+            service="lock.toggle",
+            icon_mdi="door-closed",
+            text="Front Door\nLocked",
+            text_size=10,
+        ),
+    ],
 }
+
 
 arm_disarm_alarm_system = {
     "description": "⚠️ Arm/disarm an alarm system",
@@ -205,13 +288,24 @@ arm_disarm_alarm_system = {
             Alarm
         """,
     ),
-    "state": {"alarm_control_panel.home_alarm": {"state": "armed_away"}},
-    "result": Button(
-        entity_id="alarm_control_panel.home_alarm",
-        service="alarm_control_panel.alarm_disarm",
-        icon_mdi="shield-check",
-        text="Disarm\nAlarm",
-    ),
+    "state": [
+        {"alarm_control_panel.home_alarm": {"state": "armed_away"}},
+        {"alarm_control_panel.home_alarm": {"state": "disarmed"}},
+    ],
+    "result": [
+        Button(
+            entity_id="alarm_control_panel.home_alarm",
+            service="alarm_control_panel.alarm_disarm",
+            icon_mdi="shield-check",
+            text="Disarm\nAlarm",
+        ),
+        Button(
+            entity_id="alarm_control_panel.home_alarm",
+            service="alarm_control_panel.alarm_arm_away",
+            icon_mdi="shield-off",
+            text="Arm\nAlarm",
+        ),
+    ],
 }
 
 set_alarm_time_for_next_day = {
@@ -228,18 +322,31 @@ set_alarm_time_for_next_day = {
             {{ '7AM' if states('input_datetime.alarm_time') != '07:00:00' else '8AM' }}
         """,
     ),
-    "state": {"input_datetime.alarm_time": {"state": "07:00:00"}},
-    "result": Button(
-        service="input_datetime.set_datetime",
-        service_data={
-            "entity_id": "input_datetime.alarm_time",
-            "time": "08:00:00",
-        },
-        icon_mdi="alarm",
-        text="Set Alarm\n8AM",
-    ),
+    "state": [
+        {"input_datetime.alarm_time": {"state": "07:00:00"}},
+        {"input_datetime.alarm_time": {"state": "08:00:00"}},
+    ],
+    "result": [
+        Button(
+            service="input_datetime.set_datetime",
+            service_data={
+                "entity_id": "input_datetime.alarm_time",
+                "time": "08:00:00",
+            },
+            icon_mdi="alarm",
+            text="Set Alarm\n8AM",
+        ),
+        Button(
+            service="input_datetime.set_datetime",
+            service_data={
+                "entity_id": "input_datetime.alarm_time",
+                "time": "07:00:00",
+            },
+            icon_mdi="alarm",
+            text="Set Alarm\n7AM",
+        ),
+    ],
 }
-
 
 media_play_pause = {
     "description": "⏯️ Control a media player (play/pause)",
@@ -251,13 +358,24 @@ media_play_pause = {
           text: "{{ 'Pause' if is_state('media_player.living_room_speaker', 'playing') else 'Play' }}"
         """,
     ),
-    "state": {"media_player.living_room_speaker": {"state": "playing"}},
-    "result": Button(
-        entity_id="media_player.living_room_speaker",
-        service="media_player.media_play_pause",
-        icon_mdi="pause",
-        text="Pause",
-    ),
+    "state": [
+        {"media_player.living_room_speaker": {"state": "playing"}},
+        {"media_player.living_room_speaker": {"state": "paused"}},
+    ],
+    "result": [
+        Button(
+            entity_id="media_player.living_room_speaker",
+            service="media_player.media_play_pause",
+            icon_mdi="pause",
+            text="Pause",
+        ),
+        Button(
+            entity_id="media_player.living_room_speaker",
+            service="media_player.media_play_pause",
+            icon_mdi="play",
+            text="Play",
+        ),
+    ],
 }
 
 media_next_track = {
@@ -270,13 +388,15 @@ media_next_track = {
           text: Next Track
         """,
     ),
-    "state": {},
-    "result": Button(
-        entity_id="media_player.living_room_speaker",
-        service="media_player.media_next_track",
-        icon_mdi="skip-next",
-        text="Next Track",
-    ),
+    "state": [{}],
+    "result": [
+        Button(
+            entity_id="media_player.living_room_speaker",
+            service="media_player.media_next_track",
+            icon_mdi="skip-next",
+            text="Next Track",
+        ),
+    ],
 }
 
 set_blue_light = {
@@ -291,16 +411,27 @@ set_blue_light = {
           text: Blue Light
         """,
     ),
-    "state": {"light.living_room_light": {"state": "on"}},
-    "result": Button(
-        entity_id="light.living_room_light",
-        service="light.toggle",
-        service_data={"color_name": "blue"},
-        icon_mdi="lightbulb-on",
-        text="Blue Light",
-    ),
+    "state": [
+        {"light.living_room_light": {"state": "on"}},
+        {"light.living_room_light": {"state": "off"}},
+    ],
+    "result": [
+        Button(
+            entity_id="light.living_room_light",
+            service="light.toggle",
+            service_data={"color_name": "blue"},
+            icon_mdi="lightbulb-on",
+            text="Blue Light",
+        ),
+        Button(
+            entity_id="light.living_room_light",
+            service="light.toggle",
+            service_data={"color_name": "blue"},
+            icon_mdi="lightbulb-off",
+            text="Blue Light",
+        ),
+    ],
 }
-
 
 set_temperature = {
     "description": "🌡️ Adjust the thermostat between two specific temperatures",
@@ -317,18 +448,34 @@ set_temperature = {
             ({{ state_attr('climate.living_room', 'current_temperature') }}°C now)
         """,
     ),
-    "state": {
-        "climate.living_room": {
-            "attributes": {"temperature": 22, "current_temperature": 21},
+    "state": [
+        {
+            "climate.living_room": {
+                "attributes": {"temperature": 22, "current_temperature": 21},
+            },
         },
-    },
-    "result": Button(
-        entity_id="climate.living_room",
-        service="climate.set_temperature",
-        service_data={"temperature": "17"},
-        icon_mdi="thermostat",
-        text="Set\n17°C\n(21°C now)",
-    ),
+        {
+            "climate.living_room": {
+                "attributes": {"temperature": 17, "current_temperature": 21},
+            },
+        },
+    ],
+    "result": [
+        Button(
+            entity_id="climate.living_room",
+            service="climate.set_temperature",
+            service_data={"temperature": "17"},
+            icon_mdi="thermostat",
+            text="Set\n17°C\n(21°C now)",
+        ),
+        Button(
+            entity_id="climate.living_room",
+            service="climate.set_temperature",
+            service_data={"temperature": "22"},
+            icon_mdi="thermostat",
+            text="Set\n22°C\n(21°C now)",
+        ),
+    ],
 }
 
 send_mobile_notification = {
@@ -340,12 +487,14 @@ send_mobile_notification = {
           text: Send Notification
         """,
     ),
-    "state": {},
-    "result": Button(
-        service="script.send_mobile_notification",
-        icon_mdi="bell",
-        text="Send Notification",
-    ),
+    "state": [{}],
+    "result": [
+        Button(
+            service="script.send_mobile_notification",
+            icon_mdi="bell",
+            text="Send Notification",
+        ),
+    ],
 }
 
 day_night_mode = {
@@ -360,13 +509,24 @@ day_night_mode = {
             Mode
         """,
     ),
-    "state": {"input_boolean.day_night_mode": {"state": "on"}},
-    "result": Button(
-        entity_id="input_boolean.day_night_mode",
-        service="input_boolean.toggle",
-        icon_mdi="weather-night",
-        text="Night\nMode",
-    ),
+    "state": [
+        {"input_boolean.day_night_mode": {"state": "on"}},
+        {"input_boolean.day_night_mode": {"state": "off"}},
+    ],
+    "result": [
+        Button(
+            entity_id="input_boolean.day_night_mode",
+            service="input_boolean.toggle",
+            icon_mdi="weather-night",
+            text="Night\nMode",
+        ),
+        Button(
+            entity_id="input_boolean.day_night_mode",
+            service="input_boolean.toggle",
+            icon_mdi="weather-sunny",
+            text="Day\nMode",
+        ),
+    ],
 }
 
 select_tv_source = {
@@ -380,15 +540,16 @@ select_tv_source = {
           text: HDMI 1
         """,
     ),
-    "state": {},
-    "result": Button(
-        entity_id="media_player.living_room_tv",
-        service="media_player.select_source",
-        service_data={"source": "HDMI 1"},
-        text="HDMI 1",
-    ),
+    "state": [{}],
+    "result": [
+        Button(
+            entity_id="media_player.living_room_tv",
+            service="media_player.select_source",
+            service_data={"source": "HDMI 1"},
+            text="HDMI 1",
+        ),
+    ],
 }
-
 
 control_group_lights = {
     "description": "🔦 Control a group of lights (e.g., turn on/off or change color)",
@@ -402,14 +563,26 @@ control_group_lights = {
           text: Red Group Lights
         """,
     ),
-    "state": {"group.living_room_lights": {"state": "on"}},
-    "result": Button(
-        entity_id="group.living_room_lights",
-        service="light.turn_on",
-        service_data={"color_name": "red"},
-        icon_mdi="lightbulb-group-on",
-        text="Red Group Lights",
-    ),
+    "state": [
+        {"group.living_room_lights": {"state": "on"}},
+        {"group.living_room_lights": {"state": "off"}},
+    ],
+    "result": [
+        Button(
+            entity_id="group.living_room_lights",
+            service="light.turn_on",
+            service_data={"color_name": "red"},
+            icon_mdi="lightbulb-group-on",
+            text="Red Group Lights",
+        ),
+        Button(
+            entity_id="group.living_room_lights",
+            service="light.turn_on",
+            service_data={"color_name": "red"},
+            icon_mdi="lightbulb-group-off",
+            text="Red Group Lights",
+        ),
+    ],
 }
 
 trigger_doorbell_announcement = {
@@ -420,11 +593,13 @@ trigger_doorbell_announcement = {
           text: Doorbell Announcement
         """,
     ),
-    "state": {},
-    "result": Button(
-        service="script.trigger_doorbell_announcement",
-        text="Doorbell Announcement",
-    ),
+    "state": [{}],
+    "result": [
+        Button(
+            service="script.trigger_doorbell_announcement",
+            text="Doorbell Announcement",
+        ),
+    ],
 }
 
 sleep_timer = {
@@ -439,33 +614,114 @@ sleep_timer = {
             Sleep Timer
         """,
     ),
-    "state": {"input_boolean.sleep_timer": {"state": "on"}},
-    "result": Button(
-        entity_id="input_boolean.sleep_timer",
-        service="input_boolean.toggle",
-        icon_mdi="timer",
-        text="Cancel\nSleep Timer",
-    ),
+    "state": [
+        {"input_boolean.sleep_timer": {"state": "on"}},
+        {"input_boolean.sleep_timer": {"state": "off"}},
+    ],
+    "result": [
+        Button(
+            entity_id="input_boolean.sleep_timer",
+            service="input_boolean.toggle",
+            icon_mdi="timer",
+            text="Cancel\nSleep Timer",
+        ),
+        Button(
+            entity_id="input_boolean.sleep_timer",
+            service="input_boolean.toggle",
+            icon_mdi="timer-off",
+            text="Set\nSleep Timer",
+        ),
+    ],
 }
 
-
 weather_temperature = {
-    "description": "🌡️ Display the current temperature",
-    "yaml": (
+    "description": "🌡️ Display current temperature",
+    "yaml": textwrap.dedent(
         """
         - entity_id: sensor.weather_temperature
           text: '{{ states("sensor.weather_temperature") }}°C'
           text_size: 16
           icon_mdi: weather-cloudy
+        """,
+    ),
+    "state": [
+        {"sensor.weather_temperature": {"state": 20}},
+        {"sensor.weather_temperature": {"state": 25}},
+    ],
+    "result": [
+        Button(
+            entity_id="sensor.weather_temperature",
+            icon_mdi="weather-cloudy",
+            text="20°C",
+            text_size=16,
+        ),
+        Button(
+            entity_id="sensor.weather_temperature",
+            icon_mdi="weather-cloudy",
+            text="25°C",
+            text_size=16,
+        ),
+    ],
+}
+
+scene_morning = {
+    "description": "🌅 Activate a morning scene",
+    "yaml": textwrap.dedent(
         """
+        - entity_id: scene.morning
+          service: scene.turn_on
+          icon_mdi: "weather-sunset-up"
+          text: Morning Scene
+        """,
     ),
-    "state": {"sensor.weather_temperature": {"state": "15"}},
-    "result": Button(
-        entity_id="sensor.weather_temperature",
-        text="15°C",
-        text_size=16,
-        icon_mdi="weather-cloudy",
+    "state": [
+        {"scene.morning": {"state": "on"}},
+        {"scene.morning": {"state": "off"}},
+    ],
+    "result": [
+        Button(
+            entity_id="scene.morning",
+            service="scene.turn_on",
+            icon_mdi="weather-sunset-up",
+            text="Morning Scene",
+        ),
+        Button(
+            entity_id="scene.morning",
+            service="scene.turn_on",
+            icon_mdi="weather-sunset-up",
+            text="Morning Scene",
+        ),
+    ],
+}
+
+scene_night = {
+    "description": "🌃 Activate a night scene",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: scene.night
+          service: scene.turn_on
+          icon_mdi: "weather-night"
+          text: Night Scene
+        """,
     ),
+    "state": [
+        {"scene.night": {"state": "on"}},
+        {"scene.night": {"state": "off"}},
+    ],
+    "result": [
+        Button(
+            entity_id="scene.night",
+            service="scene.turn_on",
+            icon_mdi="weather-night",
+            text="Night Scene",
+        ),
+        Button(
+            entity_id="scene.night",
+            service="scene.turn_on",
+            icon_mdi="weather-night",
+            text="Night Scene",
+        ),
+    ],
 }
 
 toggle_wifi = {
@@ -480,15 +736,25 @@ toggle_wifi = {
             Wi-Fi
         """
     ),
-    "state": {"switch.wifi_switch": {"state": "on"}},
-    "result": Button(
-        entity_id="switch.wifi_switch",
-        service="switch.toggle",
-        icon_mdi="wifi",
-        text="Disable\nWi-Fi",
-    ),
+    "state": [
+        {"switch.wifi_switch": {"state": "on"}},
+        {"switch.wifi_switch": {"state": "off"}},
+    ],
+    "result": [
+        Button(
+            entity_id="switch.wifi_switch",
+            service="switch.toggle",
+            icon_mdi="wifi",
+            text="Disable\nWi-Fi",
+        ),
+        Button(
+            entity_id="switch.wifi_switch",
+            service="switch.toggle",
+            icon_mdi="wifi-off",
+            text="Enable\nWi-Fi",
+        ),
+    ],
 }
-
 
 activate_voice_assistant = {
     "description": "🗣️ Activate voice assistant",
@@ -499,32 +765,46 @@ activate_voice_assistant = {
           text: Voice Assistant
         """,
     ),
-    "state": {},
-    "result": Button(
-        service="script.activate_voice_assistant",
-        icon_mdi="microphone",
-        text="Voice Assistant",
-    ),
+    "state": [[{}]],
+    "result": [
+        Button(
+            service="script.activate_voice_assistant",
+            icon_mdi="microphone",
+            text="Voice Assistant",
+        ),
+    ],
 }
 
-
 start_stop_air_purifier = {
-    "description": "🌿 Start/stop air purifier",
+    "description": "🌿 Start/Stop air purifier",
     "yaml": textwrap.dedent(
         """
         - entity_id: switch.air_purifier
           service: switch.toggle
           icon_mdi: "{{ 'air-purifier' if is_state('switch.air_purifier', 'on') else 'air-purifier-off' }}"
-          text: "{{ 'Stop' if is_state('switch.air_purifier', 'on') else 'Start' }} Air Purifier"
+          text: |
+            {{ 'Stop' if is_state('switch.air_purifier', 'on') else 'Start' }}
+            Air Purifier
         """,
     ),
-    "state": {"switch.air_purifier": {"state": "on"}},
-    "result": Button(
-        entity_id="switch.air_purifier",
-        service="switch.toggle",
-        icon_mdi="air-purifier",
-        text="Stop Air Purifier",
-    ),
+    "state": [
+        {"switch.air_purifier": {"state": "on"}},
+        {"switch.air_purifier": {"state": "off"}},
+    ],
+    "result": [
+        Button(
+            entity_id="switch.air_purifier",
+            service="switch.toggle",
+            icon_mdi="air-purifier",
+            text="Stop\nAir Purifier",
+        ),
+        Button(
+            entity_id="switch.air_purifier",
+            service="switch.toggle",
+            icon_mdi="air-purifier-off",
+            text="Start\nAir Purifier",
+        ),
+    ],
 }
 
 start_stop_security_camera_recording = {
@@ -536,12 +816,14 @@ start_stop_security_camera_recording = {
           text: Toggle Camera Recording
         """,
     ),
-    "state": {},
-    "result": Button(
-        service="script.toggle_security_camera_recording",
-        icon_mdi="cctv",
-        text="Toggle Camera Recording",
-    ),
+    "state": [{}],
+    "result": [
+        Button(
+            service="script.toggle_security_camera_recording",
+            icon_mdi="cctv",
+            text="Toggle Camera Recording",
+        ),
+    ],
 }
 
 enable_disable_nightlight = {
@@ -554,13 +836,167 @@ enable_disable_nightlight = {
           text: "{{ 'Disable' if is_state('light.nightlight', 'on') else 'Enable' }} Nightlight"
         """,
     ),
-    "state": {"light.nightlight": {"state": "on"}},
-    "result": Button(
-        entity_id="light.nightlight",
-        service="light.toggle",
-        icon_mdi="lightbulb-on",
-        text="Disable Nightlight",
+    "state": [
+        {"light.nightlight": {"state": "on"}},
+        {"light.nightlight": {"state": "off"}},
+    ],
+    "result": [
+        Button(
+            entity_id="light.nightlight",
+            service="light.toggle",
+            icon_mdi="lightbulb-on",
+            text="Disable Nightlight",
+        ),
+        Button(
+            entity_id="light.nightlight",
+            service="light.toggle",
+            icon_mdi="lightbulb-off",
+            text="Enable Nightlight",
+        ),
+    ],
+}
+
+control_smart_fireplace = {
+    "description": "🔥 Control a smart fireplace",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: switch.smart_fireplace
+          service: switch.toggle
+          icon_mdi: "{{ 'fire' if is_state('switch.smart_fireplace', 'on') else 'fire-off' }}"
+          text: |
+            {{ 'Turn Off' if is_state('switch.smart_fireplace', 'on') else 'Turn On' }}
+            Fireplace
+        """,
     ),
+    "state": [
+        {"switch.smart_fireplace": {"state": "on"}},
+        {"switch.smart_fireplace": {"state": "off"}},
+    ],
+    "result": [
+        Button(
+            entity_id="switch.smart_fireplace",
+            service="switch.toggle",
+            icon_mdi="fire",
+            text="Turn Off\nFireplace",
+        ),
+        Button(
+            entity_id="switch.smart_fireplace",
+            service="switch.toggle",
+            icon_mdi="fire-off",
+            text="Turn On\nFireplace",
+        ),
+    ],
+}
+
+toggle_smart_plug = {
+    "description": "🔌 Toggle a smart plug",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: switch.smart_plug
+          service: switch.toggle
+          icon_mdi: "{{ 'power-socket' if is_state('switch.smart_plug', 'on') else 'power-socket-off' }}"
+          text: |
+            {{ 'Turn Off' if is_state('switch.smart_plug', 'on') else 'Turn On' }}
+            Smart Plug
+        """,
+    ),
+    "state": [
+        {"switch.smart_plug": {"state": "on"}},
+        {"switch.smart_plug": {"state": "off"}},
+    ],
+    "result": [
+        Button(
+            entity_id="switch.smart_plug",
+            service="switch.toggle",
+            icon_mdi="power-socket",
+            text="Turn Off\nSmart Plug",
+        ),
+        Button(
+            entity_id="switch.smart_plug",
+            service="switch.toggle",
+            icon_mdi="power-socket-off",
+            text="Turn On\nSmart Plug",
+        ),
+    ],
+}
+
+irrigation_toggle = {
+    "description": "💦 Toggle irrigation system",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: switch.irrigation_system
+          service: switch.toggle
+          icon_mdi: "{{ 'water' if is_state('switch.irrigation_system', 'on') else 'water-off' }}"
+          text: |
+            {{ 'Turn Off' if is_state('switch.irrigation_system', 'on') else 'Turn On' }}
+            Irrigation
+        """,
+    ),
+    "state": [
+        {"switch.irrigation_system": {"state": "on"}},
+        {"switch.irrigation_system": {"state": "off"}},
+    ],
+    "result": [
+        Button(
+            entity_id="switch.irrigation_system",
+            service="switch.toggle",
+            icon_mdi="water",
+            text="Turn Off\nIrrigation",
+        ),
+        Button(
+            entity_id="switch.irrigation_system",
+            service="switch.toggle",
+            icon_mdi="water-off",
+            text="Turn On\nIrrigation",
+        ),
+    ],
+}
+
+
+change_cover_position = {
+    "description": "🌤️ Change the position of a cover (e.g., blinds or curtains)",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: cover.living_room_blinds
+          service: cover.set_cover_position
+          service_data:
+            position: "{{ 0 if state_attr('cover.living_room_blinds', 'position') >= 50 else 100 }}"
+          icon_mdi: window-shutter
+          text: |
+            {{ 'Close' if state_attr('cover.living_room_blinds', 'position') >= 50 else 'Open' }}
+            Blinds
+        """,
+    ),
+    "state": [
+        {
+            "cover.living_room_blinds": {
+                "state": "closed",
+                "attributes": {"position": 0},
+            },
+        },
+        {
+            "cover.living_room_blinds": {
+                "state": "open",
+                "attributes": {"position": 100},
+            },
+        },
+    ],
+    "result": [
+        Button(
+            entity_id="cover.living_room_blinds",
+            service="cover.set_cover_position",
+            service_data={"position": "100"},
+            icon_mdi="window-shutter",
+            text="Open\nBlinds",
+        ),
+        Button(
+            entity_id="cover.living_room_blinds",
+            service="cover.set_cover_position",
+            service_data={"position": "0"},
+            icon_mdi="window-shutter",
+            text="Close\nBlinds",
+        ),
+    ],
 }
 
 
@@ -590,6 +1026,10 @@ BUTTONS = [
     start_stop_air_purifier,
     start_stop_security_camera_recording,
     enable_disable_nightlight,
+    control_smart_fireplace,
+    toggle_smart_plug,
+    irrigation_toggle,
+    change_cover_position,
 ]
 
 
@@ -597,11 +1037,22 @@ BUTTONS = [
 def test_button(button_dct: dict[str, Any]) -> None:
     """Test all buttons."""
     button = Button.from_yaml(button_dct["yaml"])  # type: ignore[arg-type]
-    button_template = button.rendered_template_button(button_dct["state"])  # type: ignore[arg-type]
-    assert button_template == button_dct["result"], button_dct["description"]
+    for i, (state, result) in enumerate(
+        zip(button_dct["state"], button_dct["result"], strict=True),
+    ):
+        button_template = button.rendered_template_button(state)  # type: ignore[arg-type]
+        actual = button_template.dict()
+        expected = result.dict()
+        for key, expected_value in expected.items():
+            actual_value = actual[key]
+            assert (
+                actual_value == expected_value
+            ), f'{i=}, {button_dct["description"]}, {key=}, {actual_value=}, {expected_value=}'
+
+        assert button_template == result, button_dct["description"]
 
 
-def generate_readme_entry() -> None:
+def generate_readme_entry() -> str:
     """Generate the README entries."""
     template_string = textwrap.dedent(
         """
@@ -622,3 +1073,9 @@ def generate_readme_entry() -> None:
     env.globals["enumerate"] = enumerate
     template = env.from_string(template_string)
     return template.render(buttons=BUTTONS)
+
+
+def test_generate_readme_entry() -> None:
+    """Test the README entry generation."""
+    readme_entry = generate_readme_entry()
+    assert readme_entry is not None

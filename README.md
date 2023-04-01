@@ -454,7 +454,8 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
   icon_mdi: thermostat
   text: |
     Set
-    {{ '17°C' if state_attr('climate.living_room', 'temperature') >= 22 else '22°C' }}"
+    {{ '17°C' if state_attr('climate.living_room', 'temperature') >= 22 else '22°C' }}
+    ({{ state_attr('climate.living_room', 'current_temperature') }}°C now)
 ```
 
 <details>

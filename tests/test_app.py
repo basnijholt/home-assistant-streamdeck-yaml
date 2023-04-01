@@ -841,15 +841,16 @@ async def test_button_with_target(
             {{ 17 if state_attr('climate.living_room', 'temperature') >= 22 else 22 }}
             """,
             {"climate.living_room": {"attributes": {"temperature": 22}}},
-            17,
+            "17",
         ),
         (
             """
             Set
             {{ '17°C' if state_attr('climate.living_room', 'temperature') >= 22 else '22°C' }}
+            ({{ state_attr('climate.living_room', 'temperature') }}°C now)
             """,
             {"climate.living_room": {"attributes": {"temperature": 22}}},
-            "Set\n17°C",
+            "Set\n17°C\n(22°C now)",
         ),
         # Test 18: Enable/disable a sleep timer (using an input_boolean)
         (

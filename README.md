@@ -385,20 +385,25 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 - entity_id: fan.bedroom_fan
   service: fan.toggle
   icon_mdi: "{{ 'fan' if is_state('fan.bedroom_fan', 'on') else 'fan-off' }}"
-  text: "{{ 'Turn Off' if is_state('fan.bedroom_fan', 'on') else 'Turn On' }} Fan"
+  text: |
+    {{ 'Turn Off' if is_state('fan.bedroom_fan', 'on') else 'Turn On' }}
+    Fan
 ```
 
 </details>
 
 
 <details>
-<summary>7. 🔓 Lock/unlock a door:</summary>
+<summary>7. 🔒 Lock/unlock a door:</summary>
 
 ```yaml
 - entity_id: lock.front_door
-  service: "{{ 'lock.lock' if is_state('lock.front_door', 'unlocked') else 'lock.unlock' }}"
-  icon_mdi: "{{ 'lock' if is_state('lock.front_door', 'unlocked') else 'lock-open' }}"
-  text: "{{ 'Lock' if is_state('lock.front_door', 'unlocked') else 'Unlock' }} Door"
+  service: lock.toggle
+  icon_mdi: "{{ 'door-open' if is_state('lock.front_door', 'unlocked') else 'door-closed' }}"
+  text: |
+    Front Door
+    {{ 'Unlocked' if is_state('lock.front_door', 'unlocked') else 'Locked' }}
+  text_size: 10
 ```
 
 </details>
@@ -578,13 +583,13 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 
 
 <details>
-<summary>20. 🌡️ Display the current temperature:</summary>
+<summary>20. 🌡️ Display current temperature:</summary>
 
 ```yaml
 - entity_id: sensor.weather_temperature
-          text: '{{ states("sensor.weather_temperature") }}°C'
-          text_size: 16
-          icon_mdi: weather-cloudy
+  text: '{{ states("sensor.weather_temperature") }}°C'
+  text_size: 16
+  icon_mdi: weather-cloudy
 ```
 
 </details>
@@ -618,13 +623,15 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 
 
 <details>
-<summary>23. 🌿 Start/stop air purifier:</summary>
+<summary>23. 🌿 Start/Stop air purifier:</summary>
 
 ```yaml
 - entity_id: switch.air_purifier
   service: switch.toggle
   icon_mdi: "{{ 'air-purifier' if is_state('switch.air_purifier', 'on') else 'air-purifier-off' }}"
-  text: "{{ 'Stop' if is_state('switch.air_purifier', 'on') else 'Start' }} Air Purifier"
+  text: |
+    {{ 'Stop' if is_state('switch.air_purifier', 'on') else 'Start' }}
+    Air Purifier
 ```
 
 </details>
@@ -677,74 +684,41 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 - entity_id: switch.smart_plug
   service: switch.toggle
   icon_mdi: "{{ 'power-socket' if is_state('switch.smart_plug', 'on') else 'power-socket-off' }}"
-  text: "{{ 'Turn Off' if is_state('switch.smart_plug', 'on') else 'Turn On' }} Smart Plug"
+  text: |
+    {{ 'Turn Off' if is_state('switch.smart_plug', 'on') else 'Turn On' }}
+    Smart Plug
 ```
 
 </details>
 
 
 <details>
-<summary>28. 🌀 Toggle a fan:</summary>
-
-```yaml
-- entity_id: fan.bedroom_fan
-  service: fan.toggle
-  icon_mdi: "{{ 'fan' if is_state('fan.bedroom_fan', 'on') else 'fan-off' }}"
-  text: "{{ 'Turn Off' if is_state('fan.bedroom_fan', 'on') else 'Turn On' }} Fan"
-```
-
-</details>
-
-
-<details>
-<summary>29. 💦 Toggle irrigation system:</summary>
+<summary>28. 💦 Toggle irrigation system:</summary>
 
 ```yaml
 - entity_id: switch.irrigation_system
   service: switch.toggle
   icon_mdi: "{{ 'water' if is_state('switch.irrigation_system', 'on') else 'water-off' }}"
-  text: "{{ 'Turn Off' if is_state('switch.irrigation_system', 'on') else 'Turn On' }} Irrigation"
+  text: |
+    {{ 'Turn Off' if is_state('switch.irrigation_system', 'on') else 'Turn On' }}
+    Irrigation
 ```
 
 </details>
 
 
 <details>
-<summary>30. 🌤️ Change the position of a cover (e.g., blinds or curtains):</summary>
+<summary>29. 🌤️ Change the position of a cover (e.g., blinds or curtains):</summary>
 
 ```yaml
 - entity_id: cover.living_room_blinds
   service: cover.set_cover_position
   service_data:
-    position: "{{ 0 if state_attr('cover.living_room_blinds', 'current_position') >= 50 else 100 }}"
+    position: "{{ 0 if state_attr('cover.living_room_blinds', 'position') >= 50 else 100 }}"
   icon_mdi: window-shutter
-  text: "{{ 'Close' if state_attr('cover.living_room_blinds', 'current_position') >= 50 else 'Open' }} Blinds"
-```
-
-</details>
-
-
-<details>
-<summary>31. 🔓 Lock/unlock a door:</summary>
-
-```yaml
-- entity_id: lock.front_door
-  service: "{{ 'lock.lock' if is_state('lock.front_door', 'unlocked') else 'lock.unlock' }}"
-  icon_mdi: "{{ 'lock' if is_state('lock.front_door', 'unlocked') else 'lock-open' }}"
-  text: "{{ 'Lock' if is_state('lock.front_door', 'unlocked') else 'Unlock' }} Door"
-```
-
-</details>
-
-
-<details>
-<summary>32. 🤖 Toggle a vacuum cleaner:</summary>
-
-```yaml
-- entity_id: vacuum.robot_vacuum
-  service: vacuum.toggle
-  icon_mdi: "{{ 'robot-vacuum' if is_state('vacuum.robot_vacuum', 'cleaning') else 'robot-vacuum-off' }}"
-  text: "{{ 'Pause' if is_state('vacuum.robot_vacuum', 'cleaning') else 'Start' }} Vacuum"
+  text: |
+    {{ 'Close' if state_attr('cover.living_room_blinds', 'position') >= 50 else 'Open' }}
+    Blinds
 ```
 
 </details>

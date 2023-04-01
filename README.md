@@ -318,7 +318,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 
 ```yaml
 - entity_id: media_player.living_room_speaker
-  service: media_player.toggle_mute
+  service: media_player.volume_mute
   icon_mdi: >-
     {% if is_state_attr('media_player.living_room_speaker', 'is_volume_muted', true) %}
     volume-off

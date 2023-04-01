@@ -490,6 +490,80 @@ toggle_wifi = {
 }
 
 
+activate_voice_assistant = {
+    "description": "🗣️ Activate voice assistant",
+    "yaml": textwrap.dedent(
+        """
+        - service: script.activate_voice_assistant
+          icon_mdi: microphone
+          text: Voice Assistant
+        """,
+    ),
+    "state": {},
+    "result": Button(
+        service="script.activate_voice_assistant",
+        icon_mdi="microphone",
+        text="Voice Assistant",
+    ),
+}
+
+
+start_stop_air_purifier = {
+    "description": "🌿 Start/stop air purifier",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: switch.air_purifier
+          service: switch.toggle
+          icon_mdi: "{{ 'air-purifier' if is_state('switch.air_purifier', 'on') else 'air-purifier-off' }}"
+          text: "{{ 'Stop' if is_state('switch.air_purifier', 'on') else 'Start' }} Air Purifier"
+        """,
+    ),
+    "state": {"switch.air_purifier": {"state": "on"}},
+    "result": Button(
+        entity_id="switch.air_purifier",
+        service="switch.toggle",
+        icon_mdi="air-purifier",
+        text="Stop Air Purifier",
+    ),
+}
+
+start_stop_security_camera_recording = {
+    "description": "📼 Start/stop a security camera recording",
+    "yaml": textwrap.dedent(
+        """
+        - service: script.toggle_security_camera_recording
+          icon_mdi: cctv
+          text: Toggle Camera Recording
+        """,
+    ),
+    "state": {},
+    "result": Button(
+        service="script.toggle_security_camera_recording",
+        icon_mdi="cctv",
+        text="Toggle Camera Recording",
+    ),
+}
+
+enable_disable_nightlight = {
+    "description": "🌙 Enable/disable a nightlight",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: light.nightlight
+          service: light.toggle
+          icon_mdi: "{{ 'lightbulb-on' if is_state('light.nightlight', 'on') else 'lightbulb-off' }}"
+          text: "{{ 'Disable' if is_state('light.nightlight', 'on') else 'Enable' }} Nightlight"
+        """,
+    ),
+    "state": {"light.nightlight": {"state": "on"}},
+    "result": Button(
+        entity_id="light.nightlight",
+        service="light.toggle",
+        icon_mdi="lightbulb-on",
+        text="Disable Nightlight",
+    ),
+}
+
+
 BUTTONS = [
     activate_a_scene,
     toggle_a_cover,
@@ -512,6 +586,10 @@ BUTTONS = [
     sleep_timer,
     weather_temperature,
     toggle_wifi,
+    activate_voice_assistant,
+    start_stop_air_purifier,
+    start_stop_security_camera_recording,
+    enable_disable_nightlight,
 ]
 
 

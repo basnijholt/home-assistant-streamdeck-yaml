@@ -336,16 +336,24 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>5. 🌡️ Adjust the thermostat to a specific temperature:</summary>
+<summary>5. 🌟 Control the brightness of a light (+10% on press):</summary>
 
 ```yaml
-- entity_id: climate.living_room
-  service: climate.set_temperature
+- entity_id: light.living_room_lights
+  service: light.turn_on
   service_data:
-    temperature: 22
-  icon_mdi: thermostat
-  text: Set Thermostat 22°C
+    entity_id: light.living_room_lights
+    brightness: >-
+      {% set current_brightness = state_attr('light.living_room_lights', 'brightness') %}
+      {% set next_brightness = (current_brightness + 25.5) % 255 %}
+      {{ min(next_brightness, 255) | int }}
+  text: >-
+    {% set current_brightness = state_attr('light.living_room_lights', 'brightness') %}
+    {% set brightness_pct = (current_brightness / 255) * 100 %}
+    {{ brightness_pct | round }}%
 ```
+
+</details>
 
 </details>
 
@@ -429,24 +437,16 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>12. 🌟 Control the brightness of a light (+10% on press):</summary>
+<summary>12. 🌡️ Adjust the thermostat to a specific temperature:</summary>
 
 ```yaml
-- entity_id: light.living_room_lights
-  service: light.turn_on
+- entity_id: climate.living_room
+  service: climate.set_temperature
   service_data:
-    entity_id: light.living_room_lights
-    brightness: >-
-      {% set current_brightness = state_attr('light.living_room_lights', 'brightness') %}
-      {% set next_brightness = (current_brightness + 25.5) % 255 %}
-      {{ min(next_brightness, 255) | int }}
-  text: >-
-    {% set current_brightness = state_attr('light.living_room_lights', 'brightness') %}
-    {% set brightness_pct = (current_brightness / 255) * 100 %}
-    {{ brightness_pct | round }}%
+    temperature: 22
+  icon_mdi: thermostat
+  text: Set Thermostat 22°C
 ```
-
-</details>
 
 <details>
 <summary>13. 📲 Trigger a script to send a notification to your mobile device:</summary>

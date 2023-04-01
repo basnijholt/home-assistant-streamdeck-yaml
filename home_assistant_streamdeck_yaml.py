@@ -674,6 +674,26 @@ def _is_state(
     return _states(entity_id, complete_state=complete_state) == state
 
 
+def _min_filter(value: float, other_value: float) -> float:
+    """Return the minimum of two values.
+
+    Can be used in Jinja templates like
+    >>> {{ 1 | min(2) }}
+    1
+    """
+    return min(value, other_value)
+
+
+def _max_filter(value: float, other_value: float) -> float:
+    """Return the maximum of two values.
+
+    Can be used in Jinja templates like
+    >>> {{ 1 | max(2) }}
+    2
+    """
+    return max(value, other_value)
+
+
 def _render_jinja(text: str, complete_state: StateDict) -> str:
     """Render a Jinja template."""
     if not isinstance(text, str):
@@ -681,7 +701,10 @@ def _render_jinja(text: str, complete_state: StateDict) -> str:
     if "{" not in text:
         return text
     try:
-        template = jinja2.Template(text)
+        env = jinja2.Environment(loader=jinja2.BaseLoader(), autoescape=True)
+        env.filters["min"] = _min_filter
+        env.filters["max"] = _max_filter
+        template = env.from_string(text)
         return template.render(  # noqa: TRY300
             min=min,
             max=max,

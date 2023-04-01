@@ -226,7 +226,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 return _download_spotify_image(id_, filename)
             if which == "url":
                 filename = _url_to_filename(id_)
-                return _download_image(id_, filename)
+                return _download_image(id_, filename, size)
 
         if self.special_type == "empty":
             return None
@@ -1140,6 +1140,7 @@ def _mdi_url(mdi: str) -> str:
 def _download_spotify_image(
     id_: str,
     filename: Path | None = None,
+    size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
 ) -> Image.Image | None:
     """Download the Spotify image for the given ID.
 
@@ -1154,13 +1155,14 @@ def _download_spotify_image(
     content = _download(url)
     data = json.loads(content)
     image_url = data["thumbnail_url"]
-    return _download_image(image_url, filename)
+    return _download_image(image_url, filename, size)
 
 
 @ft.lru_cache(maxsize=32)  # Change only a few images, because they might be large
 def _download_image(
     url: str,
     filename: Path | None = None,
+    size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
 ) -> Image.Image | None:
     """Download an image for a given url."""
     if filename is not None and filename.exists():
@@ -1169,6 +1171,7 @@ def _download_image(
     image = Image.open(io.BytesIO(image_content))
     if image.mode != "RGB":
         image = image.convert("RGB")
+    image = image.resize(size)
     if filename is not None:
         image.save(filename)
         return None
@@ -1181,6 +1184,7 @@ def update_all_key_images(
     complete_state: StateDict,
 ) -> None:
     """Update all key images."""
+    console.log("Called update_all_key_images")
     for key in range(deck.key_count()):
         update_key_image(
             deck,

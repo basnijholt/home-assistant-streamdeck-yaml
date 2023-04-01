@@ -444,15 +444,17 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>12. 🌡️ Adjust the thermostat to a specific temperature:</summary>
+<summary>12. 🌡️ Adjust the thermostat between two specific temperatures:</summary>
 
 ```yaml
 - entity_id: climate.living_room
   service: climate.set_temperature
   service_data:
-    temperature: 22
+    temperature: "{{ 17 if state_attr('climate.living_room', 'temperature') >= 22 else 22 }}"
   icon_mdi: thermostat
-  text: Set Thermostat 22°C
+  text: |
+    Set
+    {{ '17°C' if state_attr('climate.living_room', 'temperature') >= 22 else '22°C' }}"
 ```
 
 <details>

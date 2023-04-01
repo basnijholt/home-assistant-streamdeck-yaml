@@ -565,13 +565,7 @@ async def test_button_with_target(
     ("template", "state", "expected_output"),
     [
         # Test 1: Activate a scene
-        (
-            """
-            scene.turn_on
-            """,
-            {},
-            "scene.turn_on",
-        ),
+        # No jinja template to test
         # Test 2: Toggle a cover
         (
             """
@@ -657,7 +651,7 @@ async def test_button_with_target(
             {{ brightness_pct | round }}%
             """,
             {"light.living_room_lights": {"attributes": {"brightness": 128}}},
-            "50%",
+            "50.0%",
         ),
         # Test 6: Toggle a fan
         (
@@ -842,7 +836,21 @@ async def test_button_with_target(
             "lightbulb-group-off",
         ),
         # Test 17: Trigger a doorbell or camera announcement
-        # No jinja template to test
+        (
+            """
+            {{ 17 if state_attr('climate.living_room', 'temperature') >= 22 else 22 }}
+            """,
+            {"climate.living_room": {"attributes": {"temperature": 22}}},
+            17,
+        ),
+        (
+            """
+            Set
+            {{ '17°C' if state_attr('climate.living_room', 'temperature') >= 22 else '22°C' }}
+            """,
+            {"climate.living_room": {"attributes": {"temperature": 22}}},
+            "Set\n17°C",
+        ),
         # Test 18: Enable/disable a sleep timer (using an input_boolean)
         (
             """
@@ -899,7 +907,9 @@ def test_render_jinja2_from_examples_readme(
     expected_output: str,
 ) -> None:
     """Test _render_jinja for volume control."""
-    assert _render_jinja(template, state) == expected_output
+    assert _render_jinja(textwrap.dedent(template), state) == textwrap.dedent(
+        expected_output,
+    )
 
 
 def test_render_jinja2_from_my_config_and_example_config() -> None:

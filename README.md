@@ -43,6 +43,9 @@ Follow the steps below to get up and running with Home Assistant on Stream Deck.
 
 ### :house_with_garden: Installation as Home Assistant Add-on
 
+<details>
+<summary>Click to expand.</summary>
+
 1. In your Home Assistant instance, navigate to **Supervisor** > **Add-on Store**.
 2. Click the menu icon (three vertical dots) in the top right corner and select **Repositories**.
 3. Add the following repository URL: `https://github.com/basnijholt/home-assistant-streamdeck-yaml-addon`.
@@ -50,7 +53,12 @@ Follow the steps below to get up and running with Home Assistant on Stream Deck.
 5. After the installation is complete, configure the add-on using either the `.env` file or the individual configuration options (see the [add-on configuration documentation](https://github.com/basnijholt/home-assistant-streamdeck-yaml-addon#add-on-configuration-gear) for more information).
 6. Start the add-on and check the logs for any errors.
 
+</details>
+
 ### :whale: Installation with Docker
+
+<details>
+<summary>Click to expand.</summary>
 
 1. Edit the [`.env.example`](.env.example) file and rename it to `.env`.
 2. Setup a [`configuration.yaml` file (see below)](#configuration).
@@ -67,7 +75,12 @@ Optionally, you can build the Docker image yourself with:
 docker build -t basnijholt/home-assistant-streamdeck-yaml:latest .
 ```
 
+</details>
+
 ### :computer: Installation without Docker
+
+<details>
+<summary>Click to expand.</summary>
 
 1. Run `pip install -e .` in the repo folder to install the required dependencies.
 2. Edit the [`.env.example`](.env.example) file and rename it to `.env`.
@@ -75,6 +88,9 @@ docker build -t basnijholt/home-assistant-streamdeck-yaml:latest .
 4. Follow the platform-specific steps for [Linux](#linux), [MacOS](#macos), or [Windows](#windows).
 
 #### :penguin: Linux
+
+<details>
+<summary>Click to expand.</summary>
 
 On **Linux** you need to install some extra dependencies:
 
@@ -89,7 +105,12 @@ and add a udev rule to allow access to the Stream Deck, run `sudo nano /etc/udev
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="0fd9", GROUP="users", TAG+="uaccess"
 ```
 
+</details>
+
 #### :apple: MacOS
+
+<details>
+<summary>Click to expand.</summary>
 
 On **MacOS** you need to install some extra dependencies:
 
@@ -97,9 +118,18 @@ On **MacOS** you need to install some extra dependencies:
 brew install hidapi cairo libffi
 ```
 
+</details>
+
 #### :desktop_computer: Windows
 
+<details>
+<summary>Click to expand.</summary>
+
 For **Windows**, see [this](https://python-elgato-streamdeck.readthedocs.io/en/stable/pages/backend_libusb_hidapi.html#windows) page.
+
+</details>
+
+</details>
 
 ## :gear: Configuration
 

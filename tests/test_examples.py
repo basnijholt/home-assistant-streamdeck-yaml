@@ -1,6 +1,9 @@
 """Test examples in the README."""
 
 import textwrap
+from typing import Any
+
+import pytest
 
 from home_assistant_streamdeck_yaml import Button
 
@@ -509,7 +512,11 @@ buttons = [
     weather_temperature,
     toggle_wifi,
 ]
-for button_dct in buttons:
+
+
+@pytest.mark.parametrize("button_dct", buttons)
+def test_button(button_dct: dict[str, Any]) -> None:
+    """Test all buttons."""
     button = Button.from_yaml(button_dct["yaml"])  # type: ignore[arg-type]
     button_template = button.rendered_template_button(button_dct["state"])  # type: ignore[arg-type]
     assert button_template == button_dct["result"], button_dct["description"]

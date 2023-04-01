@@ -421,11 +421,19 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 <summary>12. 🌟 Control the brightness of a light (+10% on press):</summary>
 
 ```yaml
-- entity_id: light.living_room_light
+- entity_id: light.living_room_lights
   service: light.turn_on
   service_data:
-    brightness: "{{ [((state_attr('light.living_room_light', 'brightness') + 25.5) % 255), 255]|min|int }}"
-  text: '{{ (((state_attr("light.living_room_light", "brightness") + 25.5) % 255) / 255 * 100)|min(100)|round }}% Brightness'
+    entity_id: light.living_room_lights
+    brightness: >-
+      {% set current_brightness = state_attr('light.living_room_lights', 'brightness') %}
+      {% set next_brightness = (current_brightness + 25.5) % 255 %}
+      {{ min(next_brightness, 255) | int }}
+  text: >-
+    {% set current_brightness = state_attr('light.living_room_lights', 'brightness') %}
+    {% set next_brightness_pct = (((min(100, current_brightness + 25.5) % 255) / 255) * 100) %}
+    {{ next_brightness_pct | round }}%
+
 ```
 
 </details>

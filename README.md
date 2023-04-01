@@ -442,7 +442,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 
 
 <details>
-<summary>10. 🎵 Control a media player (e.g., pause/play or skip tracks):</summary>
+<summary>10. ⏯️ Control a media player (play/pause):</summary>
 
 ```yaml
 - entity_id: media_player.living_room_speaker
@@ -455,7 +455,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 
 
 <details>
-<summary>11. 🎵 Control a media player (e.g., pause/play or skip tracks):</summary>
+<summary>11. 🎵 Control a media player (skip tracks):</summary>
 
 ```yaml
 - entity_id: media_player.living_room_speaker
@@ -513,7 +513,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 
 
 <details>
-<summary>15. 🌆 Toggle a day/night mode (using an input\_boolean):</summary>
+<summary>15. 🌆 Toggle a day/night mode (using an input_boolean):</summary>
 
 ```yaml
 - entity_id: input_boolean.day_night_mode
@@ -568,7 +568,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 
 
 <details>
-<summary>19. ⏰ Enable/disable a sleep timer (using an input\_boolean):</summary>
+<summary>19. ⏰ Enable/disable a sleep timer (using an input_boolean):</summary>
 
 ```yaml
 - entity_id: input_boolean.sleep_timer

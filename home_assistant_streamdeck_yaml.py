@@ -208,7 +208,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 dct[key] = _render_jinja(val, complete_state)  # type: ignore[assignment]
         return Button(**dct)
 
-    def render_icon(  # noqa: PLR0912
+    def render_icon(
         self,
         complete_state: StateDict,
         *,
@@ -217,7 +217,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         icon_mdi_margin: int = 0,
         font_filename: str = "Roboto-Regular.ttf",
         font_size: int = 12,
-    ) -> Image.Image | None:
+    ) -> Image.Image:
         """Render the icon."""
         if isinstance(self.icon, str) and ":" in self.icon:
             which, id_ = self.icon.split(":", 1)
@@ -227,9 +227,6 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             if which == "url":
                 filename = _url_to_filename(id_)
                 return _download_image(id_, filename, size)
-
-        if self.special_type == "empty":
-            return None
 
         button = self.rendered_template_button(complete_state)
 
@@ -856,15 +853,17 @@ def update_key_image(
     button = config.button(key)
     if button is None:
         return
+    if button.special_type == "empty":
+        return
     image = button.render_icon(
         complete_state=complete_state,
         key_pressed=key_pressed,
         size=deck.key_image_format()["size"],
     )
-    if image is not None:
-        image = PILHelper.to_native_format(deck, image)
-        with deck:
-            deck.set_key_image(key, image)
+    assert image is not None
+    image = PILHelper.to_native_format(deck, image)
+    with deck:
+        deck.set_key_image(key, image)
 
 
 def get_deck() -> StreamDeck:

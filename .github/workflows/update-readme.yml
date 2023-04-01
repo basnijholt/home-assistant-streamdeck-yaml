@@ -9,6 +9,7 @@ on:
       - "README.md"
       - ".github/workflows/update-readme.yml"
       - "home_assistant_streamdeck_yaml.py"
+      - "tests/test_examples.py"
 
 jobs:
   update_readme:

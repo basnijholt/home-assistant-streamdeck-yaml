@@ -509,13 +509,22 @@ day_night_mode = {
             Mode
         """,
     ),
-    "state": [{"input_boolean.day_night_mode": {"state": "on"}}],
+    "state": [
+        {"input_boolean.day_night_mode": {"state": "on"}},
+        {"input_boolean.day_night_mode": {"state": "off"}},
+    ],
     "result": [
         Button(
             entity_id="input_boolean.day_night_mode",
             service="input_boolean.toggle",
             icon_mdi="weather-night",
             text="Night\nMode",
+        ),
+        Button(
+            entity_id="input_boolean.day_night_mode",
+            service="input_boolean.toggle",
+            icon_mdi="weather-sunny",
+            text="Day\nMode",
         ),
     ],
 }

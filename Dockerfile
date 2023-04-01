@@ -30,19 +30,17 @@ RUN mkdir -p /etc/udev/rules.d
 RUN echo 'SUBSYSTEMS=="usb", ATTRS{idVendor}=="0fd9", GROUP="users", TAG+="uaccess"' > /etc/udev/rules.d/99-streamdeck.rules
 
 # Clone the repository
-RUN git clone https://github.com/basnijholt/home-assistant-streamdeck-yaml.git /app
+RUN git clone --depth 1 https://github.com/basnijholt/home-assistant-streamdeck-yaml.git /app
 
 # Set the working directory to the repository
 WORKDIR /app
 
 # Install the required dependencies
-RUN pip3 install -e ".[colormap]"
-
-# Remove musl-dev and gcc
-RUN apk del build-deps && rm -rf /var/cache/apk/*
-
-# Purge the pip cache
-RUN pip3 cache purge
+RUN pip3 install -e ".[colormap]" && \
+    # Remove musl-dev and gcc
+    apk del build-deps && rm -rf /var/cache/apk/* && \
+    # Purge the pip cache
+    pip3 cache purge
 
 # Set the entrypoint to run the application
 ENTRYPOINT ["/bin/sh", "-c", "home-assistant-streamdeck-yaml"]

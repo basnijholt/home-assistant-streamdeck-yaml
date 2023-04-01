@@ -19,6 +19,8 @@ With this Python script, you can control your Home Assistant instance via a Stre
 - 🚀 Template support for advanced customization
 - 💤 Automatically sync state of `entity_id` to turn display on/off
 
+[[ToC](#books-table-of-contents)]
+
 **Why choose our solution over others?**
 
 You might have seen a similar project ([`cgiesche/streamdeck-homeassistant`](https://github.com/cgiesche/streamdeck-homeassistant)) on Github before [[†](https://github.com/cgiesche/streamdeck-homeassistant)].
@@ -36,6 +38,13 @@ If you're using Home Assistant StreamDeck YAML in your projects, please consider
 Your feedback and success stories not only help to improve the library but also inspire others in the community.
 By sharing your experience, you can contribute to the growth and development of Home Assistant StreamDeck YAML.
 I truly appreciate your support!
+
+## :books: Table of Contents
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## :rocket: Getting Started
 
@@ -241,12 +250,12 @@ Each button can take the following configuration:
 <!-- END_OUTPUT -->
 
 
-# More button ideas
+# :bulb: More button ideas
 
 Here are 10 more interesting uses for the Stream Deck with Home Assistant:
 
 <details>
-<summary>1.  Activate a scene:</summary>
+<summary>1. 🎭 Activate a scene:</summary>
 
 ```yaml
 - service: scene.turn_on
@@ -259,7 +268,7 @@ Here are 10 more interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>2.  Toggle a cover (e.g., blinds or garage door):</summary>
+<summary>2. 🚪 Toggle a cover (e.g., blinds or garage door):</summary>
 
 ```yaml
 - entity_id: cover.garage_door
@@ -271,7 +280,7 @@ Here are 10 more interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>3.  Set an alarm time for the next day:</summary>
+<summary>3. ⏰ Set an alarm time for the next day:</summary>
 
 ```yaml
 - service: input_datetime.set_datetime
@@ -285,7 +294,7 @@ Here are 10 more interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>4.  Trigger a script to send a notification to your mobile device:</summary>
+<summary>4. 📲 Trigger a script to send a notification to your mobile device:</summary>
 
 ```yaml
 - service: script.send_mobile_notification
@@ -296,7 +305,7 @@ Here are 10 more interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>5.  Adjust the thermostat to a specific temperature:</summary>
+<summary>5. 🌡️ Adjust the thermostat to a specific temperature:</summary>
 
 ```yaml
 - entity_id: climate.living_room
@@ -310,7 +319,7 @@ Here are 10 more interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>6.  Toggle a fan:</summary>
+<summary>6. 💨 Toggle a fan:</summary>
 
 ```yaml
 - entity_id: fan.bedroom_fan
@@ -322,7 +331,7 @@ Here are 10 more interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>7.  Lock/unlock a door:</summary>
+<summary>7. 🔒 Lock/unlock a door:</summary>
 
 ```yaml
 - entity_id: lock.front_door
@@ -334,7 +343,7 @@ Here are 10 more interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>8.  Arm/disarm an alarm system:</summary>
+<summary>8. ⚠️ Arm/disarm an alarm system:</summary>
 
 ```yaml
 - entity_id: alarm_control_panel.home_alarm
@@ -346,7 +355,7 @@ Here are 10 more interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>9.  Trigger an automation to start a cleaning robot:</summary>
+<summary>9. 🤖 Trigger an automation to start a cleaning robot:</summary>
 
 ```yaml
 - service: automation.trigger
@@ -359,7 +368,7 @@ Here are 10 more interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>10.  Control a media player (e.g., pause/play or skip tracks):</summary>
+<summary>10. 🎵 Control a media player (e.g., pause/play or skip tracks):</summary>
 
 ```yaml
 - entity_id: media_player.living_room_speaker

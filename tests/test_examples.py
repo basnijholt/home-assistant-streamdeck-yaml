@@ -563,6 +563,148 @@ enable_disable_nightlight = {
     ),
 }
 
+control_smart_fireplace = {
+    "description": "🔥 Control a smart fireplace",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: switch.smart_fireplace
+          service: switch.toggle
+          icon_mdi: "{{ 'fire' if is_state('switch.smart_fireplace', 'on') else 'fire-off' }}"
+          text: "{{ 'Turn Off' if is_state('switch.smart_fireplace', 'on') else
+          'Turn On' }} Fireplace"
+        """,
+    ),
+    "state": {"switch.smart_fireplace": {"state": "on"}},
+    "result": Button(
+        entity_id="switch.smart_fireplace",
+        service="switch.toggle",
+        icon_mdi="fire",
+        text="Turn Off Fireplace",
+    ),
+}
+
+toggle_smart_plug = {
+    "description": "🔌 Toggle a smart plug",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: switch.smart_plug
+          service: switch.toggle
+          icon_mdi: "{{ 'power-socket' if is_state('switch.smart_plug', 'on') else 'power-socket-off' }}"
+          text: "{{ 'Turn Off' if is_state('switch.smart_plug', 'on') else 'Turn On' }} Smart Plug"
+        """,
+    ),
+    "state": {"switch.smart_plug": {"state": "on"}},
+    "result": Button(
+        entity_id="switch.smart_plug",
+        service="switch.toggle",
+        icon_mdi="power-socket",
+        text="Turn Off Smart Plug",
+    ),
+}
+
+toggle_fan = {
+    "description": "🌀 Toggle a fan",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: fan.bedroom_fan
+          service: fan.toggle
+          icon_mdi: "{{ 'fan' if is_state('fan.bedroom_fan', 'on') else 'fan-off' }}"
+          text: "{{ 'Turn Off' if is_state('fan.bedroom_fan', 'on') else 'Turn On' }} Fan"
+        """,
+    ),
+    "state": {"fan.bedroom_fan": {"state": "on"}},
+    "result": Button(
+        entity_id="fan.bedroom_fan",
+        service="fan.toggle",
+        icon_mdi="fan",
+        text="Turn Off Fan",
+    ),
+}
+
+irrigation_toggle = {
+    "description": "💦 Toggle irrigation system",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: switch.irrigation_system
+          service: switch.toggle
+          icon_mdi: "{{ 'water' if is_state('switch.irrigation_system', 'on') else 'water-off' }}"
+          text: "{{ 'Turn Off' if is_state('switch.irrigation_system', 'on') else 'Turn On' }} Irrigation"
+        """,
+    ),
+    "state": {"switch.irrigation_system": {"state": "on"}},
+    "result": Button(
+        entity_id="switch.irrigation_system",
+        service="switch.toggle",
+        icon_mdi="water",
+        text="Turn Off Irrigation",
+    ),
+}
+
+
+change_cover_position = {
+    "description": "🌤️ Change the position of a cover (e.g., blinds or curtains)",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: cover.living_room_blinds
+          service: cover.set_cover_position
+          service_data:
+            position: "{{ 0 if state_attr('cover.living_room_blinds', 'current_position') >= 50 else 100 }}"
+          icon_mdi: window-shutter
+          text: "{{ 'Close' if state_attr('cover.living_room_blinds', 'current_position') >= 50 else 'Open' }} Blinds"
+        """,
+    ),
+    "state": {
+        "cover.living_room_blinds": {
+            "attributes": {"current_position": 100},
+        },
+    },
+    "result": Button(
+        entity_id="cover.living_room_blinds",
+        service="cover.set_cover_position",
+        service_data={"position": "0"},
+        icon_mdi="window-shutter",
+        text="Close Blinds",
+    ),
+}
+
+lock_unlock_door = {
+    "description": "🔓 Lock/unlock a door",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: lock.front_door
+          service: "{{ 'lock.lock' if is_state('lock.front_door', 'unlocked') else 'lock.unlock' }}"
+          icon_mdi: "{{ 'lock' if is_state('lock.front_door', 'unlocked') else 'lock-open' }}"
+          text: "{{ 'Lock' if is_state('lock.front_door', 'unlocked') else 'Unlock' }} Door"
+        """,
+    ),
+    "state": {"lock.front_door": {"state": "unlocked"}},
+    "result": Button(
+        entity_id="lock.front_door",
+        service="lock.lock",
+        icon_mdi="lock",
+        text="Lock Door",
+    ),
+}
+
+toggle_vacuum = {
+    "description": "🤖 Toggle a vacuum cleaner",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: vacuum.robot_vacuum
+          service: vacuum.toggle
+          icon_mdi: "{{ 'robot-vacuum' if is_state('vacuum.robot_vacuum', 'cleaning') else 'robot-vacuum-off' }}"
+          text: "{{ 'Pause' if is_state('vacuum.robot_vacuum', 'cleaning') else 'Start' }} Vacuum"
+        """,
+    ),
+    "state": {"vacuum.robot_vacuum": {"state": "cleaning"}},
+    "result": Button(
+        entity_id="vacuum.robot_vacuum",
+        service="vacuum.toggle",
+        icon_mdi="robot-vacuum",
+        text="Pause Vacuum",
+    ),
+}
+
 
 BUTTONS = [
     activate_a_scene,
@@ -590,6 +732,13 @@ BUTTONS = [
     start_stop_air_purifier,
     start_stop_security_camera_recording,
     enable_disable_nightlight,
+    control_smart_fireplace,
+    toggle_smart_plug,
+    toggle_fan,
+    irrigation_toggle,
+    change_cover_position,
+    lock_unlock_door,
+    toggle_vacuum,
 ]
 
 

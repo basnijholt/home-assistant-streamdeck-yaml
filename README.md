@@ -44,6 +44,17 @@ I truly appreciate your support!
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
+  - [:rocket: Getting Started](#rocket-getting-started)
+    - [:house_with_garden: Installation as Home Assistant Add-on](#house_with_garden-installation-as-home-assistant-add-on)
+    - [:whale: Installation with Docker](#whale-installation-with-docker)
+    - [:computer: Installation without Docker](#computer-installation-without-docker)
+      - [:penguin: Linux](#penguin-linux)
+      - [:apple: MacOS](#apple-macos)
+      - [:desktop_computer: Windows](#desktop_computer-windows)
+  - [:gear: Configuration](#gear-configuration)
+    - [:page_facing_up: `configuration.yaml`](#page_facing_up-configurationyaml)
+- [:bulb: More button ideas](#bulb-more-button-ideas)
+
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## :rocket: Getting Started

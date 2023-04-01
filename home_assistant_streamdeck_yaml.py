@@ -1009,7 +1009,9 @@ def _on_press_callback(
 @ft.lru_cache(maxsize=128)
 def _download(url: str) -> bytes:
     """Download the content from the URL."""
+    console.log(f"Downloading {url}")
     response = requests.get(url, timeout=5)
+    console.log(f"Downloaded {len(response.content)} bytes")
     return response.content
 
 

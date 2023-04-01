@@ -964,13 +964,22 @@ irrigation_toggle = {
             Irrigation
         """,
     ),
-    "state": [{"switch.irrigation_system": {"state": "on"}}],
+    "state": [
+        {"switch.irrigation_system": {"state": "on"}},
+        {"switch.irrigation_system": {"state": "off"}},
+    ],
     "result": [
         Button(
             entity_id="switch.irrigation_system",
             service="switch.toggle",
             icon_mdi="water",
             text="Turn Off\nIrrigation",
+        ),
+        Button(
+            entity_id="switch.irrigation_system",
+            service="switch.toggle",
+            icon_mdi="water-off",
+            text="Turn On\nIrrigation",
         ),
     ],
 }

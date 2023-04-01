@@ -36,6 +36,7 @@ https://user-images.githubusercontent.com/6897215/226788119-6c198ea6-2950-4f95-9
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
+  - [🌟 Share Your Success](#-share-your-success)
   - [:rocket: Getting Started](#rocket-getting-started)
     - [:house_with_garden: Installation as Home Assistant Add-on](#house_with_garden-installation-as-home-assistant-add-on)
     - [:whale: Installation with Docker](#whale-installation-with-docker)

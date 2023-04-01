@@ -242,7 +242,7 @@ set_alarm_time_for_next_day = {
 
 
 media_play_pause = {
-    "description": "🎵 Control a media player (e.g., pause/play or skip tracks)",
+    "description": "🎵 Control a media player (play/pause)",
     "yaml": textwrap.dedent(
         """
         - entity_id: media_player.living_room_speaker
@@ -261,7 +261,7 @@ media_play_pause = {
 }
 
 media_next_track = {
-    "description": "🎵 Control a media player (e.g., pause/play or skip tracks)",
+    "description": "🎵 Control a media player (skip tracks)",
     "yaml": textwrap.dedent(
         """
         - entity_id: media_player.living_room_speaker

@@ -41,7 +41,7 @@ pages:
       - entity_id: media_player.kef_ls50
         service: media_player.volume_set
         service_data:
-          volume_level: '{{ max(state_attr("media_player.kef_ls50", "volume_level") - 0.05, 0) }}'
+          volume_level: '{{ (state_attr("media_player.kef_ls50", "volume_level") - 0.05) | max(0) }}'
           entity_id: media_player.kef_ls50
         text: '{{ (100 * state_attr("media_player.kef_ls50", "volume_level")) | int }}%'
         text_size: 16
@@ -49,7 +49,7 @@ pages:
       - entity_id: media_player.kef_ls50
         service: media_player.volume_set
         service_data:
-          volume_level: '{{ min(state_attr("media_player.kef_ls50", "volume_level") + 0.05, 1) }}'
+          volume_level: '{{ (state_attr("media_player.kef_ls50", "volume_level") + 0.05) | min(1) }}'
           entity_id: media_player.kef_ls50
         text: '{{ (100 * state_attr("media_player.kef_ls50", "volume_level")) | int }}%'
         text_size: 16
@@ -229,7 +229,7 @@ pages:
       - entity_id: media_player.kef_ls50
         service: media_player.volume_set
         service_data:
-          volume_level: '{{ max(state_attr("media_player.kef_ls50", "volume_level") - 0.05, 0) }}'
+          volume_level: '{{ (state_attr("media_player.kef_ls50", "volume_level") - 0.05) | max(0) }}'
           entity_id: media_player.kef_ls50
         text: '{{ (100 * state_attr("media_player.kef_ls50", "volume_level")) | int }}%'
         text_size: 16
@@ -239,7 +239,7 @@ pages:
       - entity_id: media_player.kef_ls50
         service: media_player.volume_set
         service_data:
-          volume_level: '{{ min(state_attr("media_player.kef_ls50", "volume_level") + 0.05, 1) }}'
+          volume_level: '{{ (state_attr("media_player.kef_ls50", "volume_level") + 0.05) | min(1) }}'
           entity_id: media_player.kef_ls50
         text: '{{ (100 * state_attr("media_player.kef_ls50", "volume_level")) | int }}%'
         text_size: 16

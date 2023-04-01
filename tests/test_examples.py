@@ -618,7 +618,7 @@ def generate_readme_entry() -> None:
         {% endfor %}
         """,
     )
-    env = Environment(autoescape=True)
+    env = Environment(autoescape=False)  # noqa: S701
     env.globals["enumerate"] = enumerate
     template = env.from_string(template_string)
     return template.render(buttons=BUTTONS)

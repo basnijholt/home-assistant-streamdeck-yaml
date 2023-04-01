@@ -245,20 +245,20 @@ Each button can take the following configuration:
 <!-- THIS CONTENT IS AUTOMATICALLY GENERATED -->
 | Variable name           | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Allow template   | Default   | Type                                                                                                  |
 |:------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-----------------|:----------|:------------------------------------------------------------------------------------------------------|
-| `entity_id`             | The `entity_id` that this button controls. This entitity will be passed to the `service` when the button is pressed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | ✅                |           | `Optional[str]`                                                                                       |
-| `service`               | The `service` that will be called when the button is pressed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | ✅                |           | `Optional[str]`                                                                                       |
-| `service_data`          | The `service_data` that will be passed to the `service` when the button is pressed. If empty, the `entity_id` will be passed.                                                                                                                                                                                                                                                                                                                                                                                                                                                          | ✅                |           | `Optional[Mapping[str, Any]]`                                                                         |
-| `target`                | The `target` that will be passed to the `service` when the button is pressed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | ✅                |           | `Optional[Mapping[str, Any]]`                                                                         |
-| `text`                  | The text to display on the button. If empty, no text is displayed. You might want to add `\n` characters to spread the text over several lines, or use the `\|` character in YAML to create a multi-line string.                                                                                                                                                                                                                                                                                                                                                                       | ✅                |           | `str`                                                                                                 |
-| `text_color`            | Color of the text. If empty, the color is `white`, unless an `entity_id` is specified, in which case the color is `amber` when the state is `on`, and `white` when it is `off`.                                                                                                                                                                                                                                                                                                                                                                                                        | ✅                |           | `Optional[str]`                                                                                       |
-| `text_size`             | Integer size of the text.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | ❌                | `12`      | `int`                                                                                                 |
-| `icon`                  | The icon filename to display on the button. If empty, a icon with `icon_background_color` and `text` is displayed. The icon can be a URL to an image, like `'url:https://www.nijho.lt/authors/admin/avatar.jpg'`, or a `spotify:` icon, like `'spotify:album/6gnYcXVaffdG0vwVM34cr8'`. If the icon is a `spotify:` icon, the icon will be downloaded and cached.                                                                                                                                                                                                                       | ✅                |           | `Optional[str]`                                                                                       |
-| `icon_mdi`              | The Material Design Icon to display on the button. If empty, no icon is displayed. See https://mdi.bessarabov.com/ for a list of icons. The SVG icon will be downloaded and cached.                                                                                                                                                                                                                                                                                                                                                                                                    | ✅                |           | `Optional[str]`                                                                                       |
-| `icon_background_color` | A color (in hex format, e.g., '#FF0000') for the background of the icon (if no `icon` is specified).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | ✅                | `#000000` | `str`                                                                                                 |
-| `icon_mdi_color`        | The color of the Material Design Icon (in hex format, e.g., '#FF0000'). If empty, the color is derived from `text_color` but is less saturated (gray is mixed in).                                                                                                                                                                                                                                                                                                                                                                                                                     | ✅                |           | `Optional[str]`                                                                                       |
-| `icon_gray_when_off`    | When specifying `icon` and `entity_id`, if the state is `off`, the icon will be converted to grayscale.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | ❌                |           | `bool`                                                                                                |
-| `special_type`          | Special type of button. If no specified, the button is a normal button. If `next-page`, the button will go to the next page. If `previous-page`, the button will go to the previous page. If `turn-off`, the button will turn off the SteamDeck until any button is pressed. If `empty`, the button will be empty. If `go-to-page`, the button will go to the page specified by `special_type_data` (either an `int` or `str` (name of the page)). If `light-control`, the button will control a light, and the `special_type_data` can be a dictionary, see its description.          | ❌                |           | `Optional[Literal['next-page', 'previous-page', 'empty', 'go-to-page', 'turn-off', 'light-control']]` |
-| `special_type_data`     | Data for the special type of button. If `go-to-page`, the data should be an `int` or `str` (name of the page). If `light-control`, the data should optionally be a dictionary. The dictionary can contain the following keys: The `colors` key and a value a list of max (`n_keys_on_streamdeck - 5`) hex colors. The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html) can be used. This requires the `matplotlib` package to be installed. If no list of `colors` or `colormap` is specified, 10 equally spaced colors are used. | ✅                |           | `Optional[Any]`                                                                                       |
+| `entity_id`             | The `entity_id` that this button controls. This entitity will be passed to the `service` when the button is pressed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | ✅               |           | `Optional[str]`                                                                                       |
+| `service`               | The `service` that will be called when the button is pressed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | ✅               |           | `Optional[str]`                                                                                       |
+| `service_data`          | The `service_data` that will be passed to the `service` when the button is pressed. If empty, the `entity_id` will be passed.                                                                                                                                                                                                                                                                                                                                                                                                                                                          | ✅               |           | `Optional[Mapping[str, Any]]`                                                                         |
+| `target`                | The `target` that will be passed to the `service` when the button is pressed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | ✅               |           | `Optional[Mapping[str, Any]]`                                                                         |
+| `text`                  | The text to display on the button. If empty, no text is displayed. You might want to add `\n` characters to spread the text over several lines, or use the `\|` character in YAML to create a multi-line string.                                                                                                                                                                                                                                                                                                                                                                       | ✅               |           | `str`                                                                                                 |
+| `text_color`            | Color of the text. If empty, the color is `white`, unless an `entity_id` is specified, in which case the color is `amber` when the state is `on`, and `white` when it is `off`.                                                                                                                                                                                                                                                                                                                                                                                                        | ✅               |           | `Optional[str]`                                                                                       |
+| `text_size`             | Integer size of the text.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | ❌               | `12`      | `int`                                                                                                 |
+| `icon`                  | The icon filename to display on the button. If empty, a icon with `icon_background_color` and `text` is displayed. The icon can be a URL to an image, like `'url:https://www.nijho.lt/authors/admin/avatar.jpg'`, or a `spotify:` icon, like `'spotify:album/6gnYcXVaffdG0vwVM34cr8'`. If the icon is a `spotify:` icon, the icon will be downloaded and cached.                                                                                                                                                                                                                       | ✅               |           | `Optional[str]`                                                                                       |
+| `icon_mdi`              | The Material Design Icon to display on the button. If empty, no icon is displayed. See https://mdi.bessarabov.com/ for a list of icons. The SVG icon will be downloaded and cached.                                                                                                                                                                                                                                                                                                                                                                                                    | ✅               |           | `Optional[str]`                                                                                       |
+| `icon_background_color` | A color (in hex format, e.g., '#FF0000') for the background of the icon (if no `icon` is specified).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | ✅               | `#000000` | `str`                                                                                                 |
+| `icon_mdi_color`        | The color of the Material Design Icon (in hex format, e.g., '#FF0000'). If empty, the color is derived from `text_color` but is less saturated (gray is mixed in).                                                                                                                                                                                                                                                                                                                                                                                                                     | ✅               |           | `Optional[str]`                                                                                       |
+| `icon_gray_when_off`    | When specifying `icon` and `entity_id`, if the state is `off`, the icon will be converted to grayscale.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | ❌               |           | `bool`                                                                                                |
+| `special_type`          | Special type of button. If no specified, the button is a normal button. If `next-page`, the button will go to the next page. If `previous-page`, the button will go to the previous page. If `turn-off`, the button will turn off the SteamDeck until any button is pressed. If `empty`, the button will be empty. If `go-to-page`, the button will go to the page specified by `special_type_data` (either an `int` or `str` (name of the page)). If `light-control`, the button will control a light, and the `special_type_data` can be a dictionary, see its description.          | ❌               |           | `Optional[Literal['next-page', 'previous-page', 'empty', 'go-to-page', 'turn-off', 'light-control']]` |
+| `special_type_data`     | Data for the special type of button. If `go-to-page`, the data should be an `int` or `str` (name of the page). If `light-control`, the data should optionally be a dictionary. The dictionary can contain the following keys: The `colors` key and a value a list of max (`n_keys_on_streamdeck - 5`) hex colors. The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html) can be used. This requires the `matplotlib` package to be installed. If no list of `colors` or `colormap` is specified, 10 equally spaced colors are used. | ✅               |           | `Optional[Any]`                                                                                       |
 
 <!-- END_OUTPUT -->
 
@@ -296,8 +296,8 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 ```yaml
 - entity_id: cover.garage_door
   service: cover.toggle
-  icon_mdi: &#34;{{ &#39;garage-open&#39; if is_state(&#39;cover.garage_door&#39;, &#39;open&#39;) else &#39;garage-lock&#39; }}&#34;
-  text: &#34;{{ &#39;Open&#39; if is_state(&#39;cover.garage_door&#39;, &#39;open&#39;) else &#39;Close&#39; }}&#34;
+  icon_mdi: "{{ 'garage-open' if is_state('cover.garage_door', 'open') else 'garage-lock' }}"
+  text: "{{ 'Open' if is_state('cover.garage_door', 'open') else 'Close' }}"
 ```
 
 </details>
@@ -308,15 +308,15 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 
 ```yaml
 - entity_id: vacuum.cleaning_robot
-  service: &gt;-
-    {% if is_state(&#39;vacuum.cleaning_robot&#39;, &#39;docked&#39;) %}
+  service: >-
+    {% if is_state('vacuum.cleaning_robot', 'docked') %}
     vacuum.start
     {% else %}
     vacuum.return_to_base
     {% endif %}
   icon_mdi: robot-vacuum
-  text: &gt;-
-    {% if is_state(&#39;vacuum.cleaning_robot&#39;, &#39;docked&#39;) %}
+  text: >-
+    {% if is_state('vacuum.cleaning_robot', 'docked') %}
     Start
     {% else %}
     Stop
@@ -334,20 +334,20 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
   service: media_player.volume_mute
   service_data:
     entity_id: media_player.living_room_speaker
-    is_volume_muted: &gt;-
-      {% if is_state_attr(&#39;media_player.living_room_speaker&#39;, &#39;is_volume_muted&#39;, true) %}
+    is_volume_muted: >-
+      {% if is_state_attr('media_player.living_room_speaker', 'is_volume_muted', true) %}
       false
       {% else %}
       true
       {% endif %}
-  icon_mdi: &gt;-
-    {% if is_state_attr(&#39;media_player.living_room_speaker&#39;, &#39;is_volume_muted&#39;, true) %}
+  icon_mdi: >-
+    {% if is_state_attr('media_player.living_room_speaker', 'is_volume_muted', true) %}
     volume-off
     {% else %}
     volume-high
     {% endif %}
-  text: &gt;-
-    {% if is_state_attr(&#39;media_player.living_room_speaker&#39;, &#39;is_volume_muted&#39;, true) %}
+  text: >-
+    {% if is_state_attr('media_player.living_room_speaker', 'is_volume_muted', true) %}
     Unmute
     {% else %}
     Mute
@@ -365,12 +365,12 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
   service: light.turn_on
   service_data:
     entity_id: light.living_room_lights
-    brightness: &gt;-
-      {% set current_brightness = state_attr(&#39;light.living_room_lights&#39;, &#39;brightness&#39;) %}
+    brightness: >-
+      {% set current_brightness = state_attr('light.living_room_lights', 'brightness') %}
       {% set next_brightness = (current_brightness + 25.5) % 255 %}
       {{ next_brightness | min(255) | int }}
-  text: &gt;-
-    {% set current_brightness = state_attr(&#39;light.living_room_lights&#39;, &#39;brightness&#39;) %}
+  text: >-
+    {% set current_brightness = state_attr('light.living_room_lights', 'brightness') %}
     {% set brightness_pct = (current_brightness / 255) * 100 %}
     {{ brightness_pct | round }}%
 ```
@@ -384,10 +384,10 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 ```yaml
 - entity_id: fan.bedroom_fan
   service: fan.toggle
-  icon_mdi: &#34;{{ &#39;fan&#39; if is_state(&#39;fan.bedroom_fan&#39;, &#39;on&#39;) else &#39;fan-off&#39; }}&#34;
+  icon_mdi: "{{ 'fan' if is_state('fan.bedroom_fan', 'on') else 'fan-off' }}"
   text: |
     Bedroom
-    {{ &#39;On&#39; if is_state(&#39;fan.bedroom_fan&#39;, &#39;on&#39;) else &#39;Off&#39; }}
+    {{ 'On' if is_state('fan.bedroom_fan', 'on') else 'Off' }}
 ```
 
 </details>
@@ -399,10 +399,10 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 ```yaml
 - entity_id: lock.front_door
   service: lock.toggle
-  icon_mdi: &#34;{{ &#39;door-open&#39; if is_state(&#39;lock.front_door&#39;, &#39;unlocked&#39;) else &#39;door-closed&#39; }}&#34;
+  icon_mdi: "{{ 'door-open' if is_state('lock.front_door', 'unlocked') else 'door-closed' }}"
   text: |
     Front Door
-    {{ &#39;Unlocked&#39; if is_state(&#39;lock.front_door&#39;, &#39;unlocked&#39;) else &#39;Locked&#39; }}
+    {{ 'Unlocked' if is_state('lock.front_door', 'unlocked') else 'Locked' }}
   text_size: 10
 ```
 
@@ -414,10 +414,10 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 
 ```yaml
 - entity_id: alarm_control_panel.home_alarm
-  service: &#34;{{ &#39;alarm_control_panel.alarm_disarm&#39; if is_state(&#39;alarm_control_panel.home_alarm&#39;, &#39;armed_away&#39;) else &#39;alarm_control_panel.alarm_arm_away&#39; }}&#34;
-  icon_mdi: &#34;{{ &#39;shield-check&#39; if is_state(&#39;alarm_control_panel.home_alarm&#39;, &#39;armed_away&#39;) else &#39;shield-off&#39; }}&#34;
+  service: "{{ 'alarm_control_panel.alarm_disarm' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'alarm_control_panel.alarm_arm_away' }}"
+  icon_mdi: "{{ 'shield-check' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'shield-off' }}"
   text: |
-    {{ &#39;Disarm&#39; if is_state(&#39;alarm_control_panel.home_alarm&#39;, &#39;armed_away&#39;) else &#39;Arm&#39; }}
+    {{ 'Disarm' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'Arm' }}
     Alarm
 ```
 
@@ -431,11 +431,11 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 - service: input_datetime.set_datetime
   service_data:
     entity_id: input_datetime.alarm_time
-    time: &#34;{{ &#39;07:00:00&#39; if states(&#39;input_datetime.alarm_time&#39;) != &#39;07:00:00&#39; else &#39;08:00:00&#39; }}&#34;
-  icon_mdi: &#34;alarm&#34;
+    time: "{{ '07:00:00' if states('input_datetime.alarm_time') != '07:00:00' else '08:00:00' }}"
+  icon_mdi: "alarm"
   text: |
     Set Alarm
-    {{ &#39;7AM&#39; if states(&#39;input_datetime.alarm_time&#39;) != &#39;07:00:00&#39; else &#39;8AM&#39; }}
+    {{ '7AM' if states('input_datetime.alarm_time') != '07:00:00' else '8AM' }}
 ```
 
 </details>
@@ -447,8 +447,8 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 ```yaml
 - entity_id: media_player.living_room_speaker
   service: media_player.media_play_pause
-  icon_mdi: &#34;{{ &#39;pause&#39; if is_state(&#39;media_player.living_room_speaker&#39;, &#39;playing&#39;) else &#39;play&#39; }}&#34;
-  text: &#34;{{ &#39;Pause&#39; if is_state(&#39;media_player.living_room_speaker&#39;, &#39;playing&#39;) else &#39;Play&#39; }}&#34;
+  icon_mdi: "{{ 'pause' if is_state('media_player.living_room_speaker', 'playing') else 'play' }}"
+  text: "{{ 'Pause' if is_state('media_player.living_room_speaker', 'playing') else 'Play' }}"
 ```
 
 </details>
@@ -475,7 +475,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
   service: light.toggle
   service_data:
     color_name: blue
-  icon_mdi: &#34;{{ &#39;lightbulb-on&#39; if is_state(&#39;light.living_room_light&#39;, &#39;on&#39;) else &#39;lightbulb-off&#39; }}&#34;
+  icon_mdi: "{{ 'lightbulb-on' if is_state('light.living_room_light', 'on') else 'lightbulb-off' }}"
   text: Blue Light
 ```
 
@@ -489,12 +489,12 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 - entity_id: climate.living_room
   service: climate.set_temperature
   service_data:
-    temperature: &#34;{{ 17 if state_attr(&#39;climate.living_room&#39;, &#39;temperature&#39;) &gt;= 22 else 22 }}&#34;
+    temperature: "{{ 17 if state_attr('climate.living_room', 'temperature') >= 22 else 22 }}"
   icon_mdi: thermostat
   text: |
     Set
-    {{ &#39;17°C&#39; if state_attr(&#39;climate.living_room&#39;, &#39;temperature&#39;) &gt;= 22 else &#39;22°C&#39; }}
-    ({{ state_attr(&#39;climate.living_room&#39;, &#39;current_temperature&#39;) }}°C now)
+    {{ '17°C' if state_attr('climate.living_room', 'temperature') >= 22 else '22°C' }}
+    ({{ state_attr('climate.living_room', 'current_temperature') }}°C now)
 ```
 
 </details>
@@ -518,9 +518,9 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 ```yaml
 - entity_id: input_boolean.day_night_mode
   service: input_boolean.toggle
-  icon_mdi: &#34;{{ &#39;weather-night&#39; if is_state(&#39;input_boolean.day_night_mode&#39;, &#39;on&#39;) else &#39;weather-sunny&#39; }}&#34;
+  icon_mdi: "{{ 'weather-night' if is_state('input_boolean.day_night_mode', 'on') else 'weather-sunny' }}"
   text: |
-    {{ &#39;Night&#39; if is_state(&#39;input_boolean.day_night_mode&#39;, &#39;on&#39;) else &#39;Day&#39; }}
+    {{ 'Night' if is_state('input_boolean.day_night_mode', 'on') else 'Day' }}
     Mode
 ```
 
@@ -549,7 +549,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
   service: light.turn_on
   service_data:
     color_name: red
-  icon_mdi: &#34;{{ &#39;lightbulb-group-on&#39; if is_state(&#39;group.living_room_lights&#39;, &#39;on&#39;) else &#39;lightbulb-group-off&#39; }}&#34;
+  icon_mdi: "{{ 'lightbulb-group-on' if is_state('group.living_room_lights', 'on') else 'lightbulb-group-off' }}"
   text: Red Group Lights
 ```
 
@@ -573,9 +573,9 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 ```yaml
 - entity_id: input_boolean.sleep_timer
   service: input_boolean.toggle
-  icon_mdi: &#34;{{ &#39;timer&#39; if is_state(&#39;input_boolean.sleep_timer&#39;, &#39;on&#39;) else &#39;timer-off&#39; }}&#34;
+  icon_mdi: "{{ 'timer' if is_state('input_boolean.sleep_timer', 'on') else 'timer-off' }}"
   text: |
-    {{ &#39;Cancel&#39; if is_state(&#39;input_boolean.sleep_timer&#39;, &#39;on&#39;) else &#39;Set&#39; }}
+    {{ 'Cancel' if is_state('input_boolean.sleep_timer', 'on') else 'Set' }}
     Sleep Timer
 ```
 
@@ -587,7 +587,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 
 ```yaml
 - entity_id: sensor.weather_temperature
-          text: &#39;{{ states(&#34;sensor.weather_temperature&#34;) }}°C&#39;
+          text: '{{ states("sensor.weather_temperature") }}°C'
           text_size: 16
           icon_mdi: weather-cloudy
 ```
@@ -601,9 +601,9 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 ```yaml
 - entity_id: switch.wifi_switch
           service: switch.toggle
-          icon_mdi: &#34;{{ &#39;wifi&#39; if is_state(&#39;switch.wifi_switch&#39;, &#39;on&#39;) else &#39;wifi-off&#39; }}&#34;
+          icon_mdi: "{{ 'wifi' if is_state('switch.wifi_switch', 'on') else 'wifi-off' }}"
           text: |
-            {{ &#39;Disable&#39; if is_state(&#39;switch.wifi_switch&#39;, &#39;on&#39;) else &#39;Enable&#39; }}
+            {{ 'Disable' if is_state('switch.wifi_switch', 'on') else 'Enable' }}
             Wi-Fi
 ```
 
@@ -628,8 +628,8 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 ```yaml
 - entity_id: switch.air_purifier
   service: switch.toggle
-  icon_mdi: &#34;{{ &#39;air-purifier&#39; if is_state(&#39;switch.air_purifier&#39;, &#39;on&#39;) else &#39;air-purifier-off&#39; }}&#34;
-  text: &#34;{{ &#39;Stop&#39; if is_state(&#39;switch.air_purifier&#39;, &#39;on&#39;) else &#39;Start&#39; }} Air Purifier&#34;
+  icon_mdi: "{{ 'air-purifier' if is_state('switch.air_purifier', 'on') else 'air-purifier-off' }}"
+  text: "{{ 'Stop' if is_state('switch.air_purifier', 'on') else 'Start' }} Air Purifier"
 ```
 
 </details>
@@ -653,8 +653,8 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 ```yaml
 - entity_id: light.nightlight
   service: light.toggle
-  icon_mdi: &#34;{{ &#39;lightbulb-on&#39; if is_state(&#39;light.nightlight&#39;, &#39;on&#39;) else &#39;lightbulb-off&#39; }}&#34;
-  text: &#34;{{ &#39;Disable&#39; if is_state(&#39;light.nightlight&#39;, &#39;on&#39;) else &#39;Enable&#39; }} Nightlight&#34;
+  icon_mdi: "{{ 'lightbulb-on' if is_state('light.nightlight', 'on') else 'lightbulb-off' }}"
+  text: "{{ 'Disable' if is_state('light.nightlight', 'on') else 'Enable' }} Nightlight"
 ```
 
 </details>

@@ -708,7 +708,10 @@ def _render_jinja(text: str, complete_state: StateDict) -> str:
     if "{" not in text:
         return text
     try:
-        env = jinja2.Environment(loader=jinja2.BaseLoader(), autoescape=True)
+        env = jinja2.Environment(
+            loader=jinja2.BaseLoader(),
+            autoescape=False,  # noqa: S701
+        )
         env.filters["min"] = _min_filter
         env.filters["max"] = _max_filter
         template = env.from_string(text)

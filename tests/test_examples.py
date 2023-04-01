@@ -932,13 +932,22 @@ toggle_fan = {
             Fan
         """,
     ),
-    "state": [{"fan.bedroom_fan": {"state": "on"}}],
+    "state": [
+        {"fan.bedroom_fan": {"state": "on"}},
+        {"fan.bedroom_fan": {"state": "off"}},
+    ],
     "result": [
         Button(
             entity_id="fan.bedroom_fan",
             service="fan.toggle",
             icon_mdi="fan",
             text="Turn Off\nFan",
+        ),
+        Button(
+            entity_id="fan.bedroom_fan",
+            service="fan.toggle",
+            icon_mdi="fan-off",
+            text="Turn On\nFan",
         ),
     ],
 }

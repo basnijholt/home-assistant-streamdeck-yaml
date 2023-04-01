@@ -154,6 +154,12 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     )
 
     @classmethod
+    def from_yaml(cls: type[Button], yaml_str: str) -> Button:
+        """Set the attributes from a YAML string."""
+        data = yaml.safe_load(yaml_str)
+        return cls(**data[0])
+
+    @classmethod
     def to_markdown_table(cls: type[Button]) -> str:
         """Return a markdown table with the schema."""
         import pandas as pd

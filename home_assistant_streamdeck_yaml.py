@@ -40,6 +40,52 @@ console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
 
 
+# " If `light-control`, the data should optionally be a dictionary."
+# " can be used. This requires the `matplotlib` package to be installed. If no"
+# " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",
+
+
+class SpecialTypeLightControl(BaseModel):
+    """Special type for `light-control`."""
+
+    colors: list[str] | None = None
+    colormap: str | None = None
+
+
+class SpecialTypeGoToPage(BaseModel):
+    """Special type for `go_to_page`."""
+
+    index: int | None
+    name: str | None
+
+    @validator("index")
+    def validate(cls, v: int | None) -> int | None:
+        """Validate index."""
+        if v is not None and v < 0:
+            raise ValueError("index must be >= 0")
+        return v
+
+    @validator("name")
+    def validate(cls, v: str | None) -> str | None:
+        """Validate name."""
+        if v is not None and not v:
+            raise ValueError("name must be non-empty")
+        return v
+
+    @root_validator
+    def check_mutually_exclusive(cls, values: dict) -> dict:
+        index = values.get("index")
+        name = values.get("name")
+
+        if (index is not None) and (name is not None):
+            raise ValueError("index and name must be mutually exclusive")
+
+        if (index is None) and (name is None):
+            raise ValueError("One of index or name must be specified")
+
+        return values
+
+
 class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     """Button configuration."""
 
@@ -140,7 +186,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " If `light-control`, the button will control a light, and the `special_type_data`"
         " can be a dictionary, see its description.",
     )
-    special_type_data: Any | None = Field(
+    special_type_data: SpecialTypeGoToPage | SpecialTypeLightControl | None = Field(
         default=None,
         allow_template=True,
         description="Data for the special type of button."
@@ -299,11 +345,8 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     ) -> Any:
         """Validate the special_type_data."""
         special_type = values["special_type"]
-        if special_type == "go-to-page" and not isinstance(v, (int, str)):
-            msg = (
-                "If special_type is go-to-page, special_type_data must be an int or str"
-            )
-            raise AssertionError(msg)
+        if special_type == "go-to-page":
+            return SpecialTypeGoToPage(**v)
         if (
             special_type in {"next-page", "previous-page", "empty", "turn-off"}
             and v is not None

@@ -411,13 +411,23 @@ set_blue_light = {
           text: Blue Light
         """,
     ),
-    "state": [{"light.living_room_light": {"state": "on"}}],
+    "state": [
+        {"light.living_room_light": {"state": "on"}},
+        {"light.living_room_light": {"state": "off"}},
+    ],
     "result": [
         Button(
             entity_id="light.living_room_light",
             service="light.toggle",
             service_data={"color_name": "blue"},
             icon_mdi="lightbulb-on",
+            text="Blue Light",
+        ),
+        Button(
+            entity_id="light.living_room_light",
+            service="light.toggle",
+            service_data={"color_name": "blue"},
+            icon_mdi="lightbulb-off",
             text="Blue Light",
         ),
     ],
@@ -444,6 +454,11 @@ set_temperature = {
                 "attributes": {"temperature": 22, "current_temperature": 21},
             },
         },
+        {
+            "climate.living_room": {
+                "attributes": {"temperature": 17, "current_temperature": 21},
+            },
+        },
     ],
     "result": [
         Button(
@@ -452,6 +467,13 @@ set_temperature = {
             service_data={"temperature": "17"},
             icon_mdi="thermostat",
             text="Set\n17°C\n(21°C now)",
+        ),
+        Button(
+            entity_id="climate.living_room",
+            service="climate.set_temperature",
+            service_data={"temperature": "22"},
+            icon_mdi="thermostat",
+            text="Set\n22°C\n(21°C now)",
         ),
     ],
 }

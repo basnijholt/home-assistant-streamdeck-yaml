@@ -408,14 +408,14 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>12. 🌟 Control the brightness of a light:</summary>
+<summary>12. 🌟 Control the brightness of a light (+10% on press):</summary>
 
 ```yaml
 - entity_id: light.living_room_light
   service: light.turn_on
   service_data:
-    brightness: 128
-  text: 50% Brightness
+    brightness: "{{ [((state_attr('light.living_room_light', 'brightness') + 25.5) % 255), 255]|min|int }}"
+  text: '{{ (((state_attr("light.living_room_light", "brightness") + 25.5) % 255) / 255 * 100)|min(100)|round }}% Brightness'
 ```
 
 </details>
@@ -425,10 +425,19 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 
 ```yaml
 - entity_id: media_player.living_room_speaker
-  service: media_player.volume_mute
-  service_data:
-    is_volume_muted: true
-  text: Mute
+  service: media_player.toggle_mute
+  icon_mdi: >-
+    {% if is_state_attr('media_player.living_room_speaker', 'is_volume_muted', true) %}
+    volume-off
+    {% else %}
+    volume-high
+    {% endif %}
+  text: >-
+    {% if is_state_attr('media_player.living_room_speaker', 'is_volume_muted', true) %}
+    Unmute
+    {% else %}
+    Mute
+    {% endif %}
 ```
 
 </details>

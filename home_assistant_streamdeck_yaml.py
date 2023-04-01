@@ -604,6 +604,7 @@ def _update_state(
             eid = event_data["entity_id"]
             complete_state[eid] = event_data["new_state"]
 
+            # Handle the state entity (turning on/off display)
             if eid == config.state_entity_id:
                 is_on = complete_state[config.state_entity_id]["state"] == "on"
                 if is_on:

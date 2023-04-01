@@ -395,7 +395,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>11. 🌈 Set a specific color for a light:
+<summary>11. 🌈 Set a specific color for a light:</summary>
 
 ```yaml
 - entity_id: light.living_room_light
@@ -408,7 +408,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>12. 🌟 Control the brightness of a light:
+<summary>12. 🌟 Control the brightness of a light:</summary>
 
 ```yaml
 - entity_id: light.living_room_light
@@ -421,7 +421,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>13. 🔇 Mute/unmute a media player:
+<summary>13. 🔇 Mute/unmute a media player:</summary>
 
 ```yaml
 - entity_id: media_player.living_room_speaker
@@ -434,7 +434,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>14. 🌆 Toggle day/night mode (using an input\_boolean):
+<summary>14. 🌆 Toggle day/night mode (using an input\_boolean):</summary>
 
 ```yaml
 - entity_id: input_boolean.day_night_mode
@@ -445,7 +445,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>15. 📺 Control a TV (e.g., turn on/off or change input source):
+<summary>15. 📺 Control a TV (e.g., turn on/off or change input source):</summary>
 
 ```yaml
 - entity_id: media_player.living_room_tv
@@ -458,7 +458,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>16. 💡 Control a group of lights (e.g., turn on/off or change color):
+<summary>16. 💡 Control a group of lights (e.g., turn on/off or change color):</summary>
 
 ```yaml
 - entity_id: group.living_room_lights
@@ -471,7 +471,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>17. 🔔 Trigger a doorbell or camera announcement:
+<summary>17. 🔔 Trigger a doorbell or camera announcement:</summary>
 
 ```yaml
 - service: script.trigger_doorbell_announcement
@@ -481,7 +481,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>18. 💤 Enable/disable a sleep timer (using an input\_boolean):
+<summary>18. 💤 Enable/disable a sleep timer (using an input\_boolean):</summary>
 
 ```yaml
 - entity_id: input_boolean.sleep_timer
@@ -492,7 +492,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>19. 🌦️ Retrieve weather information and display it on the button:
+<summary>19. 🌦️ Retrieve weather information and display it on the button:</summary>
 
 ```yaml
 - entity_id: sensor.weather_temperature
@@ -504,7 +504,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>20. 📶 Toggle Wi-Fi on/off (using a switch):
+<summary>20. 📶 Toggle Wi-Fi on/off (using a switch):</summary>
 
 ```yaml
 - entity_id: switch.wifi_switch

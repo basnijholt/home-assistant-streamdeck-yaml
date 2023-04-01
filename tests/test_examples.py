@@ -4,7 +4,7 @@ import textwrap
 from typing import Any
 
 import pytest
-from jinja2 import Template
+from jinja2 import Environment
 
 from home_assistant_streamdeck_yaml import Button
 
@@ -533,9 +533,14 @@ def generate_readme_entry() -> None:
 
         ```yaml
         {{ button.yaml.strip() }}
+        ```
+
         </details>
+
         {% endfor %}
         """,
     )
-    template = Template(template_string)
+    env = Environment(autoescape=True)
+    env.globals["enumerate"] = enumerate
+    template = env.from_string(template_string)
     return template.render(buttons=BUTTONS)

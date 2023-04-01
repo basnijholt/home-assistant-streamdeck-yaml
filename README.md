@@ -292,26 +292,45 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>3. ⏰ Set an alarm time for the next day:</summary>
+<summary>3. 🤖 Start or stop the vacuum robot:</summary>
 
 ```yaml
-- service: input_datetime.set_datetime
-  service_data:
-    entity_id: input_datetime.alarm_time
-    time: "07:00:00"
-  icon_mdi: alarm
-  text: Set Alarm 7AM
+- entity_id: vacuum.cleaning_robot
+  service: >-
+    {% if is_state('vacuum.cleaning_robot', 'docked') %}
+    vacuum.start
+    {% else %}
+    vacuum.return_to_base
+    {% endif %}
+  icon_mdi: robot-vacuum
+  text: >-
+    {% if is_state('vacuum.cleaning_robot', 'docked') %}
+    Start
+    {% else %}
+    Stop
+    {% endif %}
 ```
 
 </details>
 
 <details>
-<summary>4. 📲 Trigger a script to send a notification to your mobile device:</summary>
+<summary>4. 🔇 Mute/unmute a media player:</summary>
 
 ```yaml
-- service: script.send_mobile_notification
-  icon_mdi: bell
-  text: Send Notification
+- entity_id: media_player.living_room_speaker
+  service: media_player.toggle_mute
+  icon_mdi: >-
+    {% if is_state_attr('media_player.living_room_speaker', 'is_volume_muted', true) %}
+    volume-off
+    {% else %}
+    volume-high
+    {% endif %}
+  text: >-
+    {% if is_state_attr('media_player.living_room_speaker', 'is_volume_muted', true) %}
+    Unmute
+    {% else %}
+    Mute
+    {% endif %}
 ```
 
 </details>
@@ -367,23 +386,15 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>9. 🤖 Trigger an automation to start a cleaning robot:</summary>
+<summary>9. ⏰ Set an alarm time for the next day:</summary>
 
 ```yaml
-- entity_id: vacuum.cleaning_robot
-  service: >-
-    {% if is_state('vacuum.cleaning_robot', 'docked') %}
-    vacuum.start
-    {% else %}
-    vacuum.return_to_base
-    {% endif %}
-  icon_mdi: robot-vacuum
-  text: >-
-    {% if is_state('vacuum.cleaning_robot', 'docked') %}
-    Start
-    {% else %}
-    Stop
-    {% endif %}
+- service: input_datetime.set_datetime
+  service_data:
+    entity_id: input_datetime.alarm_time
+    time: "07:00:00"
+  icon_mdi: alarm
+  text: Set Alarm 7AM
 ```
 
 </details>
@@ -438,23 +449,12 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>13. 🔇 Mute/unmute a media player:</summary>
+<summary>13. 📲 Trigger a script to send a notification to your mobile device:</summary>
 
 ```yaml
-- entity_id: media_player.living_room_speaker
-  service: media_player.toggle_mute
-  icon_mdi: >-
-    {% if is_state_attr('media_player.living_room_speaker', 'is_volume_muted', true) %}
-    volume-off
-    {% else %}
-    volume-high
-    {% endif %}
-  text: >-
-    {% if is_state_attr('media_player.living_room_speaker', 'is_volume_muted', true) %}
-    Unmute
-    {% else %}
-    Mute
-    {% endif %}
+- service: script.send_mobile_notification
+  icon_mdi: bell
+  text: Send Notification
 ```
 
 </details>

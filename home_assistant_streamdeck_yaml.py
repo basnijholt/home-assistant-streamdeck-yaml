@@ -689,7 +689,7 @@ def _render_jinja(text: str, complete_state: StateDict) -> str:
             state_attr=ft.partial(_state_attr, complete_state=complete_state),
             states=ft.partial(_states, complete_state=complete_state),
             is_state=ft.partial(_is_state, complete_state=complete_state),
-        )
+        ).strip()
     except jinja2.exceptions.TemplateError as err:
         console.print_exception(show_locals=True)
         console.log(f"Error rendering template: {err} with error type {type(err)}")

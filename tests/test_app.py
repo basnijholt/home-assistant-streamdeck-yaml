@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import sys
+import textwrap
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock
@@ -30,6 +31,7 @@ from home_assistant_streamdeck_yaml import (
     _keys,
     _light_page,
     _named_to_hex,
+    _render_jinja,
     _states,
     _to_filename,
     _url_to_filename,
@@ -557,3 +559,60 @@ async def test_button_with_target(
     }
 
     assert called_payload == expected_payload
+
+
+def test_render_jinja() -> None:
+    """Test _render_jinja."""
+    # Test 3
+    template_3 = textwrap.dedent(
+        """
+        {% if is_state('vacuum.cleaning_robot', 'docked') %}
+        vacuum.start
+        {% else %}
+        vacuum.return_to_base
+        {% endif %}
+        """,
+    )
+    state_3_1 = {"vacuum.cleaning_robot": {"state": "docked"}}
+    state_3_2 = {"vacuum.cleaning_robot": {"state": "cleaning"}}
+    assert _render_jinja(template_3, state_3_1) == "vacuum.start"
+    assert _render_jinja(template_3, state_3_2) == "vacuum.return_to_base"
+
+    # Test 4
+    template_4 = textwrap.dedent(
+        """
+        {% if is_state_attr('media_player.living_room_speaker', 'is_volume_muted', true) %}
+        Unmute
+        {% else %}
+        Mute
+        {% endif %}
+        """,
+    )
+    state_4_1 = {
+        "media_player.living_room_speaker": {"attributes": {"is_volume_muted": True}},
+    }
+    state_4_2 = {
+        "media_player.living_room_speaker": {"attributes": {"is_volume_muted": False}},
+    }
+    assert _render_jinja(template_4, state_4_1) == "Unmute"
+    assert _render_jinja(template_4, state_4_2) == "Mute"
+
+    # Test 12
+    template_12 = textwrap.dedent(
+        """
+        {% set current_brightness = state_attr('light.living_room_lights', 'brightness') %}
+        {% set brightness_pct = (current_brightness / 255) * 100 %}
+        {{ brightness_pct | round(0) }}%
+        """,
+    )
+    state_12 = {"light.living_room_lights": {"attributes": {"brightness": 100}}}
+    assert _render_jinja(template_12, state_12) == "39.0%"
+
+    # Test 19
+    template_19 = textwrap.dedent(
+        """
+        {{ states("sensor.weather_temperature") }}°C
+        """,
+    )
+    state_19 = {"sensor.weather_temperature": {"state": "23"}}
+    assert _render_jinja(template_19, state_19) == "23°C"

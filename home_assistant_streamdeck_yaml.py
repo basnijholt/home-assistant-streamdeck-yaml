@@ -9,6 +9,7 @@ import hashlib
 import io
 import json
 import re
+import warnings
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Literal, TypeAlias
@@ -812,6 +813,13 @@ def _download_and_save_mdi(icon_mdi: str) -> Path:
     if filename_svg.exists():
         return filename_svg
     svg_content = _download(url)
+    try:
+        etree.fromstring(svg_content)  # noqa: S320
+    except etree.XMLSyntaxError:
+        msg = (f"Invalid SVG: {url}, `svg_content` starts with: {svg_content[:100]!r}",)
+        console.log(f"[b red]{msg}[/]")
+        raise ValueError(msg) from None
+
     with filename_svg.open("wb") as f:
         f.write(svg_content)
     return filename_svg
@@ -1100,6 +1108,10 @@ def _scale_hex_color(hex_color: str, scale: float) -> str:
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
+class IconWarning(UserWarning):
+    """Warning for when an icon is not found."""
+
+
 @ft.lru_cache(maxsize=128)
 def _convert_svg_to_png(
     *,
@@ -1137,26 +1149,45 @@ def _convert_svg_to_png(
 
     with filename_svg.open() as f:
         svg_content = f.read()
-    # Modify the SVG content to set the fill and background colors
-    svg_tree = etree.fromstring(svg_content)  # noqa: S320
-    fill_color = _scale_hex_color(color, opacity)
-    svg_tree.attrib["fill"] = fill_color
-    svg_tree.attrib["style"] = f"background-color: {background_color}"
-    modified_svg_content = etree.tostring(svg_tree)
 
-    # Convert the modified SVG content to PNG format using cairosvg
-    png_content = cairosvg.svg2png(
-        bytestring=modified_svg_content,
-        background_color=background_color,
-        scale=4,
+    fill_color = _scale_hex_color(color, opacity)
+
+    try:
+        svg_tree = etree.fromstring(svg_content)  # noqa: S320
+        svg_tree.attrib["fill"] = fill_color
+        svg_tree.attrib["style"] = f"background-color: {background_color}"
+        modified_svg_content = etree.tostring(svg_tree)
+    except etree.XMLSyntaxError:
+        msg = (
+            f"XML parsing failed for {filename_svg}. Creating an image with solid"
+            f" fill color. Received `svg_content` starts with {svg_content[:100]}."
+        )
+        warnings.warn(msg, IconWarning, stacklevel=2)
+        console.log(f"[b red]{msg}[/]")
+        modified_svg_content = None
+
+    png_content = (
+        cairosvg.svg2png(
+            bytestring=modified_svg_content,
+            background_color=background_color,
+            scale=4,
+        )
+        if modified_svg_content
+        else None
     )
 
-    # Save the resulting PNG image to a file using Pillow
-    with Image.open(io.BytesIO(png_content)) as image:
-        im = ImageOps.expand(image, border=(margin, margin), fill="black")
-        im = im.resize(size)
-        if filename_png is not None:
-            im.save(filename_png)
+    image = (
+        Image.open(io.BytesIO(png_content))
+        if png_content
+        else Image.new("RGBA", size, fill_color)
+    )
+
+    im = ImageOps.expand(image, border=(margin, margin), fill="black")
+    im = im.resize(size)
+
+    if filename_png is not None:
+        im.save(filename_png)
+
     return im
 
 

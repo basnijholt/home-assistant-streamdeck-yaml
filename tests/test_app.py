@@ -827,18 +827,18 @@ async def test_button_with_target(
         (
             """
             {% if is_state('group.living_room_lights', 'on') %}
-            lightbulb-group-on
+            lightbulb-group
             {% else %}
             lightbulb-group-off
             {% endif %}
             """,
             {"group.living_room_lights": {"state": "on"}},
-            "lightbulb-group-on",
+            "lightbulb-group",
         ),
         (
             """
             {% if is_state('group.living_room_lights', 'on') %}
-            lightbulb-group-on
+            lightbulb-group
             {% else %}
             lightbulb-group-off
             {% endif %}

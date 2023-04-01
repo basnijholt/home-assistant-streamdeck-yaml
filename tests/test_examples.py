@@ -1,12 +1,13 @@
 """Test examples in the README."""
 
 import textwrap
+import warnings
 from typing import Any
 
 import pytest
 from jinja2 import Environment
 
-from home_assistant_streamdeck_yaml import Button
+from home_assistant_streamdeck_yaml import Button, IconWarning
 
 activate_a_scene = {
     "description": "🎭 Activate a scene",
@@ -131,11 +132,13 @@ mute_unmute_media_player = {
     "state": [
         {
             "media_player.living_room_speaker": {
+                "state": "playing",
                 "attributes": {"is_volume_muted": True},
             },
         },
         {
             "media_player.living_room_speaker": {
+                "state": "on",
                 "attributes": {"is_volume_muted": False},
             },
         },
@@ -183,8 +186,18 @@ control_brightness_of_light = {
         """,
     ),
     "state": [
-        {"light.living_room_lights": {"attributes": {"brightness": 100}}},
-        {"light.living_room_lights": {"attributes": {"brightness": 200}}},
+        {
+            "light.living_room_lights": {
+                "state": "on",
+                "attributes": {"brightness": 100},
+            },
+        },
+        {
+            "light.living_room_lights": {
+                "state": "on",
+                "attributes": {"brightness": 200},
+            },
+        },
     ],
     "result": [
         Button(
@@ -451,11 +464,13 @@ set_temperature = {
     "state": [
         {
             "climate.living_room": {
+                "state": "heat",
                 "attributes": {"temperature": 22, "current_temperature": 21},
             },
         },
         {
             "climate.living_room": {
+                "state": "cool",
                 "attributes": {"temperature": 17, "current_temperature": 21},
             },
         },
@@ -573,7 +588,7 @@ control_group_lights = {
           service: light.turn_on
           service_data:
             color_name: red
-          icon_mdi: "{{ 'lightbulb-group-on' if is_state('group.living_room_lights', 'on') else 'lightbulb-group-off' }}"
+          icon_mdi: "{{ 'lightbulb-group' if is_state('group.living_room_lights', 'on') else 'lightbulb-group-off' }}"
           text: Red Group Lights
         """,
     ),
@@ -586,7 +601,7 @@ control_group_lights = {
             entity_id="group.living_room_lights",
             service="light.turn_on",
             service_data={"color_name": "red"},
-            icon_mdi="lightbulb-group-on",
+            icon_mdi="lightbulb-group",
             text="Red Group Lights",
         ),
         Button(
@@ -958,7 +973,7 @@ toggle_smart_plug = {
         """
         - entity_id: switch.smart_plug
           service: switch.toggle
-          icon_mdi: "{{ 'power-socket' if is_state('switch.smart_plug', 'on') else 'power-socket-off' }}"
+          icon_mdi: "{{ 'power-plug' if is_state('switch.smart_plug', 'on') else 'power-plug-off' }}"
           text: |
             {{ 'Turn Off' if is_state('switch.smart_plug', 'on') else 'Turn On' }}
             Smart Plug
@@ -972,13 +987,13 @@ toggle_smart_plug = {
         Button(
             entity_id="switch.smart_plug",
             service="switch.toggle",
-            icon_mdi="power-socket",
+            icon_mdi="power-plug",
             text="Turn Off\nSmart Plug",
         ),
         Button(
             entity_id="switch.smart_plug",
             service="switch.toggle",
-            icon_mdi="power-socket-off",
+            icon_mdi="power-plug-off",
             text="Turn On\nSmart Plug",
         ),
     ],
@@ -1104,6 +1119,11 @@ def test_button(button_dct: dict[str, Any]) -> None:
     for i, (state, result) in enumerate(
         zip(button_dct["state"], button_dct["result"], strict=True),
     ):
+        # Test rendering the icon
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", IconWarning)
+            icon = button.render_icon(state)
+        assert icon is not None
         button_template = button.rendered_template_button(state)  # type: ignore[arg-type]
         actual = button_template.dict()
         expected = result.dict()

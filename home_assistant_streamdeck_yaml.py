@@ -1141,7 +1141,7 @@ def _download_spotify_image(
     id_: str,
     filename: Path | None = None,
     size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
-) -> Image.Image | None:
+) -> Image.Image:
     """Download the Spotify image for the given ID.
 
     Examples of ids are:
@@ -1163,7 +1163,7 @@ def _download_image(
     url: str,
     filename: Path | None = None,
     size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
-) -> Image.Image | None:
+) -> Image.Image:
     """Download an image for a given url."""
     if filename is not None and filename.exists():
         return Image.open(filename)
@@ -1171,10 +1171,9 @@ def _download_image(
     image = Image.open(io.BytesIO(image_content))
     if image.mode != "RGB":
         image = image.convert("RGB")
-    image = image.resize(size)
     if filename is not None:
         image.save(filename)
-        return None
+    image = image.resize(size)
     return image
 
 

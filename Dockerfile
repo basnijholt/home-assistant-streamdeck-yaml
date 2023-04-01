@@ -7,8 +7,6 @@ RUN apk update && apk add --no-cache \
     libusb-dev \
     hidapi-dev \
     libffi-dev \
-    # Needed for git clone
-    git \
     # Needed for cairosvg
     cairo-dev \
     # Needed for lxml

@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - "main"
-  # Test the image on PR's
+  # Test the image on PRs
   pull_request:
     branches:
       - '*'    

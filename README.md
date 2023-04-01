@@ -369,11 +369,20 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 <summary>9. 🤖 Trigger an automation to start a cleaning robot:</summary>
 
 ```yaml
-- service: automation.trigger
-  service_data:
-    entity_id: automation.start_cleaning_robot
+- entity_id: vacuum.cleaning_robot
+  service: >-
+    {% if is_state('vacuum.cleaning_robot', 'docked') %}
+    vacuum.start
+    {% else %}
+    vacuum.return_to_base
+    {% endif %}
   icon_mdi: robot-vacuum
-  text: Start Cleaning
+  text: >-
+    {% if is_state('vacuum.cleaning_robot', 'docked') %}
+    Start
+    {% else %}
+    Stop
+    {% endif %}
 ```
 
 </details>

@@ -269,7 +269,7 @@ lock_unlock_door = {
             entity_id="lock.front_door",
             service="lock.toggle",
             icon_mdi="door-closed",
-            text="Front Door\\Locked",
+            text="Front Door\nLocked",
             text_size=10,
         ),
     ],

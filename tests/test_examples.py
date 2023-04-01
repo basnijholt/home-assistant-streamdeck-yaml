@@ -570,8 +570,9 @@ control_smart_fireplace = {
         - entity_id: switch.smart_fireplace
           service: switch.toggle
           icon_mdi: "{{ 'fire' if is_state('switch.smart_fireplace', 'on') else 'fire-off' }}"
-          text: "{{ 'Turn Off' if is_state('switch.smart_fireplace', 'on') else
-          'Turn On' }} Fireplace"
+          text: |
+            {{ 'Turn Off' if is_state('switch.smart_fireplace', 'on') else 'Turn On' }}
+            Fireplace
         """,
     ),
     "state": {"switch.smart_fireplace": {"state": "on"}},
@@ -579,7 +580,7 @@ control_smart_fireplace = {
         entity_id="switch.smart_fireplace",
         service="switch.toggle",
         icon_mdi="fire",
-        text="Turn Off Fireplace",
+        text="Turn Off\nFireplace",
     ),
 }
 

@@ -615,6 +615,17 @@ async def test_button_with_target(
         # Test 4: Mute/unmute a media player
         (
             """
+        {% if is_state_attr('media_player.kef_ls50', 'is_volume_muted', true) %}
+        false
+        {% else %}
+        true
+        {% endif %}
+        """,
+            {"media_player.kef_ls50": {"attributes": {"is_volume_muted": True}}},
+            "false",
+        ),
+        (
+            """
             {% if is_state_attr('media_player.living_room_speaker', 'is_volume_muted', true) %}
             volume-off
             {% else %}

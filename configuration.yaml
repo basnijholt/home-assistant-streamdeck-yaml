@@ -280,6 +280,14 @@ pages:
           {{ brightness_pct | round }}%
       - entity_id: media_player.kef_ls50
         service: media_player.volume_mute
+        service_data:
+          entity_id: media_player.kef_ls50
+          is_volume_muted: >-
+            {% if is_state_attr('media_player.kef_ls50', 'is_volume_muted', true) %}
+            false
+            {% else %}
+            true
+            {% endif %}
         icon_mdi: >-
           {% if is_state_attr('media_player.kef_ls50', 'is_volume_muted', true) %}
           volume-off

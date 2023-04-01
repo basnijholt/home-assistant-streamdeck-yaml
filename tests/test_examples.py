@@ -182,7 +182,10 @@ control_brightness_of_light = {
             {{ brightness_pct | round }}%
         """,
     ),
-    "state": [{"light.living_room_lights": {"attributes": {"brightness": 100}}}],
+    "state": [
+        {"light.living_room_lights": {"attributes": {"brightness": 100}}},
+        {"light.living_room_lights": {"attributes": {"brightness": 200}}},
+    ],
     "result": [
         Button(
             entity_id="light.living_room_lights",
@@ -192,6 +195,15 @@ control_brightness_of_light = {
                 "brightness": f"{int((100 + 25.5) % 255)}",
             },
             text="39.0%",
+        ),
+        Button(
+            entity_id="light.living_room_lights",
+            service="light.turn_on",
+            service_data={
+                "entity_id": "light.living_room_lights",
+                "brightness": f"{int((200 + 25.5) % 255)}",
+            },
+            text="78.0%",
         ),
     ],
 }
@@ -208,13 +220,22 @@ toggle_fan = {
             {{ 'On' if is_state('fan.bedroom_fan', 'on') else 'Off' }}
         """,
     ),
-    "state": [{"fan.bedroom_fan": {"state": "on"}}],
+    "state": [
+        {"fan.bedroom_fan": {"state": "on"}},
+        {"fan.bedroom_fan": {"state": "off"}},
+    ],
     "result": [
         Button(
             entity_id="fan.bedroom_fan",
             service="fan.toggle",
             icon_mdi="fan",
             text="Bedroom\nOn",
+        ),
+        Button(
+            entity_id="fan.bedroom_fan",
+            service="fan.toggle",
+            icon_mdi="fan-off",
+            text="Bedroom\nOff",
         ),
     ],
 }
@@ -232,13 +253,23 @@ lock_unlock_door = {
           text_size: 10
         """,
     ),
-    "state": [{"lock.front_door": {"state": "unlocked"}}],
+    "state": [
+        {"lock.front_door": {"state": "unlocked"}},
+        {"lock.front_door": {"state": "locked"}},
+    ],
     "result": [
         Button(
             entity_id="lock.front_door",
             service="lock.toggle",
             icon_mdi="door-open",
             text="Front Door\nUnlocked",
+            text_size=10,
+        ),
+        Button(
+            entity_id="lock.front_door",
+            service="lock.toggle",
+            icon_mdi="door-closed",
+            text="Front Door\\Locked",
             text_size=10,
         ),
     ],
@@ -866,6 +897,14 @@ def test_button(button_dct: dict[str, Any]) -> None:
     button = Button.from_yaml(button_dct["yaml"])  # type: ignore[arg-type]
     for state, result in zip(button_dct["state"], button_dct["result"]):
         button_template = button.rendered_template_button(state)  # type: ignore[arg-type]
+        actual = button_template.dict()
+        expected = result.dict()
+        for key, expected_value in expected.items():
+            actual_value = actual[key]
+            assert (
+                actual_value == expected_value
+            ), f'{button_dct["description"]}, {key=}, {actual_value=}, {expected_value=}'
+
         assert button_template == result, button_dct["description"]
 
 

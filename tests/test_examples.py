@@ -236,7 +236,7 @@ set_alarm_time_for_next_day = {
             "time": "08:00:00",
         },
         icon_mdi="alarm",
-        text="Set Alarm\n08:00",
+        text="Set Alarm\n8AM",
     ),
 }
 

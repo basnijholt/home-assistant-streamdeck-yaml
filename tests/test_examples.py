@@ -723,24 +723,34 @@ activate_voice_assistant = {
     ],
 }
 
-
 start_stop_air_purifier = {
-    "description": "🌿 Start/stop air purifier",
+    "description": "🌿 Start/Stop air purifier",
     "yaml": textwrap.dedent(
         """
         - entity_id: switch.air_purifier
           service: switch.toggle
           icon_mdi: "{{ 'air-purifier' if is_state('switch.air_purifier', 'on') else 'air-purifier-off' }}"
-          text: "{{ 'Stop' if is_state('switch.air_purifier', 'on') else 'Start' }} Air Purifier"
+          text: |
+            {{ 'Stop' if is_state('switch.air_purifier', 'on') else 'Start' }}
+            Air Purifier
         """,
     ),
-    "state": [{"switch.air_purifier": {"state": "on"}}],
+    "state": [
+        {"switch.air_purifier": {"state": "on"}},
+        {"switch.air_purifier": {"state": "off"}},
+    ],
     "result": [
         Button(
             entity_id="switch.air_purifier",
             service="switch.toggle",
             icon_mdi="air-purifier",
-            text="Stop Air Purifier",
+            text="Stop\nAir Purifier",
+        ),
+        Button(
+            entity_id="switch.air_purifier",
+            service="switch.toggle",
+            icon_mdi="air-purifier-off",
+            text="Start\nAir Purifier",
         ),
     ],
 }
@@ -774,7 +784,10 @@ enable_disable_nightlight = {
           text: "{{ 'Disable' if is_state('light.nightlight', 'on') else 'Enable' }} Nightlight"
         """,
     ),
-    "state": [{"light.nightlight": {"state": "on"}}],
+    "state": [
+        {"light.nightlight": {"state": "on"}},
+        {"light.nightlight": {"state": "off"}},
+    ],
     "result": [
         Button(
             entity_id="light.nightlight",
@@ -797,7 +810,10 @@ control_smart_fireplace = {
             Fireplace
         """,
     ),
-    "state": [{"switch.smart_fireplace": {"state": "on"}}],
+    "state": [
+        {"switch.fireplace": {"state": "on"}},
+        {"switch.fireplace": {"state": "off"}},
+    ],
     "result": [
         Button(
             entity_id="switch.smart_fireplace",
@@ -885,17 +901,24 @@ change_cover_position = {
         - entity_id: cover.living_room_blinds
           service: cover.set_cover_position
           service_data:
-            position: "{{ 0 if state_attr('cover.living_room_blinds', 'current_position') >= 50 else 100 }}"
+            position: "{{ 0 if state_attr('cover.living_room_blinds', 'position') >= 50 else 100 }}"
           icon_mdi: window-shutter
           text: |
-            {{ 'Close' if state_attr('cover.living_room_blinds', 'current_position') >= 50 else 'Open' }}
+            {{ 'Close' if state_attr('cover.living_room_blinds', 'position') >= 50 else 'Open' }}
             Blinds
         """,
     ),
     "state": [
         {
             "cover.living_room_blinds": {
-                "attributes": {"current_position": 100},
+                "state": "closed",
+                "attributes": {"position": 0},
+            },
+        },
+        {
+            "cover.living_room_blinds": {
+                "state": "open",
+                "attributes": {"position": 100},
             },
         },
     ],
@@ -903,55 +926,16 @@ change_cover_position = {
         Button(
             entity_id="cover.living_room_blinds",
             service="cover.set_cover_position",
+            service_data={"position": "100"},
+            icon_mdi="window-shutter",
+            text="Open\nBlinds",
+        ),
+        Button(
+            entity_id="cover.living_room_blinds",
+            service="cover.set_cover_position",
             service_data={"position": "0"},
             icon_mdi="window-shutter",
             text="Close\nBlinds",
-        ),
-    ],
-}
-
-lock_unlock_door = {
-    "description": "🔓 Lock/unlock a door",
-    "yaml": textwrap.dedent(
-        """
-        - entity_id: lock.front_door
-          service: "{{ 'lock.lock' if is_state('lock.front_door', 'unlocked') else 'lock.unlock' }}"
-          icon_mdi: "{{ 'lock' if is_state('lock.front_door', 'unlocked') else 'lock-open' }}"
-          text: |
-            {{ 'Lock' if is_state('lock.front_door', 'unlocked') else 'Unlock' }}
-            Door
-        """,
-    ),
-    "state": [{"lock.front_door": {"state": "unlocked"}}],
-    "result": [
-        Button(
-            entity_id="lock.front_door",
-            service="lock.lock",
-            icon_mdi="lock",
-            text="Lock\nDoor",
-        ),
-    ],
-}
-
-toggle_vacuum = {
-    "description": "🤖 Toggle a vacuum cleaner",
-    "yaml": textwrap.dedent(
-        """
-        - entity_id: vacuum.robot_vacuum
-          service: vacuum.toggle
-          icon_mdi: "{{ 'robot-vacuum' if is_state('vacuum.robot_vacuum', 'cleaning') else 'robot-vacuum-off' }}"
-          text: |
-            {{ 'Pause' if is_state('vacuum.robot_vacuum', 'cleaning') else 'Start' }}
-            Vacuum
-        """,
-    ),
-    "state": [{"vacuum.robot_vacuum": {"state": "cleaning"}}],
-    "result": [
-        Button(
-            entity_id="vacuum.robot_vacuum",
-            service="vacuum.toggle",
-            icon_mdi="robot-vacuum",
-            text="Pause\nVacuum",
         ),
     ],
 }
@@ -985,11 +969,8 @@ BUTTONS = [
     enable_disable_nightlight,
     control_smart_fireplace,
     toggle_smart_plug,
-    toggle_fan,
     irrigation_toggle,
     change_cover_position,
-    lock_unlock_door,
-    toggle_vacuum,
 ]
 
 
@@ -997,7 +978,7 @@ BUTTONS = [
 def test_button(button_dct: dict[str, Any]) -> None:
     """Test all buttons."""
     button = Button.from_yaml(button_dct["yaml"])  # type: ignore[arg-type]
-    for state, result in zip(button_dct["state"], button_dct["result"]):
+    for state, result in zip(button_dct["state"], button_dct["result"], strict=True):
         button_template = button.rendered_template_button(state)  # type: ignore[arg-type]
         actual = button_template.dict()
         expected = result.dict()

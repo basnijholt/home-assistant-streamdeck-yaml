@@ -53,7 +53,7 @@ I truly appreciate your support!
       - [:desktop_computer: Windows](#desktop_computer-windows)
   - [:gear: Configuration](#gear-configuration)
     - [:page_facing_up: `configuration.yaml`](#page_facing_up-configurationyaml)
-- [:bulb: More button ideas](#bulb-more-button-ideas)
+- [:bulb: 20 Button Configurations ideas](#bulb-20-button-configurations-ideas)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 

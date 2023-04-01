@@ -36,7 +36,8 @@ WORKDIR /app
 # Install the required dependencies
 RUN pip3 install -e ".[colormap]" --no-cache-dir && \
     # Remove musl-dev and gcc
-    apk del build-deps && rm -rf /var/cache/apk/* && \
+    apk del build-deps && \
+    rm -rf /var/cache/apk/*
 
 # Set the entrypoint to run the application
 ENTRYPOINT ["/bin/sh", "-c", "home-assistant-streamdeck-yaml"]

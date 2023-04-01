@@ -4,6 +4,7 @@ import textwrap
 from typing import Any
 
 import pytest
+from jinja2 import Template
 
 from home_assistant_streamdeck_yaml import Button
 
@@ -489,7 +490,7 @@ toggle_wifi = {
 }
 
 
-buttons = [
+BUTTONS = [
     activate_a_scene,
     toggle_a_cover,
     start_or_stop_vacuum,
@@ -514,9 +515,27 @@ buttons = [
 ]
 
 
-@pytest.mark.parametrize("button_dct", buttons)
+@pytest.mark.parametrize("button_dct", BUTTONS)
 def test_button(button_dct: dict[str, Any]) -> None:
     """Test all buttons."""
     button = Button.from_yaml(button_dct["yaml"])  # type: ignore[arg-type]
     button_template = button.rendered_template_button(button_dct["state"])  # type: ignore[arg-type]
     assert button_template == button_dct["result"], button_dct["description"]
+
+
+def generate_readme_entry() -> None:
+    """Generate the README entries."""
+    template_string = textwrap.dedent(
+        """
+        {% for i, button in enumerate(buttons, 1) %}
+        <details>
+        <summary>{{ i }}. {{ button.description }}:</summary>
+
+        ```yaml
+        {{ button.yaml.strip() }}
+        </details>
+        {% endfor %}
+        """,
+    )
+    template = Template(template_string)
+    return template.render(buttons=BUTTONS)

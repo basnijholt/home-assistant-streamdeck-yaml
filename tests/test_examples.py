@@ -695,9 +695,14 @@ toggle_wifi = {
             icon_mdi="wifi",
             text="Disable\nWi-Fi",
         ),
+        Button(
+            entity_id="switch.wifi_switch",
+            service="switch.toggle",
+            icon_mdi="wifi-off",
+            text="Enable\nWi-Fi",
+        ),
     ],
 }
-
 
 activate_voice_assistant = {
     "description": "🗣️ Activate voice assistant",

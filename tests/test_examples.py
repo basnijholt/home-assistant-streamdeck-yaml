@@ -275,6 +275,7 @@ lock_unlock_door = {
     ],
 }
 
+
 arm_disarm_alarm_system = {
     "description": "⚠️ Arm/disarm an alarm system",
     "yaml": textwrap.dedent(
@@ -287,13 +288,22 @@ arm_disarm_alarm_system = {
             Alarm
         """,
     ),
-    "state": [{"alarm_control_panel.home_alarm": {"state": "armed_away"}}],
+    "state": [
+        {"alarm_control_panel.home_alarm": {"state": "armed_away"}},
+        {"alarm_control_panel.home_alarm": {"state": "disarmed"}},
+    ],
     "result": [
         Button(
             entity_id="alarm_control_panel.home_alarm",
             service="alarm_control_panel.alarm_disarm",
             icon_mdi="shield-check",
             text="Disarm\nAlarm",
+        ),
+        Button(
+            entity_id="alarm_control_panel.home_alarm",
+            service="alarm_control_panel.alarm_arm_away",
+            icon_mdi="shield-off",
+            text="Arm\nAlarm",
         ),
     ],
 }
@@ -325,7 +335,6 @@ set_alarm_time_for_next_day = {
         ),
     ],
 }
-
 
 media_play_pause = {
     "description": "⏯️ Control a media player (play/pause)",
@@ -392,7 +401,6 @@ set_blue_light = {
         ),
     ],
 }
-
 
 set_temperature = {
     "description": "🌡️ Adjust the thermostat between two specific temperatures",
@@ -491,7 +499,6 @@ select_tv_source = {
     ],
 }
 
-
 control_group_lights = {
     "description": "🔦 Control a group of lights (e.g., turn on/off or change color)",
     "yaml": textwrap.dedent(
@@ -504,13 +511,23 @@ control_group_lights = {
           text: Red Group Lights
         """,
     ),
-    "state": [{"group.living_room_lights": {"state": "on"}}],
+    "state": [
+        {"group.living_room_lights": {"state": "on"}},
+        {"group.living_room_lights": {"state": "off"}},
+    ],
     "result": [
         Button(
             entity_id="group.living_room_lights",
             service="light.turn_on",
             service_data={"color_name": "red"},
             icon_mdi="lightbulb-group-on",
+            text="Red Group Lights",
+        ),
+        Button(
+            entity_id="group.living_room_lights",
+            service="light.turn_on",
+            service_data={"color_name": "red"},
+            icon_mdi="lightbulb-group-off",
             text="Red Group Lights",
         ),
     ],
@@ -545,7 +562,10 @@ sleep_timer = {
             Sleep Timer
         """,
     ),
-    "state": [{"input_boolean.sleep_timer": {"state": "on"}}],
+    "state": [
+        {"input_boolean.sleep_timer": {"state": "on"}},
+        {"input_boolean.sleep_timer": {"state": "off"}},
+    ],
     "result": [
         Button(
             entity_id="input_boolean.sleep_timer",
@@ -553,9 +573,14 @@ sleep_timer = {
             icon_mdi="timer",
             text="Cancel\nSleep Timer",
         ),
+        Button(
+            entity_id="input_boolean.sleep_timer",
+            service="input_boolean.toggle",
+            icon_mdi="timer-off",
+            text="Set\nSleep Timer",
+        ),
     ],
 }
-
 
 weather_temperature = {
     "description": "🌡️ Display the current temperature",

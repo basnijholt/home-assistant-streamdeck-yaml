@@ -1,14 +1,12 @@
-FROM python:alpine3.17
+FROM python:3.11-alpine3.17
 
 # Install dependencies
-RUN apk update && apk add --no-cache \
+RUN apk --update --no-cache add \
     # Stream Deck dependencies
     libusb \
     libusb-dev \
     hidapi-dev \
     libffi-dev \
-    # Needed for git clone
-    git \
     # Needed for cairosvg
     cairo-dev \
     # Needed for lxml
@@ -18,31 +16,31 @@ RUN apk update && apk add --no-cache \
     # Openblas for Matplotlib (numpy)
     openblas-dev \
     # Needed for pip install
-    && apk add --virtual build-deps \
+    && apk add --no-cache --virtual build-deps \
     # General
     gcc python3-dev musl-dev \
     # Needed for matplotlib
-    g++ gfortran py-pip build-base wget \
-    && rm -rf /var/cache/apk/*
+    g++ gfortran py-pip build-base wget
 
 # Add udev rule for the Stream Deck
-RUN mkdir -p /etc/udev/rules.d
-RUN echo 'SUBSYSTEMS=="usb", ATTRS{idVendor}=="0fd9", GROUP="users", TAG+="uaccess"' > /etc/udev/rules.d/99-streamdeck.rules
-
-# Clone the repository
-RUN git clone https://github.com/basnijholt/home-assistant-streamdeck-yaml.git /app
+RUN mkdir -p /etc/udev/rules.d && \
+    echo 'SUBSYSTEMS=="usb", ATTRS{idVendor}=="0fd9", GROUP="users", TAG+="uaccess"' > /etc/udev/rules.d/99-streamdeck.rules
 
 # Set the working directory to the repository
 WORKDIR /app
 
+# Copy the dependencies file for pip
+COPY pyproject.toml /app/
+
 # Install the required dependencies
-RUN pip3 install -e ".[colormap]"
+RUN pip3 install -e ".[colormap]" --no-cache-dir && \
+    # Remove musl-dev and gcc
+    apk del build-deps && \
+    rm -rf /var/cache/apk/*
 
-# Remove musl-dev and gcc
-RUN apk del build-deps && rm -rf /var/cache/apk/*
-
-# Purge the pip cache
-RUN pip3 cache purge
+# Copy the rest of the files
+# This is done after the pip install to make sure that the dependencies are cached
+COPY . /app
 
 # Set the entrypoint to run the application
 ENTRYPOINT ["/bin/sh", "-c", "home-assistant-streamdeck-yaml"]

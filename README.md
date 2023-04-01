@@ -79,6 +79,9 @@ docker build -t basnijholt/home-assistant-streamdeck-yaml:latest .
 
 ### :computer: Installation without Docker
 
+<details>
+<summary>Click to expand.</summary>
+
 1. Run `pip install -e .` in the repo folder to install the required dependencies.
 2. Edit the [`.env.example`](.env.example) file and rename it to `.env`.
 3. Setup a [`configuration.yaml` file (see below)](#configuration).
@@ -123,6 +126,8 @@ brew install hidapi cairo libffi
 <summary>Click to expand.</summary>
 
 For **Windows**, see [this](https://python-elgato-streamdeck.readthedocs.io/en/stable/pages/backend_libusb_hidapi.html#windows) page.
+
+</details>
 
 </details>
 

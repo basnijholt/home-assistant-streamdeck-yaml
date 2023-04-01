@@ -583,22 +583,91 @@ sleep_timer = {
 }
 
 weather_temperature = {
-    "description": "🌡️ Display the current temperature",
-    "yaml": (
+    "description": "🌡️ Display current temperature",
+    "yaml": textwrap.dedent(
         """
         - entity_id: sensor.weather_temperature
           text: '{{ states("sensor.weather_temperature") }}°C'
           text_size: 16
           icon_mdi: weather-cloudy
-        """
+        """,
     ),
-    "state": [{"sensor.weather_temperature": {"state": "15"}}],
+    "state": [
+        {"sensor.weather_temperature": {"state": 20}},
+        {"sensor.weather_temperature": {"state": 25}},
+    ],
     "result": [
         Button(
             entity_id="sensor.weather_temperature",
-            text="15°C",
-            text_size=16,
             icon_mdi="weather-cloudy",
+            text="20°C",
+            text_size=16,
+        ),
+        Button(
+            entity_id="sensor.weather_temperature",
+            icon_mdi="weather-cloudy",
+            text="25°C",
+            text_size=16,
+        ),
+    ],
+}
+
+scene_morning = {
+    "description": "🌅 Activate a morning scene",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: scene.morning
+          service: scene.turn_on
+          icon_mdi: "weather-sunset-up"
+          text: Morning Scene
+        """,
+    ),
+    "state": [
+        {"scene.morning": {"state": "on"}},
+        {"scene.morning": {"state": "off"}},
+    ],
+    "result": [
+        Button(
+            entity_id="scene.morning",
+            service="scene.turn_on",
+            icon_mdi="weather-sunset-up",
+            text="Morning Scene",
+        ),
+        Button(
+            entity_id="scene.morning",
+            service="scene.turn_on",
+            icon_mdi="weather-sunset-up",
+            text="Morning Scene",
+        ),
+    ],
+}
+
+scene_night = {
+    "description": "🌃 Activate a night scene",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: scene.night
+          service: scene.turn_on
+          icon_mdi: "weather-night"
+          text: Night Scene
+        """,
+    ),
+    "state": [
+        {"scene.night": {"state": "on"}},
+        {"scene.night": {"state": "off"}},
+    ],
+    "result": [
+        Button(
+            entity_id="scene.night",
+            service="scene.turn_on",
+            icon_mdi="weather-night",
+            text="Night Scene",
+        ),
+        Button(
+            entity_id="scene.night",
+            service="scene.turn_on",
+            icon_mdi="weather-night",
+            text="Night Scene",
         ),
     ],
 }

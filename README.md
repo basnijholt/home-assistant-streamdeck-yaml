@@ -239,3 +239,135 @@ Each button can take the following configuration:
 | `special_type_data`     | Data for the special type of button. If `go-to-page`, the data should be an `int` or `str` (name of the page). If `light-control`, the data should optionally be a dictionary. The dictionary can contain the following keys: The `colors` key and a value a list of max (`n_keys_on_streamdeck - 5`) hex colors. The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html) can be used. This requires the `matplotlib` package to be installed. If no list of `colors` or `colormap` is specified, 10 equally spaced colors are used. | ✅                |           | `Optional[Any]`                                                                                       |
 
 <!-- END_OUTPUT -->
+
+
+# More button ideas
+
+Here are 10 more interesting uses for the Stream Deck with Home Assistant:
+
+<details>
+<summary>1.  Activate a scene:</summary>
+
+```yaml
+- service: scene.turn_on
+  service_data:
+    entity_id: scene.movie_night
+  icon_mdi: movie
+  text: Movie Night
+```
+
+</details>
+
+<details>
+<summary>2.  Toggle a cover (e.g., blinds or garage door):</summary>
+
+```yaml
+- entity_id: cover.garage_door
+  service: cover.toggle
+  icon_mdi: garage
+  text: Garage Door
+```
+
+</details>
+
+<details>
+<summary>3.  Set an alarm time for the next day:</summary>
+
+```yaml
+- service: input_datetime.set_datetime
+  service_data:
+    entity_id: input_datetime.alarm_time
+    time: "07:00:00"
+  icon_mdi: alarm
+  text: Set Alarm 7AM
+```
+
+</details>
+
+<details>
+<summary>4.  Trigger a script to send a notification to your mobile device:</summary>
+
+```yaml
+- service: script.send_mobile_notification
+  icon_mdi: bell
+  text: Send Notification
+```
+
+</details>
+
+<details>
+<summary>5.  Adjust the thermostat to a specific temperature:</summary>
+
+```yaml
+- entity_id: climate.living_room
+  service: climate.set_temperature
+  service_data:
+    temperature: 22
+  icon_mdi: thermostat
+  text: Set Thermostat 22°C
+```
+
+</details>
+
+<details>
+<summary>6.  Toggle a fan:</summary>
+
+```yaml
+- entity_id: fan.bedroom_fan
+  service: fan.toggle
+  icon_mdi: fan
+  text: Bedroom Fan
+```
+
+</details>
+
+<details>
+<summary>7.  Lock/unlock a door:</summary>
+
+```yaml
+- entity_id: lock.front_door
+  service: lock.toggle
+  icon_mdi: door
+  text: Front Door
+```
+
+</details>
+
+<details>
+<summary>8.  Arm/disarm an alarm system:</summary>
+
+```yaml
+- entity_id: alarm_control_panel.home_alarm
+  service: alarm_control_panel.alarm_arm_away
+  icon_mdi: shield-check
+  text: Arm Home Alarm
+```
+
+</details>
+
+<details>
+<summary>9.  Trigger an automation to start a cleaning robot:</summary>
+
+```yaml
+- service: automation.trigger
+  service_data:
+    entity_id: automation.start_cleaning_robot
+  icon_mdi: robot-vacuum
+  text: Start Cleaning
+```
+
+</details>
+
+<details>
+<summary>10.  Control a media player (e.g., pause/play or skip tracks):</summary>
+
+```yaml
+- entity_id: media_player.living_room_speaker
+  service: media_player.media_play_pause
+  icon_mdi: play-pause
+  text: Play/Pause
+- entity_id: media_player.living_room_speaker
+  service: media_player.media_next_track
+  icon_mdi: skip-next
+  text: Next Track
+```

@@ -684,7 +684,10 @@ toggle_wifi = {
             Wi-Fi
         """
     ),
-    "state": [{"switch.wifi_switch": {"state": "on"}}],
+    "state": [
+        {"switch.wifi_switch": {"state": "on"}},
+        {"switch.wifi_switch": {"state": "off"}},
+    ],
     "result": [
         Button(
             entity_id="switch.wifi_switch",

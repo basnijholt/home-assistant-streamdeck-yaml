@@ -1167,6 +1167,8 @@ def _download_image(
         return Image.open(filename)
     image_content = _download(url)
     image = Image.open(io.BytesIO(image_content))
+    if image.mode != "RGB":
+        image = image.convert("RGB")
     if filename is not None:
         image.save(filename)
         return None

@@ -226,7 +226,7 @@ pages:
       - entity_id: media_player.kef_ls50
         service: media_player.volume_set
         service_data:
-          volume_level: '{{ max(state_attr("media_player.kef_ls50", "volume_level") - 0.05, 0) }}'
+          volume_level: '{{ (state_attr("media_player.kef_ls50", "volume_level") - 0.05) | max(0) }}'
           entity_id: media_player.kef_ls50
         text: '{{ (100 * state_attr("media_player.kef_ls50", "volume_level")) | int }}%'
         text_size: 16
@@ -285,8 +285,8 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 ```yaml
 - entity_id: cover.garage_door
   service: cover.toggle
-  icon_mdi: garage
-  text: Garage Door
+  icon_mdi: "{{ 'garage-open' if is_state('cover.garage_door', 'open') else 'garage-lock' }}"
+  text: "{{ 'Open' if is_state('cover.garage_door', 'open') else 'Close' }}"
 ```
 
 </details>
@@ -363,8 +363,8 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 ```yaml
 - entity_id: fan.bedroom_fan
   service: fan.toggle
-  icon_mdi: fan
-  text: Bedroom Fan
+  icon_mdi: "{{ 'fan' if is_state('fan.bedroom_fan', 'on') else 'fan-off' }}"
+  text: "Bedroom\n{{ 'On' if is_state('fan.bedroom_fan', 'on') else 'Off' }}"
 ```
 
 </details>
@@ -375,8 +375,9 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 ```yaml
 - entity_id: lock.front_door
   service: lock.toggle
-  icon_mdi: door
-  text: Front Door
+  icon_mdi: "{{ 'door-open' if is_state('lock.front_door', 'unlocked') else 'door-closed' }}"
+  text: "Front Door\n{{ 'Unlocked' if is_state('lock.front_door', 'unlocked') elFront Door\nse 'Locked' }}"
+  text_size: 10
 ```
 
 </details>
@@ -386,9 +387,11 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 
 ```yaml
 - entity_id: alarm_control_panel.home_alarm
-  service: alarm_control_panel.alarm_arm_away
-  icon_mdi: shield-check
-  text: Arm Home Alarm
+  service: "{{ 'alarm_control_panel.alarm_disarm' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'alarm_control_panel.alarm_arm_away' }}"
+  icon_mdi: "{{ 'shield-check' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'shield-off' }}"
+  text: |
+    {{ 'Disarm' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'Arm' }}
+    Alarm
 ```
 
 </details>
@@ -400,9 +403,11 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 - service: input_datetime.set_datetime
   service_data:
     entity_id: input_datetime.alarm_time
-    time: "07:00:00"
+    time: "{{ '07:00:00' if states('input_datetime.alarm_time') != '07:00:00' else '08:00:00' }}"
   icon_mdi: alarm
-  text: Set Alarm 7AM
+  text: |
+    Set Alarm
+    {{ '7AM' if states('input_datetime.alarm_time') != '07:00:00' else '8AM' }}
 ```
 
 </details>
@@ -413,8 +418,9 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 ```yaml
 - entity_id: media_player.living_room_speaker
   service: media_player.media_play_pause
-  icon_mdi: play-pause
-  text: Play/Pause
+  icon_mdi: "{{ 'pause' if is_state('media_player.living_room_speaker', 'playing') else 'play' }}"
+  text: "{{ 'Pause' if is_state('media_player.living_room_speaker', 'playing') else 'Play' }}"
+
 - entity_id: media_player.living_room_speaker
   service: media_player.media_next_track
   icon_mdi: skip-next
@@ -428,9 +434,10 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 
 ```yaml
 - entity_id: light.living_room_light
-  service: light.turn_on
+  service: light.toggle
   service_data:
     color_name: blue
+  icon_mdi: "{{ 'lightbulb-on' if is_state('light.living_room_light', 'on') else 'lightbulb-off' }}"
   text: Blue Light
 ```
 
@@ -465,7 +472,10 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 ```yaml
 - entity_id: input_boolean.day_night_mode
   service: input_boolean.toggle
-  text: Day/Night Mode
+  icon_mdi: "{{ 'weather-night' if is_state('input_boolean.day_night_mode', 'on') else 'weather-sunny' }}"
+  text: |
+    {{ 'Night' if is_state('input_boolean.day_night_mode', 'on') else 'Day' }}
+    Mode
 ```
 
 </details>
@@ -491,6 +501,7 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
   service: light.turn_on
   service_data:
     color_name: red
+  icon_mdi: "{{ 'lightbulb-group-on' if is_state('group.living_room_lights', 'on') else 'lightbulb-group-off' }}"
   text: Red Group Lights
 ```
 
@@ -512,7 +523,10 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 ```yaml
 - entity_id: input_boolean.sleep_timer
   service: input_boolean.toggle
-  text: Sleep Timer
+  icon_mdi: "{{ 'timer' if is_state('input_boolean.sleep_timer', 'on') else 'timer-off' }}"
+  text: |
+    {{ 'Cancel' if is_state('input_boolean.sleep_timer', 'on') else 'Set' }}
+    Sleep Timer
 ```
 
 </details>
@@ -535,7 +549,10 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
 ```yaml
 - entity_id: switch.wifi_switch
   service: switch.toggle
-  text: Wi-Fi
+  icon_mdi: "{{ 'wifi' if is_state('switch.wifi_switch', 'on') else 'wifi-off' }}"
+  text: |
+    {{ 'Disable' if is_state('switch.wifi_switch', 'on') else 'Enable' }}
+    Wi-Fi
 ```
 
 </details>

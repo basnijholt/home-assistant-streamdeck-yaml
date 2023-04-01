@@ -40,13 +40,22 @@ toggle_a_cover = {
           text: "{{ 'Open' if is_state('cover.garage_door', 'open') else 'Close' }}"
         """,
     ),
-    "state": [{"cover.garage_door": {"state": "open"}}],
+    "state": [
+        {"cover.garage_door": {"state": "open"}},
+        {"cover.garage_door": {"state": "closed"}},
+    ],
     "result": [
         Button(
             entity_id="cover.garage_door",
             service="cover.toggle",
             icon_mdi="garage-open",
             text="Open",
+        ),
+        Button(
+            entity_id="cover.garage_door",
+            service="cover.toggle",
+            icon_mdi="garage-lock",
+            text="Close",
         ),
     ],
 }
@@ -71,13 +80,22 @@ start_or_stop_vacuum = {
             {% endif %}
         """,
     ),
-    "state": [{"vacuum.cleaning_robot": {"state": "docked"}}],
+    "state": [
+        {"vacuum.cleaning_robot": {"state": "docked"}},
+        {"vacuum.cleaning_robot": {"state": "cleaning"}},
+    ],
     "result": [
         Button(
             entity_id="vacuum.cleaning_robot",
             service="vacuum.start",
             icon_mdi="robot-vacuum",
             text="Start",
+        ),
+        Button(
+            entity_id="vacuum.cleaning_robot",
+            service="vacuum.return_to_base",
+            icon_mdi="robot-vacuum",
+            text="Stop",
         ),
     ],
 }
@@ -116,6 +134,11 @@ mute_unmute_media_player = {
                 "attributes": {"is_volume_muted": True},
             },
         },
+        {
+            "media_player.living_room_speaker": {
+                "attributes": {"is_volume_muted": False},
+            },
+        },
     ],
     "result": [
         Button(
@@ -127,6 +150,16 @@ mute_unmute_media_player = {
             },
             icon_mdi="volume-off",
             text="Unmute",
+        ),
+        Button(
+            entity_id="media_player.living_room_speaker",
+            service="media_player.volume_mute",
+            service_data={
+                "entity_id": "media_player.living_room_speaker",
+                "is_volume_muted": "true",
+            },
+            icon_mdi="volume-high",
+            text="Mute",
         ),
     ],
 }

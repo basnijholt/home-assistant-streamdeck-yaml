@@ -458,6 +458,8 @@ Here are 20 interesting uses for the Stream Deck with Home Assistant:
     ({{ state_attr('climate.living_room', 'current_temperature') }}°C now)
 ```
 
+</details>
+
 <details>
 <summary>13. 📲 Trigger a script to send a notification to your mobile device:</summary>
 

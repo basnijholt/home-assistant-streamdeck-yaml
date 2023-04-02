@@ -300,3 +300,5 @@ pages:
           {% else %}
           Mute
           {% endif %}
+      - entity_id: media_player.kef_ls50
+        icon_mdi: "does-not-exist"

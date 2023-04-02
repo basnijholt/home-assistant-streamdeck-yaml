@@ -20,6 +20,7 @@ from home_assistant_streamdeck_yaml import (
     DEFAULT_CONFIG,
     Button,
     Config,
+    IconWarning,
     Page,
     _download_and_save_mdi,
     _download_spotify_image,
@@ -1017,3 +1018,21 @@ def test_render_jinja2_from_my_config_and_example_config() -> None:
         """,
     )
     assert int(_render_jinja(template_str, {})) == 10  # noqa: PLR2004
+
+
+def test_icon_failed_icon() -> None:
+    """Test icon function with failed icon."""
+    button = Button(icon_mdi="non-existing-icon-yolo")
+
+    # Test that ValueError is raised when rendering the icon
+    with pytest.raises(ValueError, match="404"):
+        button.render_icon({})
+
+    # Test that IconWarning is issued when trying to render the icon
+    with pytest.warns(IconWarning):
+        button.try_render_icon({})
+
+    icon = button.try_render_icon({}, size=(100, 100))
+    assert icon is not None
+    assert isinstance(icon, Image.Image)
+    assert icon.size == (100, 100)

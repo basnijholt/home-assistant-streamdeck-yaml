@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 SCRIPT_DIR = Path(__file__).parent
 ASSETS_PATH = SCRIPT_DIR / "assets"
 DEFAULT_CONFIG = SCRIPT_DIR / "configuration.yaml"
+DEFAULT_FONT: str = "Roboto-Regular.ttf"
 DEFAULT_MDI_ICONS = {"light": "lightbulb", "switch": "power-socket-eu"}
 ICON_PIXELS = 72
 _ID_COUNTER = 0
@@ -215,6 +216,35 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 dct[key] = _render_jinja(val, complete_state)  # type: ignore[assignment]
         return Button(**dct)
 
+    def try_render_icon(
+        self,
+        complete_state: StateDict,
+        *,
+        key_pressed: bool = False,
+        size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
+        icon_mdi_margin: int = 0,
+        font_filename: str = DEFAULT_FONT,
+        font_size: int = 12,
+    ) -> Image.Image:
+        """Try to render the icon."""
+        try:
+            return self.render_icon(
+                complete_state,
+                key_pressed=key_pressed,
+                size=size,
+                icon_mdi_margin=icon_mdi_margin,
+                font_filename=font_filename,
+                font_size=font_size,
+            )
+        except Exception as exc:  # noqa: BLE001
+            console.print_exception()
+            warnings.warn(
+                f"Failed to render icon for {self}: {exc}",
+                IconWarning,
+                stacklevel=2,
+            )
+            return _generate_failed_icon(size)
+
     def render_icon(
         self,
         complete_state: StateDict,
@@ -222,7 +252,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         key_pressed: bool = False,
         size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
         icon_mdi_margin: int = 0,
-        font_filename: str = "Roboto-Regular.ttf",
+        font_filename: str = DEFAULT_FONT,
         font_size: int = 12,
     ) -> Image.Image:
         """Render the icon."""
@@ -882,6 +912,25 @@ def _add_text(
     )
 
 
+def _generate_failed_icon(
+    size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
+) -> Image.Image:
+    """Generate a red icon with 'rendering failed' text."""
+    background_color = "red"
+    text_color = "white"
+    font_filename = DEFAULT_FONT
+    font_size = int(min(size) * 0.15)  # Adjust font size based on the icon size
+    icon = Image.new("RGB", size, background_color)
+    _add_text(
+        image=icon,
+        font_filename=font_filename,
+        font_size=font_size,
+        text="Rendering\nfailed",
+        text_color=text_color,
+    )
+    return icon
+
+
 def update_key_image(
     deck: StreamDeck,
     *,
@@ -896,10 +945,11 @@ def update_key_image(
         return
     if button.special_type == "empty":
         return
-    image = button.render_icon(
+    size = deck.key_image_format()["size"]
+    image = button.try_render_icon(
         complete_state=complete_state,
         key_pressed=key_pressed,
-        size=deck.key_image_format()["size"],
+        size=size,
     )
     assert image is not None
     image = PILHelper.to_native_format(deck, image)

@@ -27,7 +27,7 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: basnijholt
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build and push
         uses: docker/build-push-action@v4
@@ -35,7 +35,14 @@ jobs:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
           platforms: ${{ matrix.platform }}
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/home-assistant-streamdeck-yaml:${{ matrix.platform | replace('/', '-') }}
+          tags: basnijholt/home-assistant-streamdeck-yaml:${{ matrix.platform }}
+      - name: Replace slashes in tag
+        run: |
+          TAG=basnijholt/home-assistant-streamdeck-yaml:${{ matrix.platform }}
+          NEW_TAG=$(echo $TAG | sed 's/\//-/g')
+          docker tag $TAG $NEW_TAG
+          docker push $NEW_TAG
+
   manifest:
     needs: docker
     runs-on: ubuntu-latest
@@ -45,12 +52,13 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: basnijholt
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Create and push Docker manifest
+      - name: Create and push manifest
         run: |
-          docker manifest create ${{ secrets.DOCKERHUB_USERNAME }}/home-assistant-streamdeck-yaml:latest \
-            ${{ secrets.DOCKERHUB_USERNAME }}/home-assistant-streamdeck-yaml:linux-amd64 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/home-assistant-streamdeck-yaml:linux-arm64 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/home-assistant-streamdeck-yaml:linux-arm-v7
-          docker manifest push ${{ secrets.DOCKERHUB_USERNAME }}/home-assistant-streamdeck-yaml:latest
+          PLATFORMS="linux-amd64,linux-arm64,linux-arm-v7"
+          docker manifest create basnijholt/home-assistant-streamdeck-yaml:latest \
+            basnijholt/home-assistant-streamdeck-yaml:linux-amd64 \
+            basnijholt/home-assistant-streamdeck-yaml:linux-arm64 \
+            basnijholt/home-assistant-streamdeck-yaml:linux-arm-v7
+          docker manifest push basnijholt/home-assistant-streamdeck-yaml:latest

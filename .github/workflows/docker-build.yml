@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "main"
+  # Test the image on PRs
   pull_request:
     branches:
       - '*'
@@ -11,15 +12,7 @@ on:
 jobs:
   docker:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        platform:
-          - linux/amd64
-          - linux/arm64
-          - linux/arm/v7
     steps:
-      - name: Check out the code
-        uses: actions/checkout@v2
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       - name: Set up Docker Buildx
@@ -29,36 +22,9 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Replace slashes in tag
-        run: |
-          TAG=${{ matrix.platform }}
-          # Replace slashes with dashes in the TAG variable
-          NEW_TAG=$(echo $TAG | sed 's#/#-#g')
-          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
-          context: .
           push: ${{ github.event_name != 'pull_request' }}
-          platforms: ${{ matrix.platform }}
-          tags: basnijholt/home-assistant-streamdeck-yaml:${{ env.NEW_TAG }}
-
-  manifest:
-    needs: docker
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out the code
-        uses: actions/checkout@v2
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: basnijholt
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Create and push manifest
-        run: |
-          PLATFORMS="linux-amd64,linux-arm64,linux-arm-v7"
-          docker manifest create basnijholt/home-assistant-streamdeck-yaml:latest \
-            --amend basnijholt/home-assistant-streamdeck-yaml:linux-amd64 \
-            --amend basnijholt/home-assistant-streamdeck-yaml:linux-arm64 \
-            --amend basnijholt/home-assistant-streamdeck-yaml:linux-arm-v7
-          docker manifest push basnijholt/home-assistant-streamdeck-yaml:latest
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/home-assistant-streamdeck-yaml:latest

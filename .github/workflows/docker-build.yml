@@ -58,7 +58,7 @@ jobs:
         run: |
           PLATFORMS="linux-amd64,linux-arm64,linux-arm-v7"
           docker manifest create basnijholt/home-assistant-streamdeck-yaml:latest \
-            basnijholt/home-assistant-streamdeck-yaml:linux-amd64 \
-            basnijholt/home-assistant-streamdeck-yaml:linux-arm64 \
-            basnijholt/home-assistant-streamdeck-yaml:linux-arm-v7
+            --amend basnijholt/home-assistant-streamdeck-yaml:linux-amd64 \
+            --amend basnijholt/home-assistant-streamdeck-yaml:linux-arm64 \
+            --amend basnijholt/home-assistant-streamdeck-yaml:linux-arm-v7
           docker manifest push basnijholt/home-assistant-streamdeck-yaml:latest

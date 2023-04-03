@@ -32,7 +32,8 @@ jobs:
       - name: Replace slashes in tag
         run: |
           TAG=${{ matrix.platform }}
-          NEW_TAG=$(echo $TAG | sed 's/\//-/g')
+          # Replace slashes with dashes in the TAG variable
+          NEW_TAG=$(echo $TAG | sed 's#/#-#g')
           echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
       - name: Build and push
         uses: docker/build-push-action@v4

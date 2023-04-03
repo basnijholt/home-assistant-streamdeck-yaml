@@ -12,10 +12,10 @@ With this Python script, you can control your Home Assistant instance via a Stre
 
 - ✅ Easy to use
 - 🛠️ Highly customizable
-- 🏠 Runs from same machine as Home Assistant
 - 🧩 [Home Assistant Add-on support](#house_with_garden-installation-as-home-assistant-add-on)
 - 🐧 Supports Linux, MacOS, and Windows
 - 📁 YAML configuration
+- 🏠 Runs from same machine as Home Assistant
 - 🚀 Template support for advanced customization
 - 💤 Automatically sync state of `entity_id` to turn display on/off
 
@@ -268,7 +268,7 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 
 <!-- START_CODE -->
 <!-- import os, sys -->
-<!-- sys.path.append(os.path.join(os.path.dirname(__file__), '..')) -->
+<!-- sys.path.append(os.path.abspath(".")) -->
 <!-- from tests.test_examples import generate_readme_entry -->
 <!-- print(generate_readme_entry()) -->
 <!-- END_CODE -->

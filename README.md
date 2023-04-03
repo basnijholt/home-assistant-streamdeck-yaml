@@ -12,10 +12,10 @@ With this Python script, you can control your Home Assistant instance via a Stre
 
 - ✅ Easy to use
 - 🛠️ Highly customizable
-- 🏠 Runs from same machine as Home Assistant
 - 🧩 [Home Assistant Add-on support](#house_with_garden-installation-as-home-assistant-add-on)
 - 🐧 Supports Linux, MacOS, and Windows
 - 📁 YAML configuration
+- 🏠 Runs from same machine as Home Assistant
 - 🚀 Template support for advanced customization
 - 💤 Automatically sync state of `entity_id` to turn display on/off
 

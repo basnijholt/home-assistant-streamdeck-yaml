@@ -12,7 +12,7 @@ With this Python script, you can control your Home Assistant instance via a Stre
 
 - ✅ Easy to use
 - 🛠️ Highly customizable
-- 🧩 [Home Assistant Add-on support](#house_with_garden-installation-as-home-assistant-add-on)
+- 🧩 [Home Assistant Add-on support](https://github.com/basnijholt/home-assistant-streamdeck-yaml-addon)
 - 🐧 Supports Linux, MacOS, and Windows
 - 📁 YAML configuration
 - 🏠 Runs from same machine as Home Assistant

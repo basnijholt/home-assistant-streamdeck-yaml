@@ -268,7 +268,7 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 
 <!-- START_CODE -->
 <!-- import os, sys -->
-<!-- sys.path.append(os.path.join(os.path.dirname(__file__), '..')) -->
+<!-- sys.path.append(os.path.abspath(".")) -->
 <!-- from tests.test_examples import generate_readme_entry -->
 <!-- print(generate_readme_entry()) -->
 <!-- END_CODE -->

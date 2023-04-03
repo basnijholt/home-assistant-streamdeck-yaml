@@ -35,4 +35,22 @@ jobs:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
           platforms: ${{ matrix.platform }}
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/home-assistant-streamdeck-yaml:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/home-assistant-streamdeck-yaml:${{ matrix.platform }}
+  manifest:
+    needs: docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v2
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Create and push Docker manifest
+        run: |
+          docker manifest create ${{ secrets.DOCKERHUB_USERNAME }}/home-assistant-streamdeck-yaml:latest \
+            ${{ secrets.DOCKERHUB_USERNAME }}/home-assistant-streamdeck-yaml:linux-amd64 \
+            ${{ secrets.DOCKERHUB_USERNAME }}/home-assistant-streamdeck-yaml:linux-arm64 \
+            ${{ secrets.DOCKERHUB_USERNAME }}/home-assistant-streamdeck-yaml:linux-arm-v7
+          docker manifest push ${{ secrets.DOCKERHUB_USERNAME }}/home-assistant-streamdeck-yaml:latest

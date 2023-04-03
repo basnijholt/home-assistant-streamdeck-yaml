@@ -31,7 +31,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Replace slashes in tag
         run: |
-          TAG=basnijholt/home-assistant-streamdeck-yaml:${{ matrix.platform }}
+          TAG=${{ matrix.platform }}
           NEW_TAG=$(echo $TAG | sed 's/\//-/g')
           echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
       - name: Build and push
@@ -40,7 +40,7 @@ jobs:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
           platforms: ${{ matrix.platform }}
-          tags: ${{ env.NEW_TAG }}
+          tags: basnijholt/home-assistant-streamdeck-yaml:${{ env.NEW_TAG }}
 
   manifest:
     needs: docker

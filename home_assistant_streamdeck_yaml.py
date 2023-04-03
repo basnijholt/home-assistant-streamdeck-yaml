@@ -1088,6 +1088,7 @@ def _on_press_callback(
                     # Reset after a keypress
                     config.special_page = None
                     # Reset all icons
+                    deck.reset()
                     update_all_key_images(deck, config, complete_state)
         except Exception as e:  # noqa: BLE001
             console.print_exception(show_locals=True)

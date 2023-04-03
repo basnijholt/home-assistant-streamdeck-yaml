@@ -27,21 +27,20 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
-          username: basnijholt
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Replace slashes in tag
+        run: |
+          TAG=basnijholt/home-assistant-streamdeck-yaml:${{ matrix.platform }}
+          NEW_TAG=$(echo $TAG | sed 's/\//-/g')
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
           platforms: ${{ matrix.platform }}
-          tags: basnijholt/home-assistant-streamdeck-yaml:${{ matrix.platform }}
-      - name: Replace slashes in tag
-        run: |
-          TAG=basnijholt/home-assistant-streamdeck-yaml:${{ matrix.platform }}
-          NEW_TAG=$(echo $TAG | sed 's/\//-/g')
-          docker tag $TAG $NEW_TAG
-          docker push $NEW_TAG
+          tags: ${{ env.NEW_TAG }}
 
   manifest:
     needs: docker

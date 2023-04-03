@@ -5,11 +5,11 @@ on:
     branches:
       - main
     paths:
-      - "ci/update-readme.py"
       - "README.md"
       - ".github/workflows/update-readme.yml"
       - "home_assistant_streamdeck_yaml.py"
       - "tests/test_examples.py"
+  pull_request:
 
 jobs:
   update_readme:
@@ -29,11 +29,11 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas tabulate pytest
+          pip install pandas tabulate pytest markdown-code-runner
           pip install -e .
 
-      - name: Run update-readme.py
-        run: python ./ci/update-readme.py
+      - name: Run markdown-code-runner
+        run: markdown-code-runner README.md
 
       - name: Commit updated README.md
         run: |
@@ -46,4 +46,4 @@ jobs:
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.ref }}
+          branch: ${{ github.head_ref }}

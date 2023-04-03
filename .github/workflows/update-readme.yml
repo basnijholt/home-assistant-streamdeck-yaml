@@ -5,7 +5,6 @@ on:
     branches:
       - main
     paths:
-      - "ci/update-readme.py"
       - "README.md"
       - ".github/workflows/update-readme.yml"
       - "home_assistant_streamdeck_yaml.py"
@@ -29,11 +28,11 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas tabulate pytest
+          pip install pandas tabulate pytest markdown-code-runner
           pip install -e .
 
-      - name: Run update-readme.py
-        run: python ./ci/update-readme.py
+      - name: Run markdown-code-runner
+        run: markdown-code-runner README.md
 
       - name: Commit updated README.md
         run: |

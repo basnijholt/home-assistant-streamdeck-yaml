@@ -73,6 +73,7 @@ def main() -> None:
     new_version = get_new_version(repo)
     create_tag(repo, new_version)
     push_tag(repo, new_version)
+    print(f"::set-output name=version::{new_version}")  # Add this line
     print(f"Created new tag: {new_version}")
 
 

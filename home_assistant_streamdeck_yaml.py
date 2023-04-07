@@ -224,7 +224,6 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
         icon_mdi_margin: int = 0,
         font_filename: str = DEFAULT_FONT,
-        font_size: int = 12,
     ) -> Image.Image:
         """Try to render the icon."""
         try:
@@ -234,7 +233,6 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 size=size,
                 icon_mdi_margin=icon_mdi_margin,
                 font_filename=font_filename,
-                font_size=font_size,
             )
         except Exception as exc:  # noqa: BLE001
             console.print_exception()
@@ -253,7 +251,6 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
         icon_mdi_margin: int = 0,
         font_filename: str = DEFAULT_FONT,
-        font_size: int = 12,
     ) -> Image.Image:
         """Render the icon."""
         if isinstance(self.icon, str) and ":" in self.icon:
@@ -316,7 +313,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         _add_text(
             image,
             font_filename,
-            font_size,
+            self.text_size,
             text,
             text_color=text_color if not key_pressed else "green",
         )
@@ -896,12 +893,12 @@ def _init_icon(
 def _add_text(
     image: Image.Image,
     font_filename: str,
-    font_size: int,
+    text_size: int,
     text: str,
     text_color: str,
 ) -> None:
     draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype(str(ASSETS_PATH / font_filename), font_size)
+    font = ImageFont.truetype(str(ASSETS_PATH / font_filename), text_size)
     draw.text(
         (image.width / 2, image.height / 2),
         text=text,
@@ -919,12 +916,12 @@ def _generate_failed_icon(
     background_color = "red"
     text_color = "white"
     font_filename = DEFAULT_FONT
-    font_size = int(min(size) * 0.15)  # Adjust font size based on the icon size
+    text_size = int(min(size) * 0.15)  # Adjust font size based on the icon size
     icon = Image.new("RGB", size, background_color)
     _add_text(
         image=icon,
         font_filename=font_filename,
-        font_size=font_size,
+        text_size=text_size,
         text="Rendering\nfailed",
         text_color=text_color,
     )

@@ -31,7 +31,7 @@ def get_new_version(repo: git.Repo) -> str:
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     patch = (
         last_version.micro + 1
-        if last_version.year == now.year and last_version.month == now.month
+        if last_version.major == now.year and last_version.minor == now.month
         else 0
     )
     return f"{now.year}.{now.month}.{patch}"

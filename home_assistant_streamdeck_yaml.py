@@ -253,16 +253,16 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         font_filename: str = DEFAULT_FONT,
     ) -> Image.Image:
         """Render the icon."""
-        if isinstance(self.icon, str) and ":" in self.icon:
-            which, id_ = self.icon.split(":", 1)
+        button = self.rendered_template_button(complete_state)
+
+        if isinstance(button.icon, str) and ":" in button.icon:
+            which, id_ = button.icon.split(":", 1)
             if which == "spotify":
-                filename = _to_filename(self.icon, ".jpeg")
+                filename = _to_filename(button.icon, ".jpeg")
                 return _download_spotify_image(id_, filename)
             if which == "url":
                 filename = _url_to_filename(id_)
                 return _download_image(id_, filename, size)
-
-        button = self.rendered_template_button(complete_state)
 
         icon_convert_to_grayscale = False
         text = button.text

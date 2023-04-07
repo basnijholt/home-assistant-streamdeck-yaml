@@ -1078,6 +1078,38 @@ change_cover_position = {
     ],
 }
 
+control_media_player_tv = {
+    "description": "📺 Toggle a media player (e.g., TV) and show different images",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: media_player.tv
+          service: media_player.toggle
+          icon: >
+            {% if is_state('media_player.tv', 'on') %}
+            url:https://raw.githubusercontent.com/basnijholt/home-assistant-streamdeck-yaml/main/assets/fireplace.png
+            {% else %}
+            url:https://raw.githubusercontent.com/basnijholt/home-assistant-streamdeck-yaml/main/assets/hogwarts.png
+            {% endif %}
+        """,
+    ),
+    "state": [
+        {"media_player.tv": {"state": "on"}},
+        {"media_player.tv": {"state": "off"}},
+    ],
+    "result": [
+        Button(
+            entity_id="media_player.tv",
+            service="media_player.toggle",
+            icon="url:https://raw.githubusercontent.com/basnijholt/home-assistant-streamdeck-yaml/main/assets/fireplace.png",
+        ),
+        Button(
+            entity_id="media_player.tv",
+            service="media_player.toggle",
+            icon="url:https://raw.githubusercontent.com/basnijholt/home-assistant-streamdeck-yaml/main/assets/hogwarts.png",
+        ),
+    ],
+}
+
 
 BUTTONS = [
     activate_a_scene,
@@ -1109,6 +1141,7 @@ BUTTONS = [
     toggle_smart_plug,
     irrigation_toggle,
     change_cover_position,
+    control_media_player_tv,
 ]
 
 

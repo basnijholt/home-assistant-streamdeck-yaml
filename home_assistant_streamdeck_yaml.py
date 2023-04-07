@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Literal, TypeAlias
 
 import jinja2
+import pkg_resources
 import requests
 import websockets
 import yaml
@@ -29,6 +30,9 @@ if TYPE_CHECKING:
     from collections.abc import Coroutine
 
     from StreamDeck.Devices import StreamDeck
+
+__version__ = pkg_resources.get_distribution("home_assistant_streamdeck_yaml").version
+
 
 SCRIPT_DIR = Path(__file__).parent
 ASSETS_PATH = SCRIPT_DIR / "assets"

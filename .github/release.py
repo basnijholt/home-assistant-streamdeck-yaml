@@ -47,16 +47,40 @@ def set_author(repo: git.Repo) -> None:
     os.environ["GIT_COMMITTER_EMAIL"] = author_email
 
 
-def create_tag(repo: git.Repo, new_version: str) -> None:
+def create_tag(repo: git.Repo, new_version: str, release_notes: str) -> None:
     """Create a new tag."""
     set_author(repo)
-    repo.create_tag(new_version, message=f"Release {new_version}")
+    repo.create_tag(new_version, message=f"Release {new_version}\n\n{release_notes}")
 
 
 def push_tag(repo: git.Repo, new_version: str) -> None:
     """Push the new tag to the remote repository."""
     origin = repo.remote("origin")
     origin.push(new_version)
+
+
+def get_commit_messages_since_last_release(repo: git.Repo) -> str:
+    """Get the commit messages since the last release."""
+    latest_tag = max(repo.tags, key=operator.attrgetter("commit.committed_datetime"))
+    return repo.git.log(f"{latest_tag}..HEAD", "--pretty=format:%s")
+
+
+def format_release_notes(commit_messages: str, new_version: str) -> str:
+    """Format the release notes."""
+    header = f"🚀 Release {new_version}\n\n"
+    intro = "📝 This release includes the following changes:\n\n"
+
+    commit_list = commit_messages.split("\n")
+    formatted_commit_list = [f"- {commit}" for commit in commit_list]
+    commit_section = "\n".join(formatted_commit_list)
+
+    footer = (
+        "\n\n🙏 Thank you for using this project! Please report any issues "
+        "or feedback on the GitHub repository"
+        " on https://github.com/basnijholt/home-assistant-streamdeck-yaml."
+    )
+
+    return f"{header}{intro}{commit_section}{footer}"
 
 
 def main() -> None:
@@ -71,9 +95,14 @@ def main() -> None:
         return
 
     new_version = get_new_version(repo)
-    create_tag(repo, new_version)
+    commit_messages = get_commit_messages_since_last_release(repo)
+    release_notes = format_release_notes(commit_messages, new_version)
+    print(release_notes)
+    create_tag(repo, new_version, release_notes)
     push_tag(repo, new_version)
-    print(f"::set-output name=version::{new_version}")  # Add this line
+    # Write the output version to the GITHUB_OUTPUT environment file
+    with open(os.environ["GITHUB_OUTPUT"], "a") as output_file:  # noqa: PTH123
+        output_file.write(f"version={new_version}\n")
     print(f"Created new tag: {new_version}")
 
 

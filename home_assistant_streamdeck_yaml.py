@@ -95,6 +95,8 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         default=None,
         allow_template=True,
         description="The icon filename to display on the button."
+        " Make the path absolute (e.g., `/config/streamdeck/my_icon.png`) or relative to the"
+        " `assets` directory (e.g., `my_icon.png`)."
         " If empty, a icon with `icon_background_color` and `text` is displayed."
         " The icon can be a URL to an image,"
         " like `'url:https://www.nijho.lt/authors/admin/avatar.jpg'`, or a `spotify:`"
@@ -869,7 +871,9 @@ def _init_icon(
 ) -> Image.Image:
     """Initialize the icon."""
     if icon_filename is not None:
-        icon = Image.open(ASSETS_PATH / icon_filename)
+        icon_path = Path(icon_filename)
+        filename = icon_path if icon_path.is_absolute() else ASSETS_PATH / icon_path
+        icon = Image.open(filename)
         if icon_convert_to_grayscale:
             icon = _convert_to_grayscale(icon)
         # Convert to RGB if needed

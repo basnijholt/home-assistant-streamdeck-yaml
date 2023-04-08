@@ -545,8 +545,8 @@ class AsyncDelayedCallback:
 
     async def _run(self) -> None:
         """Run the timer. Don't call this directly, use start() instead."""
-        self.start_time = time.time()
         self.is_sleeping = True
+        self.start_time = time.time()
         await asyncio.sleep(self.delay)
         self.is_sleeping = False
         if self.callback is not None:

@@ -33,7 +33,7 @@ WORKDIR /app
 
 # Copy files to the working directory
 COPY . /app
-COPY ./.git /app/.git
+COPY .git /app/.git
 
 # Install the required dependencies
 RUN pip3 install -e ".[colormap]" --no-cache-dir && \

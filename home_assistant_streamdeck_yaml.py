@@ -1350,6 +1350,7 @@ def main() -> None:
         choices=["wss", "ws"],
     )
     args = parser.parse_args()
+    console.log(f"Using version {__version__} of the Home Assistant Stream Deck.")
     console.log(
         f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}",
     )

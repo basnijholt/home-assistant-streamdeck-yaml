@@ -19,7 +19,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[test,colormap]"
-          pip install pytest pandas tabulate
+          pip install -e ".[test,colormap,docs]"
+          pip install pytest
       - name: Run pytest
         run: pytest

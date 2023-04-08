@@ -47,6 +47,7 @@ https://user-images.githubusercontent.com/6897215/226788119-6c198ea6-2950-4f95-9
       - [:desktop_computer: Windows](#desktop_computer-windows)
   - [:gear: Configuration](#gear-configuration)
     - [:page_facing_up: `configuration.yaml`](#page_facing_up-configurationyaml)
+    - [:white_square_button: Button YAML configuration](#white_square_button-button-yaml-configuration)
 - [:bulb: More than 20 Button Configurations ideas](#bulb-more-than-20-button-configurations-ideas)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -104,12 +105,14 @@ docker build -t basnijholt/home-assistant-streamdeck-yaml:latest .
 ### :computer: Installation without Docker
 
 <details>
-<summary>Click to expand.</summary>
+<summary>Click to expand common steps for Linux :penguin:, :apple: MacOS, and :desktop_computer: Windows.</summary>
 
 1. Run `pip install -e .` in the repo folder to install the required dependencies.
 2. Edit the [`.env.example`](.env.example) file and rename it to `.env`.
 3. Setup a [`configuration.yaml` file (see below)](#configuration).
 4. Follow the platform-specific steps for [Linux](#linux), [MacOS](#macos), or [Windows](#windows).
+
+</details>
 
 #### :penguin: Linux
 
@@ -150,8 +153,6 @@ brew install hidapi cairo libffi
 <summary>Click to expand.</summary>
 
 For **Windows**, see [this](https://python-elgato-streamdeck.readthedocs.io/en/stable/pages/backend_libusb_hidapi.html#windows) page.
-
-</details>
 
 </details>
 
@@ -237,7 +238,9 @@ pages:
         special_type_data: 0
 ```
 
-Each button can take the following configuration:
+### :white_square_button: Button YAML configuration
+
+Each button can take the following configuration
 
 <!-- CODE:START -->
 <!-- from home_assistant_streamdeck_yaml import Button -->

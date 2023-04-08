@@ -132,7 +132,9 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         default=0.0,
         allow_template=False,
         description="The delay (in seconds) before the `service` is called."
-        " This is useful if you want to wait for the state to change before calling the `service`.",
+        " This is useful if you want to wait for the state to change before calling the `service`."
+        " Counts down from the time the button is pressed."
+        " If while counting the button is pressed again, the timer is cancelled.",
     )
     special_type: Literal[
         "next-page",

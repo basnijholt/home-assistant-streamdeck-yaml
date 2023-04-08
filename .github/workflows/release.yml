@@ -43,7 +43,6 @@ jobs:
       if: steps.generate_version.outputs.version != ''
       with:
         tag_name: ${{ steps.generate_version.outputs.version }}
-        release_name: version ${{ steps.generate_version.outputs.version }}
         generate_release_notes: true
 
     - name: Build and publish

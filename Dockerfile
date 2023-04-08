@@ -20,7 +20,9 @@ RUN apk --update --no-cache add \
     # General
     gcc python3-dev musl-dev \
     # Needed for matplotlib
-    g++ gfortran py-pip build-base wget
+    g++ gfortran py-pip build-base wget \
+    # Needed for getting version from git
+    git
 
 # Add udev rule for the Stream Deck
 RUN mkdir -p /etc/udev/rules.d && \

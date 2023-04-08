@@ -1090,6 +1090,8 @@ control_media_player_tv = {
             {% else %}
             url:https://raw.githubusercontent.com/basnijholt/home-assistant-streamdeck-yaml/main/assets/hogwarts.png
             {% endif %}
+          text: >
+            Turn {{ 'Off' if is_state('media_player.tv', 'on') else 'On' }}
         """,
     ),
     "state": [

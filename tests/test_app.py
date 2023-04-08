@@ -198,7 +198,7 @@ def test_example_config_browsing_pages(config: Config) -> None:
     assert isinstance(first_page, Page)
     assert config.current_page_index == 0
     assert len(first_page.buttons) == BUTTONS_PER_PAGE
-    assert len(second_page.buttons) == 1
+    assert len(second_page.buttons) == 1  # update when adding more buttons
     second_page = config.to_page(1)
     assert isinstance(second_page, Page)
     assert config.current_page_index == 1

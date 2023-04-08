@@ -1090,6 +1090,8 @@ control_media_player_tv = {
             {% else %}
             url:https://raw.githubusercontent.com/basnijholt/home-assistant-streamdeck-yaml/main/assets/hogwarts.png
             {% endif %}
+          text: >
+            Turn {{ 'Off' if is_state('media_player.tv', 'on') else 'On' }}
         """,
     ),
     "state": [
@@ -1101,11 +1103,13 @@ control_media_player_tv = {
             entity_id="media_player.tv",
             service="media_player.toggle",
             icon="url:https://raw.githubusercontent.com/basnijholt/home-assistant-streamdeck-yaml/main/assets/fireplace.png",
+            text="Turn Off",
         ),
         Button(
             entity_id="media_player.tv",
             service="media_player.toggle",
             icon="url:https://raw.githubusercontent.com/basnijholt/home-assistant-streamdeck-yaml/main/assets/hogwarts.png",
+            text="Turn On",
         ),
     ],
 }

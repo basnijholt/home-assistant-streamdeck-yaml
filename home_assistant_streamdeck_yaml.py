@@ -249,7 +249,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             )
             return _generate_failed_icon(size)
 
-    def render_icon(
+    def render_icon(  # noqa: PLR0912
         self,
         complete_state: StateDict,
         *,
@@ -260,15 +260,17 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     ) -> Image.Image:
         """Render the icon."""
         button = self.rendered_template_button(complete_state)
-
+        image = None
         if isinstance(button.icon, str) and ":" in button.icon:
             which, id_ = button.icon.split(":", 1)
             if which == "spotify":
                 filename = _to_filename(button.icon, ".jpeg")
-                return _download_spotify_image(id_, filename)
+                # copy to avoid modifying the cached image
+                image = _download_spotify_image(id_, filename).copy()
             if which == "url":
                 filename = _url_to_filename(id_)
-                return _download_image(id_, filename, size)
+                # copy to avoid modifying the cached image
+                image = _download_image(id_, filename, size).copy()
 
         icon_convert_to_grayscale = False
         text = button.text
@@ -307,15 +309,19 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             if state["state"] == "off":
                 icon_convert_to_grayscale = button.icon_gray_when_off
 
-        image = _init_icon(
-            icon_background_color=button.icon_background_color,
-            icon_filename=button.icon,
-            icon_mdi=icon_mdi,
-            icon_mdi_margin=icon_mdi_margin,
-            icon_mdi_color=_named_to_hex(button.icon_mdi_color or text_color),
-            icon_convert_to_grayscale=icon_convert_to_grayscale,
-            size=size,
-        ).copy()  # copy to avoid modifying the cached image
+        if image is None:
+            image = _init_icon(
+                icon_background_color=button.icon_background_color,
+                icon_filename=button.icon,
+                icon_mdi=icon_mdi,
+                icon_mdi_margin=icon_mdi_margin,
+                icon_mdi_color=_named_to_hex(button.icon_mdi_color or text_color),
+                size=size,
+            ).copy()  # copy to avoid modifying the cached image
+
+        if icon_convert_to_grayscale:
+            image = _convert_to_grayscale(image)
+
         _add_text(
             image,
             font_filename,
@@ -866,7 +872,6 @@ def _init_icon(
     icon_mdi_margin: int | None = None,
     icon_mdi_color: str | None = None,  # hex color
     icon_background_color: str | None = None,  # hex color
-    icon_convert_to_grayscale: bool = False,
     size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
 ) -> Image.Image:
     """Initialize the icon."""
@@ -874,8 +879,6 @@ def _init_icon(
         icon_path = Path(icon_filename)
         path = icon_path if icon_path.is_absolute() else ASSETS_PATH / icon_path
         icon = Image.open(path)
-        if icon_convert_to_grayscale:
-            icon = _convert_to_grayscale(icon)
         # Convert to RGB if needed
         if icon.mode != "RGB":
             icon = icon.convert("RGB")

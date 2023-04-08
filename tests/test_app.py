@@ -131,6 +131,11 @@ def button_dict() -> dict[str, dict[str, Any]]:
             },
             "icon": "spotify:playlist/37i9dQZF1DXaRycgyh6kXP",
         },
+        "grayscale_button": {
+            "entity_id": "input_select.sleep_mode",
+            "icon": "spotify:playlist/37i9dQZF1DXaRycgyh6kXP",
+            "icon_gray_when_off": True,
+        },
         "special_empty": {"special_type": "empty"},
         "special_goto_0": {"special_type": "go-to-page", "special_type_data": 0},
         "special_goto_home": {
@@ -162,17 +167,17 @@ def buttons(button_dict: dict[str, dict[str, Any]]) -> list[Button]:
         "special_goto_home",
         "special_prev_page",
         "special_next_page",
+        "grayscale_button",
     ]
 
-    assert len(button_order) == BUTTONS_PER_PAGE
     return [Button(**button_dict[key]) for key in button_order]
 
 
 @pytest.fixture()
 def config(buttons: list[Button]) -> Config:
     """Config fixture."""
-    page_1 = Page(buttons=buttons, name="Home")
-    page_2 = Page(buttons=buttons[::-1], name="Second")
+    page_1 = Page(buttons=buttons[:BUTTONS_PER_PAGE], name="Home")
+    page_2 = Page(buttons=buttons[BUTTONS_PER_PAGE:], name="Second")
     return Config(pages=[page_1, page_2])
 
 
@@ -193,7 +198,7 @@ def test_example_config_browsing_pages(config: Config) -> None:
     assert isinstance(first_page, Page)
     assert config.current_page_index == 0
     assert len(first_page.buttons) == BUTTONS_PER_PAGE
-    assert len(second_page.buttons) == BUTTONS_PER_PAGE
+    assert len(second_page.buttons) == 1  # update when adding more buttons
     second_page = config.to_page(1)
     assert isinstance(second_page, Page)
     assert config.current_page_index == 1
@@ -305,7 +310,6 @@ def test_download_and_save_mdi() -> None:
 def test_init_icon() -> None:
     """Test init icon."""
     _init_icon(icon_filename="xbox.png")
-    _init_icon(icon_filename="xbox.png", icon_convert_to_grayscale=True)
     _init_icon(
         icon_mdi="phone",
         icon_mdi_margin=1,

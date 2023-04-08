@@ -45,7 +45,7 @@ addopts = """
     --cov=home_assistant_streamdeck_yaml
     --cov-report term
     --cov-report html
-    --cov-fail-under=64
+    --cov-fail-under=70
     --asyncio-mode=auto
 """
 

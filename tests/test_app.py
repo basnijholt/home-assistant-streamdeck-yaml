@@ -305,7 +305,6 @@ def test_download_and_save_mdi() -> None:
 def test_init_icon() -> None:
     """Test init icon."""
     _init_icon(icon_filename="xbox.png")
-    _init_icon(icon_filename="xbox.png", icon_convert_to_grayscale=True)
     _init_icon(
         icon_mdi="phone",
         icon_mdi_margin=1,

@@ -39,6 +39,7 @@ jobs:
       run: python .github/release.py
 
     - name: Create GitHub Release
+      if: steps.generate_version.outputs.version != ''
       id: create_release
       uses: actions/create-release@v1
       env:
@@ -48,6 +49,7 @@ jobs:
         release_name: Release ${{ steps.generate_version.outputs.version }}
 
     - name: Build and publish
+      if: steps.generate_version.outputs.version != ''
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}

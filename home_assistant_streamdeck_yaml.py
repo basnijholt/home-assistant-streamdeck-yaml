@@ -183,8 +183,8 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
 
             row = {
                 "Variable name": code(k),
-                "Description": info.description,
                 "Allow template": "✅" if info.extra["allow_template"] else "❌",
+                "Description": info.description,
                 "Default": code(info.default) if info.default else "",
                 "Type": code(field._type_display()),  # noqa: SLF001
             }
@@ -872,8 +872,8 @@ def _init_icon(
     """Initialize the icon."""
     if icon_filename is not None:
         icon_path = Path(icon_filename)
-        filename = icon_path if icon_path.is_absolute() else ASSETS_PATH / icon_path
-        icon = Image.open(filename)
+        path = icon_path if icon_path.is_absolute() else ASSETS_PATH / icon_path
+        icon = Image.open(path)
         if icon_convert_to_grayscale:
             icon = _convert_to_grayscale(icon)
         # Convert to RGB if needed

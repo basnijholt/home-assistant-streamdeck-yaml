@@ -1114,6 +1114,29 @@ control_media_player_tv = {
     ],
 }
 
+start_timer = {
+    "description": "⏰ Turn off all lights in 60s",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: light.all_lights
+          service: light.turn_off
+          text: |
+            Turn off
+            in 60s
+          delay: 60
+        """,
+    ),
+    "state": [{}],
+    "result": [
+        Button(
+            entity_id="light.all_lights",
+            service="light.turn_off",
+            text="Turn off\nin 60s\n",
+            delay=60.0,
+        ),
+    ],
+}
+
 
 BUTTONS = [
     activate_a_scene,
@@ -1146,6 +1169,7 @@ BUTTONS = [
     irrigation_toggle,
     change_cover_position,
     control_media_player_tv,
+    start_timer,
 ]
 
 

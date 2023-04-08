@@ -9,6 +9,7 @@ import hashlib
 import io
 import json
 import re
+import time
 import warnings
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -21,7 +22,7 @@ import websockets
 import yaml
 from lxml import etree
 from PIL import Image, ImageColor, ImageDraw, ImageFont, ImageOps
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, PrivateAttr, validator
 from rich.console import Console
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.ImageHelpers import PILHelper
@@ -127,6 +128,12 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         allow_template=False,
         description="When specifying `icon` and `entity_id`, if the state is `off`, the icon will be converted to grayscale.",
     )
+    delay: float = Field(
+        default=0.0,
+        allow_template=False,
+        description="The delay (in seconds) before the `service` is called."
+        " This is useful if you want to wait for the state to change before calling the `service`.",
+    )
     special_type: Literal[
         "next-page",
         "previous-page",
@@ -160,6 +167,8 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " can be used. This requires the `matplotlib` package to be installed. If no"
         " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",
     )
+
+    _timer: AsyncDelayedCallback | None = PrivateAttr(None)
 
     @classmethod
     def from_yaml(cls: type[Button], yaml_str: str) -> Button:
@@ -259,8 +268,12 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         font_filename: str = DEFAULT_FONT,
     ) -> Image.Image:
         """Render the icon."""
-        button = self.rendered_template_button(complete_state)
-        image = None
+        if self.is_sleeping():
+            button, image = self.sleep_button_and_image(size)
+        else:
+            button = self.rendered_template_button(complete_state)
+            image = None
+
         if isinstance(button.icon, str) and ":" in button.icon:
             which, id_ = button.icon.split(":", 1)
             if which == "spotify":
@@ -380,6 +393,40 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 v["colors"] = tuple(v["colors"])
         return v
 
+    def maybe_start_or_cancel_timer(
+        self,
+        callback: Callable[[], None | Coroutine] | None = None,
+    ) -> bool:
+        """Start or cancel the timer."""
+        if self.delay:
+            if self._timer is None:
+                self._timer = AsyncDelayedCallback(delay=self.delay, callback=callback)
+            if self._timer.is_running():
+                self._timer.cancel()
+            else:
+                self._timer.start()
+            return True
+        return False
+
+    def is_sleeping(self) -> bool:
+        """Return True if the timer is sleeping."""
+        return self._timer is not None and self._timer.is_sleeping
+
+    def sleep_button_and_image(
+        self,
+        size: tuple[int, int],
+    ) -> tuple[Button, Image.Image]:
+        """Return the button and image for the sleep button."""
+        assert self._timer is not None
+        remaining = self._timer.remaining_time()
+        pct = round(remaining / self.delay * 100)
+        image = _draw_percentage_ring(pct, size)
+        button = Button(
+            text=f"{remaining:.0f}s\n{pct}%",
+            text_color="white",
+        )
+        return button, image
+
 
 def _to_filename(id_: str, suffix: str = "") -> Path:
     """Converts an id with ":" and "_" to a filename with optional suffix."""
@@ -403,6 +450,24 @@ class Config(BaseModel):
     state_entity_id: str | None = None
     is_on: bool = True
     brightness: int = 100
+
+    def update_timers(
+        self,
+        deck: StreamDeck,
+        complete_state: dict[str, dict[str, Any]],
+    ) -> None:
+        """Update all timers."""
+        for key in range(deck.key_count()):
+            button = self.button(key)
+            if button is not None and button.is_sleeping():
+                console.log(f"Updating timer for key {key}")
+                update_key_image(
+                    deck,
+                    key=key,
+                    config=self,
+                    complete_state=complete_state,
+                    key_pressed=False,
+                )
 
     def next_page(self) -> Page:
         """Go to the next page."""
@@ -453,6 +518,111 @@ def _next_id() -> int:
     global _ID_COUNTER
     _ID_COUNTER += 1
     return _ID_COUNTER
+
+
+class AsyncDelayedCallback:
+    """A callback that is called after a delay.
+
+    Parameters
+    ----------
+    delay
+        The delay in seconds after which the callback will be called.
+    callback
+        The function or coroutine to be called after the delay.
+    """
+
+    def __init__(
+        self,
+        delay: float,
+        callback: Callable[[], None | Coroutine] | None = None,
+    ) -> None:
+        """Initialize."""
+        self.delay = delay
+        self.callback = callback
+        self.task: asyncio.Task | None = None
+        self.start_time: float | None = None
+        self.is_sleeping: bool = False
+
+    async def _run(self) -> None:
+        """Run the timer. Don't call this directly, use start() instead."""
+        self.start_time = time.time()
+        self.is_sleeping = True
+        await asyncio.sleep(self.delay)
+        self.is_sleeping = False
+        if self.callback is not None:
+            if asyncio.iscoroutinefunction(self.callback):
+                await self.callback()
+            else:
+                self.callback()
+
+    def is_running(self) -> bool:
+        """Return whether the timer is running."""
+        return self.task is not None and not self.task.done()
+
+    def start(self) -> None:
+        """Start the timer."""
+        if self.task is not None and not self.task.done():
+            self.cancel()
+        self.task = asyncio.ensure_future(self._run())
+
+    def cancel(self) -> None:
+        """Cancel the timer."""
+        console.log("Cancel timer")
+        if self.task:
+            self.task.cancel()
+            self.is_sleeping = False
+            self.task = None
+
+    def remaining_time(self) -> float:
+        """Return the remaining time before the timer expires."""
+        if self.task is None:
+            return 0
+        if self.start_time is not None:
+            elapsed_time = time.time() - self.start_time
+            return max(0, self.delay - elapsed_time)
+        return 0
+
+
+def _draw_percentage_ring(
+    percentage: int,
+    size: tuple[int, int],
+    *,
+    radius: int | None = None,
+    thickness: int = 4,
+    ring_color: tuple[int, int, int] = (255, 0, 0),
+    full_ring_backgroud_color: tuple[int, int, int] = (100, 100, 100),
+) -> Image.Image:
+    """Draw a ring with a percentage."""
+    img = Image.new("RGB", size, (0, 0, 0))
+
+    if radius is None:
+        radius = size[0] // 2 - thickness // 2
+
+    # Draw the full ring for the background
+    draw = ImageDraw.Draw(img)
+    draw.ellipse(
+        [
+            (size[0] // 2 - radius, size[1] // 2 - radius),
+            (size[0] // 2 + radius, size[1] // 2 + radius),
+        ],
+        outline=full_ring_backgroud_color,
+        width=thickness,
+    )
+
+    # Draw the percentage of the ring with a bright color
+    start_angle = -90
+    end_angle = start_angle + (360 * percentage / 100)
+    draw.arc(
+        [
+            (size[0] // 2 - radius, size[1] // 2 - radius),
+            (size[0] // 2 + radius, size[1] // 2 + radius),
+        ],
+        start_angle,
+        end_angle,
+        fill=ring_color,
+        width=thickness,
+    )
+    return img
 
 
 def _linspace(start: float, stop: float, num: int) -> list[float]:
@@ -617,17 +787,28 @@ async def subscribe_state_changes(
     await websocket.send(json.dumps(subscribe_payload))
 
 
-async def handle_state_changes(
+async def handle_changes(
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
     deck: StreamDeck,
     config: Config,
 ) -> None:
     """Handle state changes."""
-    # Wait for the state change events
-    while True:
-        data = json.loads(await websocket.recv())
-        _update_state(complete_state, data, config, deck)
+
+    async def process_websocket_messages() -> None:
+        """Process websocket messages."""
+        while True:
+            data = json.loads(await websocket.recv())
+            _update_state(complete_state, data, config, deck)
+
+    async def call_update_timers() -> None:
+        """Call config.update_timers every second."""
+        while True:
+            await asyncio.sleep(1)
+            config.update_timers(deck, complete_state)
+
+    # Run the websocket message processing and timer update tasks concurrently
+    await asyncio.gather(process_websocket_messages(), call_update_timers())
 
 
 def _keys(entity_id: str, buttons: list[Button]) -> list[int]:
@@ -1081,6 +1262,17 @@ def _on_press_callback(
         key_pressed: bool,  # noqa: FBT001
     ) -> None:
         console.log(f"Key {key} {'pressed' if key_pressed else 'released'}")
+
+        button = config.button(key)
+        if button is not None and key_pressed:
+
+            async def cb() -> None:
+                """Update the deck once more after the timer is over."""
+                await _handle_key_press(websocket, complete_state, config, key, deck)
+
+            if button.maybe_start_or_cancel_timer(cb):
+                key_pressed = False  # do not click now
+
         try:
             update_key_image(
                 deck,
@@ -1331,7 +1523,7 @@ async def run(
         )
         deck.set_brightness(config.brightness)
         await subscribe_state_changes(websocket)
-        await handle_state_changes(websocket, complete_state, deck, config)
+        await handle_changes(websocket, complete_state, deck, config)
 
 
 def main() -> None:

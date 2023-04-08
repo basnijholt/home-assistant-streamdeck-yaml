@@ -238,7 +238,7 @@ pages:
         special_type_data: 0
 ```
 
-#### :white_square_button: Button YAML configuration
+### :white_square_button: Button YAML configuration
 
 Each button can take the following configuration
 

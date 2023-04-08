@@ -49,7 +49,7 @@ jobs:
 
     - name: Build and publish
       env:
-        TWINE_USERNAME: gst
+        TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
       run: |
         python -m build

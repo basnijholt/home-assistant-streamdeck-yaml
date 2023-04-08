@@ -348,7 +348,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             if not isinstance(v, dict):
                 msg = (
                     "With 'light-control', 'special_type_data' must"
-                    f" be a dict, not {v}"
+                    f" be a dict, not '{v}'"
                 )
                 raise AssertionError(msg)
             # Can only have the following keys: colors and colormap

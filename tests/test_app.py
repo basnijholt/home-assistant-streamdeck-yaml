@@ -1,6 +1,7 @@
 """Test Home Assistant Stream Deck YAML."""
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 import textwrap
@@ -1040,3 +1041,22 @@ def test_icon_failed_icon() -> None:
     assert icon is not None
     assert isinstance(icon, Image.Image)
     assert icon.size == (100, 100)
+
+
+async def test_delay() -> None:
+    """Test the delay."""
+    button = Button(delay=2)
+    assert not button.is_sleeping()
+    assert button.maybe_start_or_cancel_timer()
+    await asyncio.sleep(0)  # TODO: figure out why this is needed
+    assert button._timer is not None
+    assert button._timer.is_sleeping
+    assert button.is_sleeping()
+    image = button.render_icon({})
+    image.save("test.png")
+
+
+def test_to_markdown_table() -> None:
+    """Test to_markdown_table for docs."""
+    table = Button.to_markdown_table()
+    assert isinstance(table, str)

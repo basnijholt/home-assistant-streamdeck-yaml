@@ -262,6 +262,7 @@ Each button can take the following configuration
 | `icon_background_color` | ✅                | A color (in hex format, e.g., '#FF0000') for the background of the icon (if no `icon` is specified).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `#000000` | `str`                                                                                                 |
 | `icon_mdi_color`        | ✅                | The color of the Material Design Icon (in hex format, e.g., '#FF0000'). If empty, the color is derived from `text_color` but is less saturated (gray is mixed in).                                                                                                                                                                                                                                                                                                                                                                                                                     |           | `Optional[str]`                                                                                       |
 | `icon_gray_when_off`    | ❌                | When specifying `icon` and `entity_id`, if the state is `off`, the icon will be converted to grayscale.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |           | `bool`                                                                                                |
+| `delay`                 | ❌                | The delay (in seconds) before the `service` is called. This is useful if you want to wait before calling the `service`. Counts down from the time the button is pressed. If while counting the button is pressed again, the timer is cancelled.                                                                                                                                                                                                                                                                                                                                        |           | `float`                                                                                               |
 | `special_type`          | ❌                | Special type of button. If no specified, the button is a normal button. If `next-page`, the button will go to the next page. If `previous-page`, the button will go to the previous page. If `turn-off`, the button will turn off the SteamDeck until any button is pressed. If `empty`, the button will be empty. If `go-to-page`, the button will go to the page specified by `special_type_data` (either an `int` or `str` (name of the page)). If `light-control`, the button will control a light, and the `special_type_data` can be a dictionary, see its description.          |           | `Optional[Literal['next-page', 'previous-page', 'empty', 'go-to-page', 'turn-off', 'light-control']]` |
 | `special_type_data`     | ✅                | Data for the special type of button. If `go-to-page`, the data should be an `int` or `str` (name of the page). If `light-control`, the data should optionally be a dictionary. The dictionary can contain the following keys: The `colors` key and a value a list of max (`n_keys_on_streamdeck - 5`) hex colors. The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html) can be used. This requires the `matplotlib` package to be installed. If no list of `colors` or `colormap` is specified, 10 equally spaced colors are used. |           | `Optional[Any]`                                                                                       |
 
@@ -774,6 +775,20 @@ toggle_security_camera_recording:
     {% endif %}
   text: >
     Turn {{ 'Off' if is_state('media_player.tv', 'on') else 'On' }}
+```
+
+</details>
+
+<details>
+<summary>31. ⏰ Turn off all lights in 60s:</summary>
+
+```yaml
+- entity_id: light.all_lights
+  service: light.turn_off
+  text: |
+    Turn off
+    in 60s
+  delay: 60
 ```
 
 </details>

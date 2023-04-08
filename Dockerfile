@@ -28,12 +28,13 @@ RUN apk --update --no-cache add \
 RUN mkdir -p /etc/udev/rules.d && \
     echo 'SUBSYSTEMS=="usb", ATTRS{idVendor}=="0fd9", GROUP="users", TAG+="uaccess"' > /etc/udev/rules.d/99-streamdeck.rules
 
+COPY .git /app/.git
+
 # Set the working directory to the repository
 WORKDIR /app
 
 # Copy files to the working directory
 COPY . /app
-COPY .git /app/.git
 
 # Install the required dependencies
 RUN pip3 install -e ".[colormap]" --no-cache-dir && \

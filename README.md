@@ -47,6 +47,7 @@ https://user-images.githubusercontent.com/6897215/226788119-6c198ea6-2950-4f95-9
       - [:desktop_computer: Windows](#desktop_computer-windows)
   - [:gear: Configuration](#gear-configuration)
     - [:page_facing_up: `configuration.yaml`](#page_facing_up-configurationyaml)
+      - [:white_square_button: Button YAML configuration](#white_square_button-button-yaml-configuration)
 - [:bulb: More than 20 Button Configurations ideas](#bulb-more-than-20-button-configurations-ideas)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->

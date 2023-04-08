@@ -35,7 +35,8 @@ WORKDIR /app
 COPY pyproject.toml /app/
 
 # Install the required dependencies
-RUN pip3 install -e ".[colormap]" --no-cache-dir && \
+RUN --mount=source=.git,target=.git,type=bind \
+    pip3 install -e ".[colormap]" --no-cache-dir && \
     # Remove musl-dev and gcc
     apk del build-deps && \
     rm -rf /var/cache/apk/*

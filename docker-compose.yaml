@@ -1,0 +1,15 @@
+version: '3'
+services:
+  ha_streamdeck:
+    container_name: ha_streamdeck
+    image: basnijholt/home-assistant-streamdeck-yaml:latest
+    environment:
+      - HASS_HOST=x.y.z.t:8123
+      - HASS_TOKEN=foo
+      - WEBSOCKET_PROTOCOL=wss # or "ws" if you don't have SSL, by default it's wss
+    volumes:
+      - ./configuration.yaml:/app/configuration.yaml
+      - /etc/localtime:/etc/localtime:ro
+    privileged: true
+    restart: always
+    network_mode: host

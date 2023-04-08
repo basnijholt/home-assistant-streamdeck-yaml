@@ -4,11 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "README.md"
-      - ".github/workflows/update-readme.yml"
-      - "home_assistant_streamdeck_yaml.py"
-      - "tests/test_examples.py"
   pull_request:
 
 jobs:

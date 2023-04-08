@@ -239,11 +239,11 @@ pages:
 
 Each button can take the following configuration:
 
-<!-- START_CODE -->
+<!-- CODE:START -->
 <!-- from home_assistant_streamdeck_yaml import Button -->
 <!-- print(Button.to_markdown_table()) -->
-<!-- END_CODE -->
-<!-- START_OUTPUT -->
+<!-- CODE:END -->
+<!-- OUTPUT:START -->
 <!-- THIS CONTENT IS AUTOMATICALLY GENERATED -->
 | Variable name           | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Allow template   | Default   | Type                                                                                                  |
 |:------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-----------------|:----------|:------------------------------------------------------------------------------------------------------|
@@ -262,19 +262,19 @@ Each button can take the following configuration:
 | `special_type`          | Special type of button. If no specified, the button is a normal button. If `next-page`, the button will go to the next page. If `previous-page`, the button will go to the previous page. If `turn-off`, the button will turn off the SteamDeck until any button is pressed. If `empty`, the button will be empty. If `go-to-page`, the button will go to the page specified by `special_type_data` (either an `int` or `str` (name of the page)). If `light-control`, the button will control a light, and the `special_type_data` can be a dictionary, see its description.          | ❌                |           | `Optional[Literal['next-page', 'previous-page', 'empty', 'go-to-page', 'turn-off', 'light-control']]` |
 | `special_type_data`     | Data for the special type of button. If `go-to-page`, the data should be an `int` or `str` (name of the page). If `light-control`, the data should optionally be a dictionary. The dictionary can contain the following keys: The `colors` key and a value a list of max (`n_keys_on_streamdeck - 5`) hex colors. The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html) can be used. This requires the `matplotlib` package to be installed. If no list of `colors` or `colormap` is specified, 10 equally spaced colors are used. | ✅                |           | `Optional[Any]`                                                                                       |
 
-<!-- END_OUTPUT -->
+<!-- OUTPUT:END -->
 
 # :bulb: More than 20 Button Configurations ideas
 
 Here are >20 interesting uses for the Stream Deck with Home Assistant:
 
-<!-- START_CODE -->
+<!-- CODE:START -->
 <!-- import os, sys -->
 <!-- sys.path.append(os.path.abspath(".")) -->
 <!-- from tests.test_examples import generate_readme_entry -->
 <!-- print(generate_readme_entry()) -->
-<!-- END_CODE -->
-<!-- START_OUTPUT -->
+<!-- CODE:END -->
+<!-- OUTPUT:START -->
 <!-- THIS CONTENT IS AUTOMATICALLY GENERATED -->
 
 
@@ -758,4 +758,4 @@ toggle_security_camera_recording:
 </details>
 
 
-<!-- END_OUTPUT -->
+<!-- OUTPUT:END -->

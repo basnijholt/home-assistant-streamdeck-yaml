@@ -50,7 +50,7 @@ https://user-images.githubusercontent.com/6897215/226788119-6c198ea6-2950-4f95-9
     - [:clipboard: Config YAML configuration](#clipboard-config-yaml-configuration)
     - [:bookmark_tabs: Page YAML configuration](#bookmark_tabs-page-yaml-configuration)
     - [:white_square_button: Button YAML configuration](#white_square_button-button-yaml-configuration)
-- [:bulb: More than 20 Button Configurations ideas](#bulb-more-than-20-button-configurations-ideas)
+- [:bulb: More than 30 Button Configurations ideas](#bulb-more-than-20-button-configurations-ideas)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -308,9 +308,9 @@ Each button can take the following configuration
 
 <!-- OUTPUT:END -->
 
-# :bulb: More than 20 Button Configurations ideas
+# :bulb: More than 30 Button Configurations ideas
 
-Here are >20 interesting uses for the Stream Deck with Home Assistant:
+Here are >30 interesting uses for the Stream Deck with Home Assistant:
 
 <!-- CODE:START -->
 <!-- import os, sys -->

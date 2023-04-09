@@ -105,7 +105,9 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " The icon can be a URL to an image,"
         " like `'url:https://www.nijho.lt/authors/admin/avatar.jpg'`, or a `spotify:`"
         " icon, like `'spotify:album/6gnYcXVaffdG0vwVM34cr8'`."
-        " If the icon is a `spotify:` icon, the icon will be downloaded and cached.",
+        " If the icon is a `spotify:` icon, the icon will be downloaded and cached."
+        " The icon can also display a partially complete ring, like a progress bar,"
+        " or sensor value, like `ring:25` for a 25% complete ring.",
     )
     icon_mdi: str | None = Field(
         default=None,

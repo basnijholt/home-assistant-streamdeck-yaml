@@ -25,12 +25,14 @@ from PIL import Image, ImageColor, ImageDraw, ImageFont, ImageOps
 from pydantic import BaseModel, Field, PrivateAttr, validator
 from pydantic.fields import Undefined
 from rich.console import Console
+from rich.table import Table
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.ImageHelpers import PILHelper
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
 
+    import pandas as pd
     from StreamDeck.Devices import StreamDeck
 
 __version__ = pkg_resources.get_distribution("home_assistant_streamdeck_yaml").version
@@ -180,8 +182,8 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         return cls(**data[0])
 
     @classmethod
-    def to_markdown_table(cls: type[Button]) -> str:
-        """Return a markdown table with the schema."""
+    def to_pandas_table(cls: type[Button]) -> pd.DataFrame:
+        """Return a pandas table with the schema."""
         import pandas as pd
 
         rows = []
@@ -201,7 +203,12 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 "Type": code(field._type_display()),
             }
             rows.append(row)
-        return pd.DataFrame(rows).to_markdown(index=False)
+        return pd.DataFrame(rows)
+
+    @classmethod
+    def to_markdown_table(cls: type[Button]) -> str:
+        """Return a markdown table with the schema."""
+        return cls.to_pandas_table().to_markdown(index=False)
 
     @property
     def domain(self) -> str | None:
@@ -437,7 +444,7 @@ def _to_filename(id_: str, suffix: str = "") -> Path:
     return filename.with_suffix(suffix)
 
 
-def to_markdown_table(cls: type[BaseModel]) -> str:
+def to_pandas_table(cls: type[BaseModel]) -> pd.DataFrame:
     """Return a markdown table with the schema."""
     import pandas as pd
 
@@ -457,7 +464,22 @@ def to_markdown_table(cls: type[BaseModel]) -> str:
             "Type": code(field._type_display()),
         }
         rows.append(row)
-    return pd.DataFrame(rows).to_markdown(index=False)
+    return pd.DataFrame(rows)
+
+
+def _pandas_to_rich_table(df: pd.DataFrame) -> Table:
+    """Return a rich table from a pandas DataFrame."""
+    table = Table()
+
+    # Add the columns
+    for column in df.columns:
+        table.add_column(column)
+
+    # Add the rows
+    for _, row in df.iterrows():
+        table.add_row(*row.astype(str).tolist())
+
+    return table
 
 
 class Page(BaseModel):
@@ -470,9 +492,14 @@ class Page(BaseModel):
     )
 
     @classmethod
+    def to_pandas_table(cls: type[Page]) -> pd.DataFrame:
+        """Return a pandas DataFrame with the schema."""
+        return to_pandas_table(cls)
+
+    @classmethod
     def to_markdown_table(cls: type[Page]) -> str:
         """Return a markdown table with the schema."""
-        return to_markdown_table(cls)
+        return cls.to_pandas_table().to_markdown(index=False)
 
 
 class Config(BaseModel):
@@ -504,9 +531,14 @@ class Config(BaseModel):
     _detached_page: Page | None = PrivateAttr(default=None)
 
     @classmethod
-    def to_markdown_table(cls: type[Page]) -> str:
+    def to_pandas_table(cls: type[Config]) -> pd.DataFrame:
+        """Return a pandas DataFrame with the schema."""
+        return to_pandas_table(cls)
+
+    @classmethod
+    def to_markdown_table(cls: type[Config]) -> str:
         """Return a markdown table with the schema."""
-        return to_markdown_table(cls)
+        return cls.to_pandas_table().to_markdown(index=False)
 
     def update_timers(
         self,
@@ -1585,6 +1617,25 @@ async def run(
         await handle_changes(websocket, complete_state, deck, config)
 
 
+def _rich_table_str(df: pd.DataFrame) -> str:
+    table = _pandas_to_rich_table(df)
+    console = Console(file=io.StringIO(), width=120)
+    console.print(table)
+    return console.file.getvalue()
+
+
+def _help() -> str:
+    try:
+        return (
+            f"See the configuration options below:\n\n"
+            f"Config YAML options:\n{_rich_table_str(Config.to_pandas_table())}\n\n"
+            f"Page YAML options:\n{_rich_table_str(Page.to_pandas_table())}\n\n"
+            f"Button YAML options:\n{_rich_table_str(Button.to_pandas_table())}\n\n"
+        )
+    except ModuleNotFoundError:
+        return ""
+
+
 def main() -> None:
     """Start the Stream Deck integration."""
     import argparse
@@ -1594,7 +1645,10 @@ def main() -> None:
 
     load_dotenv()
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        epilog=_help(),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument("--host", default=os.environ.get("HASS_HOST", "localhost"))
     parser.add_argument("--token", default=os.environ.get("HASS_TOKEN"))
     parser.add_argument(

@@ -268,7 +268,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             )
             return _generate_failed_icon(size)
 
-    def render_icon(  # noqa: PLR0912
+    def render_icon(  # noqa: PLR0912 PLR0915
         self,
         complete_state: StateDict,
         *,
@@ -295,7 +295,9 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 # copy to avoid modifying the cached image
                 image = _download_image(id_, filename, size).copy()
             if which == "ring":
-                image = _draw_percentage_ring(_maybe_number(id_), size)
+                pct = _maybe_number(id_)
+                assert isinstance(pct, (int, float)), f"Invalid ring percentage: {id_}"
+                image = _draw_percentage_ring(pct, size)
 
         icon_convert_to_grayscale = False
         text = button.text
@@ -972,24 +974,27 @@ def _is_state_attr(
 def _is_integer(s: str) -> bool:
     try:
         int(s)
-        return True
     except ValueError:
         return False
+    else:
+        return True
 
 
 def _is_float(s: str) -> bool:
     try:
         float(s)
-        return True
     except ValueError:
         return False
+    else:
+        return True
 
 
-def _maybe_number(s: str, *, rounded: bool = False) -> Any:
+def _maybe_number(s: str, *, rounded: bool = False) -> int | str | float:
+    """Convert a string to a number if possible."""
     if _is_integer(s):
         num = int(s)
     elif _is_float(s):
-        num = float(s)
+        num = float(s)  # type: ignore[assignment]
     else:
         return s
 
@@ -997,7 +1002,6 @@ def _maybe_number(s: str, *, rounded: bool = False) -> Any:
         return round(num)
 
     return num
-
 
 
 def _states(
@@ -1008,7 +1012,6 @@ def _states(
     complete_state: StateDict | None = None,
 ) -> Any:
     """Get the state for an entity."""
-
     assert complete_state is not None
     entity_state = complete_state.get(entity_id, {})
     if not entity_state:

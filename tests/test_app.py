@@ -192,20 +192,20 @@ def test_named_to_hex() -> None:
 def test_example_config_browsing_pages(config: Config) -> None:
     """Test example config browsing pages."""
     assert isinstance(config, Config)
-    assert config.current_page_index == 0
+    assert config._current_page_index == 0
     second_page = config.next_page()
     assert isinstance(second_page, Page)
-    assert config.current_page_index == 1
+    assert config._current_page_index == 1
     first_page = config.previous_page()
     assert isinstance(first_page, Page)
-    assert config.current_page_index == 0
+    assert config._current_page_index == 0
     assert len(first_page.buttons) == BUTTONS_PER_PAGE
     assert len(second_page.buttons) == 1  # update when adding more buttons
     second_page = config.to_page(1)
     assert isinstance(second_page, Page)
-    assert config.current_page_index == 1
+    assert config._current_page_index == 1
     first_page = config.to_page(first_page.name)
-    assert config.current_page_index == 0
+    assert config._current_page_index == 0
     assert config.button(0) == first_page.buttons[0]
 
 
@@ -356,7 +356,7 @@ def test_update_key_image(
     """Test update_key_image with MockDeck."""
     update_key_image(mock_deck, key=0, config=config, complete_state=state)
     page = config.current_page()
-    assert config.current_page_index == 0
+    assert config._current_page_index == 0
     for key, _ in enumerate(page.buttons):
         update_key_image(mock_deck, key=key, config=config, complete_state=state)
 
@@ -528,7 +528,7 @@ async def test_handle_key_press_next_page(
     websocket_mock.send.assert_not_called()
 
     # Ensure that the next_page method is called
-    assert config.current_page_index == 1
+    assert config._current_page_index == 1
 
 
 async def test_button_with_target(
@@ -1081,7 +1081,7 @@ async def test_anonymous_page(
         buttons=[Button(text="yolo"), Button(text="foo", delay=0.1)],
     )
     config = Config(pages=[home], anonymous_pages=[anon])
-    assert config.current_page_index == 0
+    assert config._current_page_index == 0
     assert config._detached_page is None
     assert config.to_page("anon") == anon
     assert config._detached_page is not None

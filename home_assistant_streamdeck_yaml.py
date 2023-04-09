@@ -486,6 +486,7 @@ class Config(BaseModel):
         default_factory=list,
         description="A list of anonymous Pages in the configuration."
         " These pages are hidden and not displayed when cycling through the pages."
+        " They can only be reached using the `special_type: 'go-to-page'` button."
         " Designed for single use, these pages return to the previous page"
         " upon clicking a button.",
     )

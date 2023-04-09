@@ -448,12 +448,12 @@ class Config(BaseModel):
     """Configuration file."""
 
     pages: list[Page] = Field(default_factory=list)
-    anonymous_pages: list[Page] = Field(default_factory=list)
+    anonymous_pages: dict[str, Page] = Field(default_factory=list)
     current_page_index: int = 0
     state_entity_id: str | None = None
     is_on: bool = True
     brightness: int = 100
-    special_page: Page | None = PrivateAttr(default=None)
+    _singe_click_page: Page | None = PrivateAttr(default=None)
 
     def update_timers(
         self,
@@ -495,8 +495,8 @@ class Config(BaseModel):
 
     def current_page(self) -> Page:
         """Return the current page."""
-        if self.special_page is not None:
-            return self.special_page
+        if self._singe_click_page is not None:
+            return self._singe_click_page
         return self.pages[self.current_page_index]
 
     def button(self, key: int) -> Button | None:
@@ -511,6 +511,11 @@ class Config(BaseModel):
         if isinstance(page, int):
             self.current_page_index = page
         else:
+            if page in self.anonymous_pages:
+                p = self.anonymous_pages[page]
+                if p.single_click:
+                    self._singe_click_page = p
+                return p
             for i, p in enumerate(self.pages):
                 if p.name == page:
                     self.current_page_index = i
@@ -1241,8 +1246,8 @@ async def _handle_key_press(
             colormap=button.special_type_data.get("colormap", None),
             colors=button.special_type_data.get("colors", None),
         )
-        assert config.special_page is None
-        config.special_page = page
+        assert config._singe_click_page is None  # noqa: SLF001
+        config._singe_click_page = page  # noqa: SLF001
         update_all()
     elif button.service is not None:
         button = button.rendered_template_button(complete_state)
@@ -1290,11 +1295,11 @@ def _on_press_callback(
                 key_pressed=key_pressed,
             )
             if key_pressed:
-                has_special_page = config.special_page is not None
+                has_special_page = config._singe_click_page is not None  # noqa: SLF001
                 await _handle_key_press(websocket, complete_state, config, button, deck)
                 if has_special_page:
                     # Reset after a keypress
-                    config.special_page = None
+                    config._singe_click_page = None  # noqa: SLF001
                     deck.reset()
                     update_all_key_images(deck, config, complete_state)
         except Exception as e:  # noqa: BLE001

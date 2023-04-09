@@ -133,9 +133,9 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         allow_template=False,
         description="When specifying `icon` and `entity_id`, if the state is `off`, the icon will be converted to grayscale.",
     )
-    delay: float = Field(
+    delay: float | str = Field(
         default=0.0,
-        allow_template=False,
+        allow_template=True,
         description="The delay (in seconds) before the `service` is called."
         " This is useful if you want to wait before calling the `service`."
         " Counts down from the time the button is pressed."

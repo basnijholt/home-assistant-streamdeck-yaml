@@ -317,3 +317,4 @@ pages:
       - icon_mdi: timer-outline
         text: "30s"
         delay: 30
+      - special_type: next-page

@@ -1240,7 +1240,6 @@ async def _handle_key_press(
             colormap=button.special_type_data.get("colormap", None),
             colors=button.special_type_data.get("colors", None),
         )
-        # assert config._detached_page is None  # noqa: SLF001
         config._detached_page = page  # noqa: SLF001
         update_all()
         return  # to skip the _detached_page reset below

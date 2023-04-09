@@ -7,7 +7,7 @@ import sys
 import textwrap
 from pathlib import Path
 from typing import Any
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 import websockets
@@ -1104,9 +1104,11 @@ async def test_anonymous_page(
     assert button.text == "foo"
     assert config._detached_page is not None
     assert config.current_page() == anon
-    await asyncio.sleep(0.15)  # longer than delay should then switch to home
-    assert config._detached_page is None
-    assert config.current_page() == home
+    with patch("home_assistant_streamdeck_yaml.update_all_key_images") as mock:
+        await asyncio.sleep(0.15)  # longer than delay should then switch to home
+        mock.assert_called_once()
+        assert config._detached_page is None
+        assert config.current_page() == home
     # Should now be the button on the first page
     button = config.button(0)
     assert button.special_type == "go-to-page"

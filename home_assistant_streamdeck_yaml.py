@@ -754,10 +754,7 @@ def _light_page(
             },
         )
         buttons_brightness.append(button)
-    return Page(
-        name="Lights",
-        buttons=buttons_colors + buttons_brightness,
-    )
+    return Page(name="Lights", buttons=buttons_colors + buttons_brightness)
 
 
 @asynccontextmanager
@@ -1297,9 +1294,9 @@ def _on_press_callback(
                 key_pressed=key_pressed,
             )
             if key_pressed:
-                detached = config._detached_page is not None  # noqa: SLF001
+                has_detached_page = config._detached_page is not None  # noqa: SLF001
                 await _handle_key_press(websocket, complete_state, config, button, deck)
-                if detached:
+                if has_detached_page:
                     # Reset after a keypress
                     config._detached_page = None  # noqa: SLF001
                     deck.reset()

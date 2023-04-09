@@ -453,7 +453,6 @@ class Config(BaseModel):
     is_on: bool = True
     brightness: int = 100
     _detached_page: Page | None = PrivateAttr(default=None)
-    _last_page: int | None = PrivateAttr(default=None)
 
     def update_timers(
         self,
@@ -475,7 +474,6 @@ class Config(BaseModel):
 
     def next_page(self) -> Page:
         """Go to the next page."""
-        self._last_page = self.current_page_index
         self.current_page_index = self.next_page_index
         return self.pages[self.current_page_index]
 
@@ -491,7 +489,6 @@ class Config(BaseModel):
 
     def previous_page(self) -> Page:
         """Go to the previous page."""
-        self._last_page = self.current_page_index
         self.current_page_index = self.previous_page_index
         return self.pages[self.current_page_index]
 
@@ -510,7 +507,6 @@ class Config(BaseModel):
 
     def to_page(self, page: int | str) -> Page:
         """Go to a page based on the page name or index."""
-        self._last_page = self.current_page_index
         if isinstance(page, int):
             self.current_page_index = page
             return self.current_page()
@@ -525,12 +521,6 @@ class Config(BaseModel):
                 self._detached_page = p
                 return p
 
-        return self.current_page()
-
-    def to_last_page(self) -> Page:
-        """Go to the last page that was visited."""
-        if self._last_page is not None:
-            self.current_page_index = self._last_page
         return self.current_page()
 
 
@@ -1521,7 +1511,7 @@ def update_all_key_images(
     complete_state: StateDict,
 ) -> None:
     """Update all key images."""
-    console.log(f"Called update_all_key_images")
+    console.log("Called update_all_key_images")
     for key in range(deck.key_count()):
         update_key_image(
             deck,

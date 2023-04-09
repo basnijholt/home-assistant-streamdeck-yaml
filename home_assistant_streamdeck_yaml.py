@@ -1632,7 +1632,7 @@ def _rich_table_str(df: pd.DataFrame) -> str:
 def _usage() -> str:
     try:
         return (
-            f"See the configuration options below and see the command-line options below that:\n\n"
+            f"See the configuration options below:\n\n"
             f"Config YAML options:\n{_rich_table_str(Config.to_pandas_table())}\n\n"
             f"Page YAML options:\n{_rich_table_str(Page.to_pandas_table())}\n\n"
             f"Button YAML options:\n{_rich_table_str(Button.to_pandas_table())}\n\n"
@@ -1650,7 +1650,10 @@ def main() -> None:
 
     load_dotenv()
 
-    parser = argparse.ArgumentParser(usage=_usage())
+    parser = argparse.ArgumentParser(
+        epilog=_usage(),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument("--host", default=os.environ.get("HASS_HOST", "localhost"))
     parser.add_argument("--token", default=os.environ.get("HASS_TOKEN"))
     parser.add_argument(

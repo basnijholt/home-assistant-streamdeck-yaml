@@ -133,13 +133,14 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         allow_template=False,
         description="When specifying `icon` and `entity_id`, if the state is `off`, the icon will be converted to grayscale.",
     )
-    delay: float = Field(
+    delay: float | str = Field(
         default=0.0,
-        allow_template=False,
+        allow_template=True,
         description="The delay (in seconds) before the `service` is called."
         " This is useful if you want to wait before calling the `service`."
         " Counts down from the time the button is pressed."
-        " If while counting the button is pressed again, the timer is cancelled.",
+        " If while counting the button is pressed again, the timer is cancelled."
+        " Should be a float or template string that evaluates to a float.",
     )
     special_type: Literal[
         "next-page",
@@ -416,6 +417,10 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         """Start or cancel the timer."""
         if self.delay:
             if self._timer is None:
+                assert isinstance(
+                    self.delay,
+                    (int, float),
+                ), f"Invalid delay: {self.delay}"
                 self._timer = AsyncDelayedCallback(delay=self.delay, callback=callback)
             if self._timer.is_running():
                 self._timer.cancel()
@@ -434,6 +439,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     ) -> tuple[Button, Image.Image]:
         """Return the button and image for the sleep button."""
         assert self._timer is not None
+        assert isinstance(self.delay, (int, float)), f"Invalid delay: {self.delay}"
         remaining = self._timer.remaining_time()
         pct = round(remaining / self.delay * 100)
         image = _draw_percentage_ring(pct, size)
@@ -960,7 +966,9 @@ def _state_attr(
     complete_state: StateDict,
 ) -> Any:
     """Get the state attribute for an entity."""
-    return complete_state.get(entity_id, {}).get("attributes", {}).get(attr)
+    attrs = complete_state.get(entity_id, {}).get("attributes", {})
+    state_attr = attrs.get(attr)
+    return _maybe_number(state_attr)
 
 
 def _is_state_attr(
@@ -970,16 +978,7 @@ def _is_state_attr(
     complete_state: StateDict,
 ) -> bool:
     """Check if the state attribute for an entity is a value."""
-    return _state_attr(entity_id, attr, complete_state) == value
-
-
-def _is_integer(s: str) -> bool:
-    try:
-        int(s)
-    except ValueError:
-        return False
-    else:
-        return True
+    return _state_attr(entity_id, attr, complete_state) == _maybe_number(value)
 
 
 def _is_float(s: str) -> bool:
@@ -993,6 +992,9 @@ def _is_float(s: str) -> bool:
 
 def _maybe_number(s: str, *, rounded: bool = False) -> int | str | float:
     """Convert a string to a number if possible."""
+    if not isinstance(s, str):  # already a number or other type
+        return s
+
     if _is_integer(s):
         num = int(s)
     elif _is_float(s):
@@ -1004,6 +1006,15 @@ def _maybe_number(s: str, *, rounded: bool = False) -> int | str | float:
         return round(num)
 
     return num
+
+
+def _is_integer(s: str) -> bool:
+    try:
+        int(s)
+    except ValueError:
+        return False
+    else:
+        return True
 
 
 def _states(
@@ -1033,7 +1044,7 @@ def _is_state(
     complete_state: StateDict,
 ) -> bool:
     """Check if the state for an entity is a value."""
-    return _states(entity_id, complete_state=complete_state) == state
+    return _states(entity_id, complete_state=complete_state) == _maybe_number(state)
 
 
 def _min_filter(value: float, other_value: float) -> float:

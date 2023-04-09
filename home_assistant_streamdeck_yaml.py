@@ -487,7 +487,7 @@ class Config(BaseModel):
         description="A list of anonymous `Page`s in the configuration."
         " These are pages that are not shown when skipping through pages."
         " These pages are for single use only, meaning you click on a button"
-        " and it goes back to last page.",
+        " on this page, it goes back to last page.",
     )
     current_page_index: int = Field(0, description="The index of the current page.")
     state_entity_id: str | None = Field(

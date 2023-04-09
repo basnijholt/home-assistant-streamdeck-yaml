@@ -300,10 +300,10 @@ pages:
           {% else %}
           Mute
           {% endif %}
-      - entity_id: media_player.kef_ls50
-        icon_mdi: "does-not-exist"
       - special_type: go-to-page
         special_type_data: timers
+      - entity_id: media_player.kef_ls50
+        icon_mdi: "does-not-exist"
 anonymous_pages:
   timers:
     - icon_mdi: timer-outline

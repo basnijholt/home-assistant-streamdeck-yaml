@@ -453,7 +453,7 @@ class Config(BaseModel):
     state_entity_id: str | None = None
     is_on: bool = True
     brightness: int = 100
-    _special_page: Page | None = PrivateAttr(default=None)
+    _detached_page: Page | None = PrivateAttr(default=None)
     _last_page: int | None = PrivateAttr(default=None)
 
     def update_timers(
@@ -498,8 +498,8 @@ class Config(BaseModel):
 
     def current_page(self) -> Page:
         """Return the current page."""
-        if self._special_page is not None:
-            return self._special_page
+        if self._detached_page is not None:
+            return self._detached_page
         return self.pages[self.current_page_index]
 
     def button(self, key: int) -> Button | None:
@@ -523,7 +523,7 @@ class Config(BaseModel):
 
         for p in self.anonymous_pages:
             if p.name == page:
-                self._special_page = p
+                self._detached_page = p
                 return p
 
         return self.current_page()
@@ -1257,9 +1257,10 @@ async def _handle_key_press(
             colormap=button.special_type_data.get("colormap", None),
             colors=button.special_type_data.get("colors", None),
         )
-        assert config._special_page is None  # noqa: SLF001
-        config._special_page = page  # noqa: SLF001
+        assert config._detached_page is None  # noqa: SLF001
+        config._detached_page = page  # noqa: SLF001
         update_all()
+        return  # to skip the _detached_page reset below
     elif button.service is not None:
         button = button.rendered_template_button(complete_state)
         if button.service_data is None:
@@ -1271,6 +1272,10 @@ async def _handle_key_press(
         console.log(f"Calling service {button.service} with data {service_data}")
         assert button.service is not None  # for mypy
         await call_service(websocket, button.service, service_data, button.target)
+
+    if config._detached_page:  # SLF001
+        config._detached_page = None  # SLF001
+        update_all()
 
 
 def _on_press_callback(
@@ -1292,6 +1297,7 @@ def _on_press_callback(
             async def cb() -> None:
                 """Update the deck once more after the timer is over."""
                 assert button is not None  # for mypy
+                print(f"yolo {button}")
                 await _handle_key_press(websocket, complete_state, config, button, deck)
 
             if button.maybe_start_or_cancel_timer(cb):
@@ -1306,11 +1312,11 @@ def _on_press_callback(
                 key_pressed=key_pressed,
             )
             if key_pressed:
-                has_special_page = config._special_page is not None  # noqa: SLF001
+                detached = config._detached_page is not None  # noqa: SLF001
                 await _handle_key_press(websocket, complete_state, config, button, deck)
-                if has_special_page:
+                if detached:
                     # Reset after a keypress
-                    config._special_page = None  # noqa: SLF001
+                    config._detached_page = None  # noqa: SLF001
                     deck.reset()
                     update_all_key_images(deck, config, complete_state)
         except Exception as e:  # noqa: BLE001

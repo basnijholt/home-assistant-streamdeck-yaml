@@ -33,6 +33,7 @@ from home_assistant_streamdeck_yaml import (
     _keys,
     _light_page,
     _named_to_hex,
+    _on_press_callback,
     _render_jinja,
     _states,
     _to_filename,
@@ -1063,3 +1064,48 @@ def test_to_markdown_table() -> None:
     """Test to_markdown_table for docs."""
     table = Button.to_markdown_table()
     assert isinstance(table, str)
+
+
+async def test_anonymous_page(
+    mock_deck: Mock,
+    websocket_mock: Mock,
+    state: dict[str, dict[str, Any]],
+) -> None:
+    """Test that the anonymous page works."""
+    home = Page(
+        name="home",
+        buttons=[Button(special_type="go-to-page", special_type_data="anon")],
+    )
+    anon = Page(
+        name="anon",
+        buttons=[Button(text="yolo"), Button(text="foo", delay=0.1)],
+    )
+    config = Config(pages=[home], anonymous_pages=[anon])
+    assert config.current_page_index == 0
+    assert config._detached_page is None
+    assert config.to_page("anon") == anon
+    assert config._detached_page is not None
+    assert config.current_page() == anon
+    button = config.button(0)
+    assert button.text == "yolo"
+    press = _on_press_callback(websocket_mock, state, config)
+    # Click the button
+    await press(mock_deck, 0, key_pressed=True)
+    # Should now be the button on the first page
+    button = config.button(0)
+    assert button.special_type == "go-to-page"
+    # Back to anon page
+    assert config.to_page("anon") == anon
+    # Click the delay button
+    button = config.button(1)
+    assert button.text == "foo"
+    await press(mock_deck, 1, key_pressed=True)
+    # Should now still be the button because of the delay
+    assert button.text == "foo"
+    assert config._detached_page is not None
+    await asyncio.sleep(0.15)  # longer than delay should then switch to home
+    assert config._detached_page is None
+    assert config.current_page() == home
+    # Should now be the button on the first page
+    button = config.button(0)
+    assert button.special_type == "go-to-page"

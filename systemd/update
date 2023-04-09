@@ -1,3 +1,5 @@
 #!/bin/bash
+git stash
 git pull
+git stash pop
 sudo systemctl restart home-assistant-streamdeck-yaml.service

@@ -1194,12 +1194,7 @@ def read_config(fname: Path) -> Config:
     """Read the configuration file."""
     with fname.open() as f:
         data = yaml.safe_load(f)
-        return Config(
-            pages=data["pages"],
-            anonymous_pages=data['anonymous_pages'],
-            state_entity_id=data.get("state_entity_id"),
-            brightness=data.get("brightness", 100),
-        )
+        return Config(**data)
 
 
 def turn_on(config: Config, deck: StreamDeck, complete_state: StateDict) -> None:
@@ -1531,7 +1526,7 @@ def update_all_key_images(
     complete_state: StateDict,
 ) -> None:
     """Update all key images."""
-    console.log(f"Called update_all_key_images {config.current_page()=}") 
+    console.log(f"Called update_all_key_images {config.current_page()=}")
     for key in range(deck.key_count()):
         update_key_image(
             deck,

@@ -517,13 +517,11 @@ class Config(BaseModel):
             return self.current_page()
 
         for i, p in enumerate(self.pages):
-            console.log(f"normal {p.name} ? {page}")
             if p.name == page:
                 self.current_page_index = i
                 return self.current_page()
-        console.log(str(self.anonymous_pages))
+
         for p in self.anonymous_pages:
-            console.log(f"anon {p.name} ? {page}")
             if p.name == page:
                 self._detached_page = p
                 return p
@@ -1311,9 +1309,7 @@ def _on_press_callback(
             )
             if key_pressed:
                 detached = config._detached_page is not None  # noqa: SLF001
-                console.log(f"before {detached=} {button=}")
                 await _handle_key_press(websocket, complete_state, config, button, deck)
-                console.log(f"after {config._detached_page=}")
                 if detached:
                     # Reset after a keypress
                     config._detached_page = None  # noqa: SLF001

@@ -467,12 +467,7 @@ def to_pandas_table(cls: type[BaseModel]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def to_markdown_table(cls: type[Button]) -> str:
-    """Return a markdown table with the schema."""
-    return to_pandas_table(cls).to_markdown(index=False)
-
-
-def pandas_to_rich_table(df: pd.DataFrame) -> Table:
+def _pandas_to_rich_table(df: pd.DataFrame) -> Table:
     """Return a rich table from a pandas DataFrame."""
     table = Table()
 
@@ -1623,7 +1618,7 @@ async def run(
 
 
 def _rich_table_str(df: pd.DataFrame) -> str:
-    table = pandas_to_rich_table(df)
+    table = _pandas_to_rich_table(df)
     console = Console(file=io.StringIO(), width=120)
     console.print(table)
     return console.file.getvalue()

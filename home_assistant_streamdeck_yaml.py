@@ -521,7 +521,7 @@ class Config(BaseModel):
             if p.name == page:
                 self.current_page_index = i
                 return self.current_page()
-
+        console.log(str(self.anonymous_pages))
         for p in self.anonymous_pages:
             console.log(f"anon {p.name} ? {page}")
             if p.name == page:

@@ -340,3 +340,7 @@ anonymous_pages:
         text: |
           Bedroom
           lights
+      - entity_id: light.sphere_tv
+        service: light.toggle
+        text: Sphere
+

@@ -1107,8 +1107,8 @@ async def test_anonymous_page(
     with patch("home_assistant_streamdeck_yaml.update_all_key_images") as mock:
         await asyncio.sleep(0.15)  # longer than delay should then switch to home
         mock.assert_called_once()
-        assert config._detached_page is None
-        assert config.current_page() == home
+    assert config._detached_page is None
+    assert config.current_page() == home
     # Should now be the button on the first page
     button = config.button(0)
     assert button.special_type == "go-to-page"

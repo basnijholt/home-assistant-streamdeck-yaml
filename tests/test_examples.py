@@ -1140,6 +1140,7 @@ start_timer = {
 
 outside_temperature_display = {
     "description": "🌡️ Display outside temperature with a ring indicator",
+    "extra": "This sets 0% to -10°C and 100% to 40°C.",
     "yaml": textwrap.dedent(
         """
         - entity_id: sensor.temperature_sensor_outside_temperature

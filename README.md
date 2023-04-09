@@ -848,6 +848,8 @@ toggle_security_camera_recording:
     {{ temp | round(1) }}°C
 ```
 
+This sets 0% to -10°C and 100% to 40°C.
+
 </details>
 
 

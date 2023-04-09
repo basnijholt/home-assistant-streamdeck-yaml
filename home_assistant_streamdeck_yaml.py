@@ -447,11 +447,12 @@ class Config(BaseModel):
     """Configuration file."""
 
     pages: list[Page] = Field(default_factory=list)
+    anonymous_pages: list[Page] = Field(default_factory=list)
     current_page_index: int = 0
-    special_page: Page | None = None
     state_entity_id: str | None = None
     is_on: bool = True
     brightness: int = 100
+    special_page: Page | None = PrivateAttr(default=None)
 
     def update_timers(
         self,

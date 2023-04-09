@@ -1196,6 +1196,7 @@ def read_config(fname: Path) -> Config:
         data = yaml.safe_load(f)
         return Config(
             pages=data["pages"],
+            anonymous_pages=data['anonymous_pages'],
             state_entity_id=data.get("state_entity_id"),
             brightness=data.get("brightness", 100),
         )

@@ -139,7 +139,8 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         description="The delay (in seconds) before the `service` is called."
         " This is useful if you want to wait before calling the `service`."
         " Counts down from the time the button is pressed."
-        " If while counting the button is pressed again, the timer is cancelled.",
+        " If while counting the button is pressed again, the timer is cancelled."
+        " Should be a float or template string that evaluates to a float.",
     )
     special_type: Literal[
         "next-page",

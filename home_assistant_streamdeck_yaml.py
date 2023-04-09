@@ -760,7 +760,6 @@ def _light_page(
     return Page(
         name="Lights",
         buttons=buttons_colors + buttons_brightness,
-        single_click=True,
     )
 
 
@@ -1306,10 +1305,10 @@ def _on_press_callback(
                     config._special_page = None  # noqa: SLF001
                     deck.reset()
                     update_all_key_images(deck, config, complete_state)
-                # elif config.current_page().single_click:
-                #     config.to_last_page()
-                #     deck.reset()
-                #     update_all_key_images(deck, config, complete_state)
+                elif config.current_page().single_click:
+                    config.to_last_page()
+                    deck.reset()
+                    update_all_key_images(deck, config, complete_state)
         except Exception as e:  # noqa: BLE001
             console.print_exception(show_locals=True)
             console.log(f"key_change_callback failed with a {type(e)}: {e}")

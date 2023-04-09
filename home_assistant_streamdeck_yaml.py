@@ -448,7 +448,6 @@ class Config(BaseModel):
     """Configuration file."""
 
     pages: list[Page] = Field(default_factory=list)
-    anonymous_pages: dict[str, Page] = Field(default_factory=list)
     current_page_index: int = 0
     state_entity_id: str | None = None
     is_on: bool = True
@@ -511,11 +510,6 @@ class Config(BaseModel):
         if isinstance(page, int):
             self.current_page_index = page
         else:
-            if page in self.anonymous_pages:
-                p = self.anonymous_pages[page]
-                if p.single_click:
-                    self._singe_click_page = p
-                return p
             for i, p in enumerate(self.pages):
                 if p.name == page:
                     self.current_page_index = i

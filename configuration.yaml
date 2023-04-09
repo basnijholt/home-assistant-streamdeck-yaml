@@ -304,14 +304,15 @@ pages:
         special_type_data: timers
       - entity_id: media_player.kef_ls50
         icon_mdi: "does-not-exist"
-anonymous_pages:
-  timers:
-    - icon_mdi: timer-outline
-      text: "10s"
-      delay: 10
-    - icon_mdi: timer-outline
-      text: "20s"
-      delay: 20
-    - icon_mdi: timer-outline
-      text: "30s"
-      delay: 30
+  - name: timers
+    single_click: true
+    buttons:
+      - icon_mdi: timer-outline
+        text: "10s"
+        delay: 10
+      - icon_mdi: timer-outline
+        text: "20s"
+        delay: 20
+      - icon_mdi: timer-outline
+        text: "30s"
+        delay: 30

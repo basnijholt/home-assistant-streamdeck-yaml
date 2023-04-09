@@ -416,6 +416,10 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         """Start or cancel the timer."""
         if self.delay:
             if self._timer is None:
+                assert isinstance(
+                    self.delay,
+                    (int, float),
+                ), f"Invalid delay: {self.delay}"
                 self._timer = AsyncDelayedCallback(delay=self.delay, callback=callback)
             if self._timer.is_running():
                 self._timer.cancel()
@@ -434,6 +438,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     ) -> tuple[Button, Image.Image]:
         """Return the button and image for the sleep button."""
         assert self._timer is not None
+        assert isinstance(self.delay, (int, float)), f"Invalid delay: {self.delay}"
         remaining = self._timer.remaining_time()
         pct = round(remaining / self.delay * 100)
         image = _draw_percentage_ring(pct, size)

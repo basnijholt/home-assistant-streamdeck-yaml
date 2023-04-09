@@ -265,6 +265,7 @@ lock_unlock_door = {
             Front Door
             {{ 'Unlocked' if is_state('lock.front_door', 'unlocked') else 'Locked' }}
           text_size: 10
+          text_color: "{{ 'green' if is_state('lock.front_door', 'unlocked') else 'red' }}"
         """,
     ),
     "state": [
@@ -295,10 +296,11 @@ lock_unlock_door = {
 
 arm_disarm_alarm_system = {
     "description": "⚠️ Arm/disarm an alarm system after 30 seconds",
+    "extra": "Arm the alarm system in 30 seconds if it's disarmed, disarm it immediately if it's armed.",
     "yaml": textwrap.dedent(
         """
         - entity_id: alarm_control_panel.home_alarm
-          delay: 30
+          delay: "{{ 0 if is_state('alarm_control_panel.home_alarm', 'armed_away') else 30 }}"
           service: "{{ 'alarm_control_panel.alarm_disarm' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'alarm_control_panel.alarm_arm_away' }}"
           icon_mdi: "{{ 'shield-check' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'shield-off' }}"
           text: |
@@ -318,7 +320,7 @@ arm_disarm_alarm_system = {
             icon_mdi="shield-check",
             text="Disarm\nAlarm",
             text_color="red",
-            delay=30.0,
+            delay=0.0,
         ),
         Button(
             entity_id="alarm_control_panel.home_alarm",

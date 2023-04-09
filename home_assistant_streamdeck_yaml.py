@@ -491,7 +491,8 @@ class Config(BaseModel):
     )
     state_entity_id: str | None = Field(
         default=None,
-        description="The entity ID to sync display state with.",
+        description="The entity ID to sync display state with. For"
+        " example `input_boolean.streamdeck` or `binary_sensor.anyone_home`.",
     )
     brightness: int = Field(
         default=100,

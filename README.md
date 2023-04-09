@@ -254,7 +254,7 @@ Each YAML config can take the following configuration
 |:------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------|:----------------|
 | `pages`           | A list of `Page`s in the configuration.                                                                                                                                                                           |           | `List[Page]`    |
 | `anonymous_pages` | A list of anonymous Pages in the configuration. These pages are hidden and not displayed when cycling through the pages. Designed for single use, these pages return to the previous page upon clicking a button. |           | `List[Page]`    |
-| `state_entity_id` | The entity ID to sync display state with.                                                                                                                                                                         | `None`    | `Optional[str]` |
+| `state_entity_id` | The entity ID to sync display state with. For example `input_boolean.streamdeck` or `binary_sensor.anyone_home`.                                                                                                  | `None`    | `Optional[str]` |
 | `brightness`      | The default brightness of the Stream Deck (0-100).                                                                                                                                                                | `100`     | `int`           |
 
 <!-- OUTPUT:END -->

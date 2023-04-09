@@ -105,7 +105,9 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " The icon can be a URL to an image,"
         " like `'url:https://www.nijho.lt/authors/admin/avatar.jpg'`, or a `spotify:`"
         " icon, like `'spotify:album/6gnYcXVaffdG0vwVM34cr8'`."
-        " If the icon is a `spotify:` icon, the icon will be downloaded and cached.",
+        " If the icon is a `spotify:` icon, the icon will be downloaded and cached."
+        " The icon can also display a partially complete ring, like a progress bar,"
+        " or sensor value, like `ring:25` for a 25% complete ring.",
     )
     icon_mdi: str | None = Field(
         default=None,
@@ -268,7 +270,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             )
             return _generate_failed_icon(size)
 
-    def render_icon(  # noqa: PLR0912
+    def render_icon(  # noqa: PLR0912 PLR0915
         self,
         complete_state: StateDict,
         *,
@@ -294,6 +296,10 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 filename = _url_to_filename(id_)
                 # copy to avoid modifying the cached image
                 image = _download_image(id_, filename, size).copy()
+            if which == "ring":
+                pct = _maybe_number(id_)
+                assert isinstance(pct, (int, float)), f"Invalid ring percentage: {id_}"
+                image = _draw_percentage_ring(pct, size)
 
         icon_convert_to_grayscale = False
         text = button.text
@@ -680,7 +686,7 @@ class AsyncDelayedCallback:
 
 
 def _draw_percentage_ring(
-    percentage: int,
+    percentage: int | float,
     size: tuple[int, int],
     *,
     radius: int | None = None,
@@ -967,6 +973,39 @@ def _is_state_attr(
     return _state_attr(entity_id, attr, complete_state) == value
 
 
+def _is_integer(s: str) -> bool:
+    try:
+        int(s)
+    except ValueError:
+        return False
+    else:
+        return True
+
+
+def _is_float(s: str) -> bool:
+    try:
+        float(s)
+    except ValueError:
+        return False
+    else:
+        return True
+
+
+def _maybe_number(s: str, *, rounded: bool = False) -> int | str | float:
+    """Convert a string to a number if possible."""
+    if _is_integer(s):
+        num = int(s)
+    elif _is_float(s):
+        num = float(s)  # type: ignore[assignment]
+    else:
+        return s
+
+    if rounded:
+        return round(num)
+
+    return num
+
+
 def _states(
     entity_id: str,
     *,
@@ -980,12 +1019,11 @@ def _states(
     if not entity_state:
         return None
     state = entity_state["state"]
+    state = _maybe_number(state, rounded=rounded)
     if with_unit:
         unit = entity_state.get("attributes", {}).get("unit_of_measurement")
         if unit:
             state += f" {unit}"
-    if rounded:
-        state = round(float(state))
     return state
 
 

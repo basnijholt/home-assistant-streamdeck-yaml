@@ -198,7 +198,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 "Allow template": "✅" if info.extra["allow_template"] else "❌",
                 "Description": info.description,
                 "Default": code(info.default) if info.default else "",
-                "Type": code(field._type_display()),  # noqa: SLF001
+                "Type": code(field._type_display()),
             }
             rows.append(row)
         return pd.DataFrame(rows).to_markdown(index=False)
@@ -454,7 +454,7 @@ def to_markdown_table(cls: type[BaseModel]) -> str:
             "Variable name": code(k),
             "Description": info.description,
             "Default": code(info.default) if info.default is not Undefined else "",
-            "Type": code(field._type_display()),  # noqa: SLF001
+            "Type": code(field._type_display()),
         }
         rows.append(row)
     return pd.DataFrame(rows).to_markdown(index=False)
@@ -489,19 +489,16 @@ class Config(BaseModel):
         " Designed for single use, these pages return to the previous page"
         " upon clicking a button.",
     )
-    current_page_index: int = Field(0, description="The index of the current page.")
     state_entity_id: str | None = Field(
         default=None,
         description="The entity ID to sync display state with.",
-    )
-    is_on: bool = Field(
-        default=True,
-        description="The on/off state of the Stream Deck.",
     )
     brightness: int = Field(
         default=100,
         description="The default brightness of the Stream Deck (0-100).",
     )
+    _current_page_index: int = PrivateAttr(default=0)
+    _is_on: bool = PrivateAttr(default=True)
     _detached_page: Page | None = PrivateAttr(default=None)
 
     @classmethod
@@ -529,29 +526,29 @@ class Config(BaseModel):
 
     def next_page(self) -> Page:
         """Go to the next page."""
-        self.current_page_index = self.next_page_index
-        return self.pages[self.current_page_index]
+        self._current_page_index = self.next_page_index
+        return self.pages[self._current_page_index]
 
     @property
     def next_page_index(self) -> int:
         """Return the next page index."""
-        return (self.current_page_index + 1) % len(self.pages)
+        return (self._current_page_index + 1) % len(self.pages)
 
     @property
     def previous_page_index(self) -> int:
         """Return the previous page index."""
-        return (self.current_page_index - 1) % len(self.pages)
+        return (self._current_page_index - 1) % len(self.pages)
 
     def previous_page(self) -> Page:
         """Go to the previous page."""
-        self.current_page_index = self.previous_page_index
-        return self.pages[self.current_page_index]
+        self._current_page_index = self.previous_page_index
+        return self.pages[self._current_page_index]
 
     def current_page(self) -> Page:
         """Return the current page."""
         if self._detached_page is not None:
             return self._detached_page
-        return self.pages[self.current_page_index]
+        return self.pages[self._current_page_index]
 
     def button(self, key: int) -> Button | None:
         """Return the button for a key."""
@@ -563,12 +560,12 @@ class Config(BaseModel):
     def to_page(self, page: int | str) -> Page:
         """Go to a page based on the page name or index."""
         if isinstance(page, int):
-            self.current_page_index = page
+            self._current_page_index = page
             return self.current_page()
 
         for i, p in enumerate(self.pages):
             if p.name == page:
-                self.current_page_index = i
+                self._current_page_index = i
                 return self.current_page()
 
         for p in self.anonymous_pages:
@@ -1238,20 +1235,20 @@ def read_config(fname: Path) -> Config:
 
 def turn_on(config: Config, deck: StreamDeck, complete_state: StateDict) -> None:
     """Turn on the Stream Deck and update all key images."""
-    console.log(f"Calling turn_on, with {config.is_on=}")
-    if config.is_on:
+    console.log(f"Calling turn_on, with {config._is_on=}")
+    if config._is_on:
         return
-    config.is_on = True
+    config._is_on = True
     update_all_key_images(deck, config, complete_state)
     deck.set_brightness(config.brightness)
 
 
 def turn_off(config: Config, deck: StreamDeck) -> None:
     """Turn off the Stream Deck."""
-    console.log(f"Calling turn_off, with {config.is_on=}")
-    if not config.is_on:
+    console.log(f"Calling turn_off, with {config._is_on=}")
+    if not config._is_on:
         return
-    config.is_on = False
+    config._is_on = False
     # This resets all buttons except the turn-off button that
     # was just pressed, however, this doesn't matter with the
     # 0 brightness. Unless no button was pressed.
@@ -1266,7 +1263,7 @@ async def _handle_key_press(
     button: Button,
     deck: StreamDeck,
 ) -> None:
-    if not config.is_on:
+    if not config._is_on:
         turn_on(config, deck, complete_state)
         return
 
@@ -1295,7 +1292,7 @@ async def _handle_key_press(
             colormap=button.special_type_data.get("colormap", None),
             colors=button.special_type_data.get("colors", None),
         )
-        config._detached_page = page  # noqa: SLF001
+        config._detached_page = page
         update_all()
         return  # to skip the _detached_page reset below
     elif button.service is not None:
@@ -1310,8 +1307,8 @@ async def _handle_key_press(
         assert button.service is not None  # for mypy
         await call_service(websocket, button.service, service_data, button.target)
 
-    if config._detached_page:  # noqa: SLF001
-        config._detached_page = None  # noqa: SLF001
+    if config._detached_page:
+        config._detached_page = None
         update_all()
 
 

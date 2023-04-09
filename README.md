@@ -394,11 +394,12 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>7. 🔒 Lock/unlock a door:</summary>
+<summary>7. 🔒 Lock/unlock a door after 30 seconds:</summary>
 
 ```yaml
 - entity_id: lock.front_door
   service: lock.toggle
+  delay: "{{ 30 if is_state('lock.front_door', 'unlocked') else 0 }}"
   icon_mdi: "{{ 'door-open' if is_state('lock.front_door', 'unlocked') else 'door-closed' }}"
   text: |
     Front Door
@@ -409,10 +410,11 @@ Here are >20 interesting uses for the Stream Deck with Home Assistant:
 </details>
 
 <details>
-<summary>8. ⚠️ Arm/disarm an alarm system:</summary>
+<summary>8. ⚠️ Arm/disarm an alarm system after 30 seconds:</summary>
 
 ```yaml
 - entity_id: alarm_control_panel.home_alarm
+  delay: 30
   service: "{{ 'alarm_control_panel.alarm_disarm' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'alarm_control_panel.alarm_arm_away' }}"
   icon_mdi: "{{ 'shield-check' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'shield-off' }}"
   text: |
@@ -692,11 +694,12 @@ toggle_security_camera_recording:
 </details>
 
 <details>
-<summary>25. 🌙 Enable/disable a nightlight:</summary>
+<summary>25. 🌙 Enable/disable a nightlight after 30 min:</summary>
 
 ```yaml
 - entity_id: light.nightlight
   service: light.toggle
+  delay: 1800
   icon_mdi: "{{ 'lightbulb-on' if is_state('light.nightlight', 'on') else 'lightbulb-off' }}"
   text: "{{ 'Disable' if is_state('light.nightlight', 'on') else 'Enable' }} Nightlight"
 ```

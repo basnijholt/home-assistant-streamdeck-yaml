@@ -356,8 +356,8 @@ anonymous_pages:
           {%- set pct = ((temp - min_temp) / (max_temp - min_temp)) * 100 -%}
           ring:{{ pct | round }}
         text: |
-          Living
           {%- set temp = states('sensor.temperature_sensor_living_room_temperature') -%}
+          Living
           {{ temp | round(1) }}°C
       - entity_id: sensor.temperature_sensor_baby_room_temperature
         icon: >

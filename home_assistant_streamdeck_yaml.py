@@ -1624,7 +1624,7 @@ def _rich_table_str(df: pd.DataFrame) -> str:
     return console.file.getvalue()
 
 
-def _usage() -> str:
+def _help() -> str:
     try:
         return (
             f"See the configuration options below:\n\n"
@@ -1646,7 +1646,7 @@ def main() -> None:
     load_dotenv()
 
     parser = argparse.ArgumentParser(
-        epilog=_usage(),
+        epilog=_help(),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--host", default=os.environ.get("HASS_HOST", "localhost"))

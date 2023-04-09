@@ -1313,7 +1313,7 @@ def _on_press_callback(
             )
             if key_pressed:
                 detached = config._detached_page is not None  # noqa: SLF001
-                console.log(f"before {detached=}")
+                console.log(f"before {detached=} {button=}")
                 await _handle_key_press(websocket, complete_state, config, button, deck)
                 console.log(f"after {config._detached_page=}")
                 if detached:

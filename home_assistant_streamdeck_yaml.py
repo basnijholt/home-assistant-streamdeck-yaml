@@ -981,15 +981,6 @@ def _is_state_attr(
     return _state_attr(entity_id, attr, complete_state) == _maybe_number(value)
 
 
-def _is_integer(s: str) -> bool:
-    try:
-        int(s)
-    except ValueError:
-        return False
-    else:
-        return True
-
-
 def _is_float(s: str) -> bool:
     try:
         float(s)
@@ -1015,6 +1006,15 @@ def _maybe_number(s: str, *, rounded: bool = False) -> int | str | float:
         return round(num)
 
     return num
+
+
+def _is_integer(s: str) -> bool:
+    try:
+        int(s)
+    except ValueError:
+        return False
+    else:
+        return True
 
 
 def _states(

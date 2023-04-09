@@ -484,10 +484,10 @@ class Config(BaseModel):
     )
     anonymous_pages: list[Page] = Field(
         default_factory=list,
-        description="A list of anonymous `Page`s in the configuration."
-        " These are pages that are not shown when skipping through pages."
-        " These pages are for single use only, meaning you click on a button"
-        " on this page, it goes back to last page.",
+        description="A list of anonymous Pages in the configuration."
+        " These pages are hidden and not displayed when cycling through the pages."
+        " Designed for single use, these pages return to the previous page"
+        " upon clicking a button.",
     )
     current_page_index: int = Field(0, description="The index of the current page.")
     state_entity_id: str | None = Field(

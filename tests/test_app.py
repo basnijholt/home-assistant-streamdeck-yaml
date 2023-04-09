@@ -1103,6 +1103,7 @@ async def test_anonymous_page(
     # Should now still be the button because of the delay
     assert button.text == "foo"
     assert config._detached_page is not None
+    assert config.current_page() == anon
     await asyncio.sleep(0.15)  # longer than delay should then switch to home
     assert config._detached_page is None
     assert config.current_page() == home

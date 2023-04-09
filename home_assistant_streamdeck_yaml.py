@@ -452,7 +452,8 @@ class Config(BaseModel):
     state_entity_id: str | None = None
     is_on: bool = True
     brightness: int = 100
-    _singe_click_page: Page | None = PrivateAttr(default=None)
+    _single_click_page: Page | None = PrivateAttr(default=None)
+    _last_page: int | None = PrivateAttr(default=None)
 
     def update_timers(
         self,
@@ -474,6 +475,7 @@ class Config(BaseModel):
 
     def next_page(self) -> Page:
         """Go to the next page."""
+        self._last_page = self.current_page_index
         self.current_page_index = self.next_page_index
         return self.pages[self.current_page_index]
 
@@ -489,13 +491,14 @@ class Config(BaseModel):
 
     def previous_page(self) -> Page:
         """Go to the previous page."""
+        self._last_page = self.current_page_index
         self.current_page_index = self.previous_page_index
         return self.pages[self.current_page_index]
 
     def current_page(self) -> Page:
         """Return the current page."""
-        if self._singe_click_page is not None:
-            return self._singe_click_page
+        if self._single_click_page is not None:
+            return self._single_click_page
         return self.pages[self.current_page_index]
 
     def button(self, key: int) -> Button | None:
@@ -507,6 +510,7 @@ class Config(BaseModel):
 
     def to_page(self, page: int | str) -> Page:
         """Go to a page based on the page name or index."""
+        self._last_page = self.current_page_index
         if isinstance(page, int):
             self.current_page_index = page
         else:
@@ -1240,8 +1244,8 @@ async def _handle_key_press(
             colormap=button.special_type_data.get("colormap", None),
             colors=button.special_type_data.get("colors", None),
         )
-        assert config._singe_click_page is None  # noqa: SLF001
-        config._singe_click_page = page  # noqa: SLF001
+        assert config._single_click_page is None  # noqa: SLF001
+        config._single_click_page = page  # noqa: SLF001
         update_all()
     elif button.service is not None:
         button = button.rendered_template_button(complete_state)
@@ -1289,11 +1293,11 @@ def _on_press_callback(
                 key_pressed=key_pressed,
             )
             if key_pressed:
-                has_special_page = config._singe_click_page is not None  # noqa: SLF001
+                has_special_page = config._single_click_page is not None  # noqa: SLF001
                 await _handle_key_press(websocket, complete_state, config, button, deck)
                 if has_special_page:
                     # Reset after a keypress
-                    config._singe_click_page = None  # noqa: SLF001
+                    config._single_click_page = None  # noqa: SLF001
                     deck.reset()
                     update_all_key_images(deck, config, complete_state)
         except Exception as e:  # noqa: BLE001

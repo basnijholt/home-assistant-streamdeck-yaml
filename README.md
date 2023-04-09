@@ -443,6 +443,7 @@ Here are >30 interesting uses for the Stream Deck with Home Assistant:
     Front Door
     {{ 'Unlocked' if is_state('lock.front_door', 'unlocked') else 'Locked' }}
   text_size: 10
+  text_color: "{{ 'green' if is_state('lock.front_door', 'unlocked') else 'red' }}"
 ```
 
 </details>
@@ -452,7 +453,7 @@ Here are >30 interesting uses for the Stream Deck with Home Assistant:
 
 ```yaml
 - entity_id: alarm_control_panel.home_alarm
-  delay: 30
+  delay: "{{ 0 if is_state('alarm_control_panel.home_alarm', 'armed_away') else 30 }}"
   service: "{{ 'alarm_control_panel.alarm_disarm' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'alarm_control_panel.alarm_arm_away' }}"
   icon_mdi: "{{ 'shield-check' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'shield-off' }}"
   text: |
@@ -460,6 +461,8 @@ Here are >30 interesting uses for the Stream Deck with Home Assistant:
     Alarm
   text_color: "{{ 'red' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'green' }}"
 ```
+
+Arm the alarm system in 30 seconds if it's disarmed, disarm it immediately if it's armed.
 
 </details>
 

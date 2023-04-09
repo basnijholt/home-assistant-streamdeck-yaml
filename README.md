@@ -37,7 +37,7 @@ https://user-images.githubusercontent.com/6897215/226788119-6c198ea6-2950-4f95-9
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-  - [🌟 Share Your Success](#-share-your-success)
+  - [:star: Share Your Success](#-share-your-success)
   - [:rocket: Getting Started](#rocket-getting-started)
     - [:house_with_garden: Installation as Home Assistant Add-on](#house_with_garden-installation-as-home-assistant-add-on)
     - [:whale: Installation with Docker](#whale-installation-with-docker)
@@ -47,9 +47,9 @@ https://user-images.githubusercontent.com/6897215/226788119-6c198ea6-2950-4f95-9
       - [:desktop_computer: Windows](#desktop_computer-windows)
   - [:gear: Configuration](#gear-configuration)
     - [:page_facing_up: `configuration.yaml`](#page_facing_up-configurationyaml)
-    - [:white_square_button: Config YAML configuration](#white_square_button-config-yaml-configuration)
-    - [:white_square_button: Page YAML configuration](#white_square_button-page-yaml-configuration)
-    - [:white_square_button: Button YAML configuration](#white_square_button-button-yaml-configuration)
+    - [:clipboard: Config YAML configuration](#clipboard-config-yaml-configuration)
+    - [:bookmark_tabs: Page YAML configuration](#bookmark_tabs-page-yaml-configuration)
+    - [:pushpin: Button YAML configuration](#pushpin-button-yaml-configuration)
 - [:bulb: More than 20 Button Configurations ideas](#bulb-more-than-20-button-configurations-ideas)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -240,7 +240,7 @@ pages:
         special_type_data: 0
 ```
 
-### :white_square_button: Config YAML configuration
+### :clipboard: Config YAML configuration
 
 Each YAML config can take the following configuration
 
@@ -261,7 +261,7 @@ Each YAML config can take the following configuration
 
 <!-- OUTPUT:END -->
 
-### :white_square_button: Page YAML configuration
+### :bookmark_tabs: Page YAML configuration
 
 Each button can take the following configuration
 

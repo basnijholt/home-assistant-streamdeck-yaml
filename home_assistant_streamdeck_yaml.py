@@ -441,6 +441,7 @@ class Page(BaseModel):
 
     name: str
     buttons: list[Button] = Field(default_factory=list)
+    single_click: bool = False
 
 
 class Config(BaseModel):
@@ -747,7 +748,11 @@ def _light_page(
             },
         )
         buttons_brightness.append(button)
-    return Page(name="Lights", buttons=buttons_colors + buttons_brightness)
+    return Page(
+        name="Lights",
+        buttons=buttons_colors + buttons_brightness,
+        single_click=True,
+    )
 
 
 @asynccontextmanager
@@ -1211,19 +1216,21 @@ async def _handle_key_press(
     if not config.is_on:
         turn_on(config, deck, complete_state)
         return
+
+    def update_all() -> None:
+        deck.reset()
+        update_all_key_images(deck, config, complete_state)
+
     if button.special_type == "next-page":
         config.next_page()
-        deck.reset()
-        update_all_key_images(deck, config, complete_state)
+        update_all()
     elif button.special_type == "previous-page":
         config.previous_page()
-        deck.reset()
-        update_all_key_images(deck, config, complete_state)
+        update_all()
     elif button.special_type == "go-to-page":
         assert isinstance(button.special_type_data, (str, int))
         config.to_page(button.special_type_data)  # type: ignore[arg-type]
-        deck.reset()
-        update_all_key_images(deck, config, complete_state)
+        update_all()
     elif button.special_type == "turn-off":
         turn_off(config, deck)
     elif button.special_type == "light-control":
@@ -1236,8 +1243,7 @@ async def _handle_key_press(
         )
         assert config.special_page is None
         config.special_page = page
-        deck.reset()
-        update_all_key_images(deck, config, complete_state)
+        update_all()
     elif button.service is not None:
         button = button.rendered_template_button(complete_state)
         if button.service_data is None:

@@ -452,7 +452,7 @@ class Config(BaseModel):
     state_entity_id: str | None = None
     is_on: bool = True
     brightness: int = 100
-    _single_click_page: Page | None = PrivateAttr(default=None)
+    _special_page: Page | None = PrivateAttr(default=None)
     _last_page: int | None = PrivateAttr(default=None)
 
     def update_timers(
@@ -497,8 +497,8 @@ class Config(BaseModel):
 
     def current_page(self) -> Page:
         """Return the current page."""
-        if self._single_click_page is not None:
-            return self._single_click_page
+        if self._special_page is not None:
+            return self._special_page
         return self.pages[self.current_page_index]
 
     def button(self, key: int) -> Button | None:
@@ -1250,8 +1250,8 @@ async def _handle_key_press(
             colormap=button.special_type_data.get("colormap", None),
             colors=button.special_type_data.get("colors", None),
         )
-        assert config._single_click_page is None  # noqa: SLF001
-        config._single_click_page = page  # noqa: SLF001
+        assert config._special_page is None  # noqa: SLF001
+        config._special_page = page  # noqa: SLF001
         update_all()
     elif button.service is not None:
         button = button.rendered_template_button(complete_state)
@@ -1299,11 +1299,15 @@ def _on_press_callback(
                 key_pressed=key_pressed,
             )
             if key_pressed:
-                has_special_page = config._single_click_page is not None  # noqa: SLF001
+                has_special_page = config._special_page is not None  # noqa: SLF001
                 await _handle_key_press(websocket, complete_state, config, button, deck)
                 if has_special_page:
                     # Reset after a keypress
-                    config._single_click_page = None  # noqa: SLF001
+                    config._special_page = None  # noqa: SLF001
+                    deck.reset()
+                    update_all_key_images(deck, config, complete_state)
+                elif config.current_page().single_click:
+                    config.to_last_page()
                     deck.reset()
                     update_all_key_images(deck, config, complete_state)
         except Exception as e:  # noqa: BLE001

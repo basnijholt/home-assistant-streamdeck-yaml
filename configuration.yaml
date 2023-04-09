@@ -306,7 +306,6 @@ pages:
       #   icon_mdi: "does-not-exist"
 anonymous_pages:
   - name: timers
-    single_click: true
     buttons:
       - icon_mdi: timer-outline
         text: "10s"

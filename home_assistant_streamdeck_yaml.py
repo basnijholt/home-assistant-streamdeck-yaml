@@ -441,7 +441,6 @@ class Page(BaseModel):
 
     name: str
     buttons: list[Button] = Field(default_factory=list)
-    single_click: bool = False
 
 
 class Config(BaseModel):
@@ -1522,7 +1521,7 @@ def update_all_key_images(
     complete_state: StateDict,
 ) -> None:
     """Update all key images."""
-    console.log(f"Called update_all_key_images {config.current_page()=}")
+    console.log(f"Called update_all_key_images")
     for key in range(deck.key_count()):
         update_key_image(
             deck,

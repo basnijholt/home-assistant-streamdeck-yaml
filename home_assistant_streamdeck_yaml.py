@@ -146,6 +146,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         "go-to-page",
         "turn-off",
         "light-control",
+        "climate",
     ] | None = Field(
         default=None,
         allow_template=False,
@@ -158,7 +159,8 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " If `go-to-page`, the button will go to the page specified by `special_type_data`"
         " (either an `int` or `str` (name of the page))."
         " If `light-control`, the button will control a light, and the `special_type_data`"
-        " can be a dictionary, see its description.",
+        " can be a dictionary, see its description."
+        " If `climate`, the button will switch to a temperature control page.",
     )
     special_type_data: Any | None = Field(
         default=None,
@@ -313,6 +315,9 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         elif button.special_type == "turn-off":
             text = button.text or "Turn off"
             icon_mdi = button.icon_mdi or "power"
+        elif button.special_type == "climate":
+            text = button.text or "Climate"
+            icon_mdi = button.icon_mdi or "thermometer"
         elif button.entity_id in complete_state:
             # Has entity_id
             state = complete_state[button.entity_id]
@@ -841,6 +846,27 @@ def _light_page(
         )
         buttons_brightness.append(button)
     return Page(name="Lights", buttons=buttons_colors + buttons_brightness)
+
+
+def _create_climate_page(
+    climate_entity_id: str,
+    temperature_min: float,
+    temperature_max: float,
+    n_buttons: int,
+) -> list[Button]:
+    temperatures = _linspace(temperature_min, temperature_max, n_buttons)
+
+    buttons = []
+    for temp in temperatures:
+        buttons.append(
+            Button(
+                service="climate.set_temperature",
+                service_data={"temperature": temp, "entity_id": climate_entity_id},
+                text=f"{temp}°C",
+                text_color="white",
+            ),
+        )
+    return buttons
 
 
 @asynccontextmanager

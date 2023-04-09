@@ -304,6 +304,7 @@ arm_disarm_alarm_system = {
           text: |
             {{ 'Disarm' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'Arm' }}
             Alarm
+          text_color: "{{ 'red' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'green' }}"
         """,
     ),
     "state": [
@@ -924,6 +925,7 @@ enable_disable_nightlight = {
           delay: 1800
           icon_mdi: "{{ 'lightbulb-on' if is_state('light.nightlight', 'on') else 'lightbulb-off' }}"
           text: "{{ 'Disable' if is_state('light.nightlight', 'on') else 'Enable' }} Nightlight"
+          text_color: "{{ 'red' if is_state('light.nightlight', 'on') else 'green' }}"
         """,
     ),
     "state": [

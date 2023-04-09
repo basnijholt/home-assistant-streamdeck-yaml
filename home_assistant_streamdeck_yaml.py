@@ -960,7 +960,9 @@ def _state_attr(
     complete_state: StateDict,
 ) -> Any:
     """Get the state attribute for an entity."""
-    return complete_state.get(entity_id, {}).get("attributes", {}).get(attr)
+    attrs = complete_state.get(entity_id, {}).get("attributes", {})
+    state_attr = attrs.get(attr)
+    return _maybe_number(state_attr)
 
 
 def _is_state_attr(
@@ -970,7 +972,7 @@ def _is_state_attr(
     complete_state: StateDict,
 ) -> bool:
     """Check if the state attribute for an entity is a value."""
-    return _state_attr(entity_id, attr, complete_state) == value
+    return _state_attr(entity_id, attr, complete_state) == _maybe_number(value)
 
 
 def _is_integer(s: str) -> bool:
@@ -1033,7 +1035,7 @@ def _is_state(
     complete_state: StateDict,
 ) -> bool:
     """Check if the state for an entity is a value."""
-    return _states(entity_id, complete_state=complete_state) == state
+    return _states(entity_id, complete_state=complete_state) == _maybe_number(state)
 
 
 def _min_filter(value: float, other_value: float) -> float:

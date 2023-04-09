@@ -343,4 +343,3 @@ anonymous_pages:
       - entity_id: light.sphere_tv
         service: light.toggle
         text: Sphere
-

@@ -946,7 +946,7 @@ def _render_jinja(text: str, complete_state: StateDict) -> str:
         env.filters["min"] = _min_filter
         env.filters["max"] = _max_filter
         template = env.from_string(text)
-        return template.render(  # noqa: TRY300
+        return template.render(
             min=min,
             max=max,
             is_state_attr=ft.partial(_is_state_attr, complete_state=complete_state),
@@ -1296,11 +1296,11 @@ def _on_press_callback(
             if key_pressed:
                 has_detached_page = config._detached_page is not None  # noqa: SLF001
                 await _handle_key_press(websocket, complete_state, config, button, deck)
-                if has_detached_page:
-                    # Reset after a keypress
-                    config._detached_page = None  # noqa: SLF001
-                    deck.reset()
-                    update_all_key_images(deck, config, complete_state)
+                # if has_detached_page:
+                #     # Reset after a keypress
+                #     config._detached_page = None  # noqa: SLF001
+                #     deck.reset()
+                #     update_all_key_images(deck, config, complete_state)
         except Exception as e:  # noqa: BLE001
             console.print_exception(show_locals=True)
             console.log(f"key_change_callback failed with a {type(e)}: {e}")

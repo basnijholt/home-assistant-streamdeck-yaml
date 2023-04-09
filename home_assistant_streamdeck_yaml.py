@@ -31,6 +31,7 @@ from StreamDeck.ImageHelpers import PILHelper
 if TYPE_CHECKING:
     from collections.abc import Coroutine
 
+    import pandas as pd
     from StreamDeck.Devices import StreamDeck
 
 __version__ = pkg_resources.get_distribution("home_assistant_streamdeck_yaml").version
@@ -180,8 +181,8 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         return cls(**data[0])
 
     @classmethod
-    def to_markdown_table(cls: type[Button]) -> str:
-        """Return a markdown table with the schema."""
+    def to_pandas_table(cls: type[Button]) -> pd.DataFrame:
+        """Return a pandas table with the schema."""
         import pandas as pd
 
         rows = []
@@ -201,7 +202,12 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 "Type": code(field._type_display()),
             }
             rows.append(row)
-        return pd.DataFrame(rows).to_markdown(index=False)
+        return pd.DataFrame(rows)
+
+    @classmethod
+    def to_markdown_table(cls: type[Button]) -> str:
+        """Return a markdown table with the schema."""
+        return cls.to_pandas_table().to_markdown(index=False)
 
     @property
     def domain(self) -> str | None:
@@ -437,7 +443,7 @@ def _to_filename(id_: str, suffix: str = "") -> Path:
     return filename.with_suffix(suffix)
 
 
-def to_markdown_table(cls: type[BaseModel]) -> str:
+def to_pandas_table(cls: type[BaseModel]) -> pd.DataFrame:
     """Return a markdown table with the schema."""
     import pandas as pd
 
@@ -457,7 +463,12 @@ def to_markdown_table(cls: type[BaseModel]) -> str:
             "Type": code(field._type_display()),
         }
         rows.append(row)
-    return pd.DataFrame(rows).to_markdown(index=False)
+    return pd.DataFrame(rows)
+
+
+def to_markdown_table(cls: type[Button]) -> str:
+    """Return a markdown table with the schema."""
+    return to_pandas_table(cls).to_markdown(index=False)
 
 
 class Page(BaseModel):
@@ -470,9 +481,14 @@ class Page(BaseModel):
     )
 
     @classmethod
-    def to_markdown_table(cls: type[Page]) -> str:
+    def to_pandas_table(cls: type[Page]) -> str:
+        """Return a pandas DataFrame with the schema."""
+        return to_pandas_table(cls)
+
+    @classmethod
+    def to_markdown_table(cls: type[Button]) -> str:
         """Return a markdown table with the schema."""
-        return to_markdown_table(cls)
+        return cls.to_pandas_table().to_markdown(index=False)
 
 
 class Config(BaseModel):
@@ -504,9 +520,14 @@ class Config(BaseModel):
     _detached_page: Page | None = PrivateAttr(default=None)
 
     @classmethod
-    def to_markdown_table(cls: type[Page]) -> str:
+    def to_pandas_table(cls: type[Page]) -> str:
+        """Return a pandas DataFrame with the schema."""
+        return to_pandas_table(cls)
+
+    @classmethod
+    def to_markdown_table(cls: type[Button]) -> str:
         """Return a markdown table with the schema."""
-        return to_markdown_table(cls)
+        return cls.to_pandas_table().to_markdown(index=False)
 
     def update_timers(
         self,

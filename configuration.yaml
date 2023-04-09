@@ -305,7 +305,7 @@ pages:
       - special_type: go-to-page
         special_type_data: sensors
         icon_mdi: thermometer-lines
-        text: ""
+        text: " "
       # - entity_id: media_player.kef_ls50
       #   icon_mdi: "does-not-exist"
 anonymous_pages:

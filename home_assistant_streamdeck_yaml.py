@@ -448,6 +448,7 @@ class Config(BaseModel):
     """Configuration file."""
 
     pages: list[Page] = Field(default_factory=list)
+    anonymous_pages: list[Page] = Field(default_factory=list)
     current_page_index: int = 0
     state_entity_id: str | None = None
     is_on: bool = True
@@ -513,11 +514,18 @@ class Config(BaseModel):
         self._last_page = self.current_page_index
         if isinstance(page, int):
             self.current_page_index = page
-        else:
-            for i, p in enumerate(self.pages):
-                if p.name == page:
-                    self.current_page_index = i
-                    break
+            return self.current_page()
+
+        for i, p in enumerate(self.pages):
+            if p.name == page:
+                self.current_page_index = i
+                return self.current_page()
+
+        for p in self.anonymous_pages:
+            if p.name == page:
+                self._special_page = p
+                return p
+
         return self.current_page()
 
     def to_last_page(self) -> Page:

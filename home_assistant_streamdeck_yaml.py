@@ -294,6 +294,8 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 filename = _url_to_filename(id_)
                 # copy to avoid modifying the cached image
                 image = _download_image(id_, filename, size).copy()
+            if which == "ring":
+                image = _draw_percentage_ring(int(id_), size)
 
         icon_convert_to_grayscale = False
         text = button.text

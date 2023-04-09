@@ -1294,13 +1294,7 @@ def _on_press_callback(
                 key_pressed=key_pressed,
             )
             if key_pressed:
-                has_detached_page = config._detached_page is not None  # noqa: SLF001
                 await _handle_key_press(websocket, complete_state, config, button, deck)
-                # if has_detached_page:
-                #     # Reset after a keypress
-                #     config._detached_page = None  # noqa: SLF001
-                #     deck.reset()
-                #     update_all_key_images(deck, config, complete_state)
         except Exception as e:  # noqa: BLE001
             console.print_exception(show_locals=True)
             console.log(f"key_change_callback failed with a {type(e)}: {e}")

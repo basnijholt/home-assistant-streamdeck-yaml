@@ -520,6 +520,12 @@ class Config(BaseModel):
                     break
         return self.current_page()
 
+    def to_last_page(self) -> Page:
+        """Go to the last page that was visited."""
+        if self._last_page is not None:
+            self.current_page_index = self._last_page
+        return self.current_page()
+
 
 def _next_id() -> int:
     global _ID_COUNTER

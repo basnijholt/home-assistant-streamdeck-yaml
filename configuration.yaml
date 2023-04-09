@@ -302,6 +302,8 @@ pages:
           {% endif %}
       - special_type: go-to-page
         special_type_data: timers
+      - special_type: go-to-page
+        special_type_data: sensors
       # - entity_id: media_player.kef_ls50
       #   icon_mdi: "does-not-exist"
 anonymous_pages:
@@ -343,3 +345,50 @@ anonymous_pages:
       - entity_id: light.sphere_tv
         service: light.toggle
         text: Sphere
+
+  - name: sensors
+    buttons:
+      - entity_id: sensor.temperature_sensor_living_room_temperature
+        icon: >
+          {%- set temp = state_attr('sensor.temperature_sensor_living_room_temperature', 'temperature') -%}
+          {%- set min_temp = 14 -%}
+          {%- set max_temp = 30 -%}
+          {%- set pct = ((temp - min_temp) / (max_temp - min_temp)) * 100 -%}
+          ring:{{ pct | round }}
+        text: |
+          Living
+          {%- set temp = state_attr('sensor.temperature_sensor_living_room_temperature', 'temperature') -%}
+          {{ temp | round(1) }}°C
+      - entity_id: sensor.temperature_sensor_baby_room_temperature
+        icon: >
+          {%- set temp = state_attr('sensor.temperature_sensor_baby_room_temperature', 'temperature') -%}
+          {%- set min_temp = 14 -%}
+          {%- set max_temp = 30 -%}
+          {%- set pct = ((temp - min_temp) / (max_temp - min_temp)) * 100 -%}
+          ring:{{ pct | round }}
+        text: |
+          {%- set temp = state_attr('sensor.temperature_sensor_baby_room_temperature', 'temperature') -%}
+          Baby
+          {{ temp | round(1) }}°C
+      - entity_id: sensor.temperature_sensor_master_bedroom_temperature
+        icon: >
+          {%- set temp = state_attr('sensor.temperature_sensor_master_bedroom_temperature', 'temperature') -%}
+          {%- set min_temp = 14 -%}
+          {%- set max_temp = 30 -%}
+          {%- set pct = ((temp - min_temp) / (max_temp - min_temp)) * 100 -%}
+          ring:{{ pct | round }}
+        text: |
+          {%- set temp = state_attr('sensor.temperature_sensor_master_bedroom_temperature', 'temperature') -%}
+          Bedroom
+          {{ temp | round(1) }}°C
+      - entity_id: sensor.temperature_sensor_outside_temperature
+        icon: >
+          {%- set temp = state_attr('sensor.temperature_sensor_outside_temperature', 'temperature') -%}
+          {%- set min_temp = 14 -%}
+          {%- set max_temp = 30 -%}
+          {%- set pct = ((temp - min_temp) / (max_temp - min_temp)) * 100 -%}
+          ring:{{ pct | round }}
+        text: |
+          {%- set temp = state_attr('sensor.temperature_sensor_outside_temperature', 'temperature') -%}
+          Outside
+          {{ temp | round(1) }}°C

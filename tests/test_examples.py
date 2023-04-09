@@ -254,11 +254,12 @@ toggle_fan = {
 }
 
 lock_unlock_door = {
-    "description": "🔒 Lock/unlock a door",
+    "description": "🔒 Lock/unlock a door after 30 seconds",
     "yaml": textwrap.dedent(
         """
         - entity_id: lock.front_door
           service: lock.toggle
+          delay: "{{ 30 if is_state('lock.front_door', 'unlocked') else 0 }}"
           icon_mdi: "{{ 'door-open' if is_state('lock.front_door', 'unlocked') else 'door-closed' }}"
           text: |
             Front Door
@@ -277,6 +278,8 @@ lock_unlock_door = {
             icon_mdi="door-open",
             text="Front Door\nUnlocked",
             text_size=10,
+            delay=30.0,
+            text_color="green",
         ),
         Button(
             entity_id="lock.front_door",
@@ -284,16 +287,18 @@ lock_unlock_door = {
             icon_mdi="door-closed",
             text="Front Door\nLocked",
             text_size=10,
+            delay=0.0,
+            text_color="red",
         ),
     ],
 }
 
-
 arm_disarm_alarm_system = {
-    "description": "⚠️ Arm/disarm an alarm system",
+    "description": "⚠️ Arm/disarm an alarm system after 30 seconds",
     "yaml": textwrap.dedent(
         """
         - entity_id: alarm_control_panel.home_alarm
+          delay: 30
           service: "{{ 'alarm_control_panel.alarm_disarm' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'alarm_control_panel.alarm_arm_away' }}"
           icon_mdi: "{{ 'shield-check' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'shield-off' }}"
           text: |
@@ -311,15 +316,20 @@ arm_disarm_alarm_system = {
             service="alarm_control_panel.alarm_disarm",
             icon_mdi="shield-check",
             text="Disarm\nAlarm",
+            text_color="red",
+            delay=30.0,
         ),
         Button(
             entity_id="alarm_control_panel.home_alarm",
             service="alarm_control_panel.alarm_arm_away",
             icon_mdi="shield-off",
             text="Arm\nAlarm",
+            text_color="green",
+            delay=30.0,
         ),
     ],
 }
+
 
 set_alarm_time_for_next_day = {
     "description": "⏰ Set an alarm time for the next day",
@@ -906,11 +916,12 @@ start_stop_security_camera_recording = {
 }
 
 enable_disable_nightlight = {
-    "description": "🌙 Enable/disable a nightlight",
+    "description": "🌙 Enable/disable a nightlight after 30 min",
     "yaml": textwrap.dedent(
         """
         - entity_id: light.nightlight
           service: light.toggle
+          delay: 1800
           icon_mdi: "{{ 'lightbulb-on' if is_state('light.nightlight', 'on') else 'lightbulb-off' }}"
           text: "{{ 'Disable' if is_state('light.nightlight', 'on') else 'Enable' }} Nightlight"
         """,
@@ -925,12 +936,16 @@ enable_disable_nightlight = {
             service="light.toggle",
             icon_mdi="lightbulb-on",
             text="Disable Nightlight",
+            text_color="red",
+            delay=1800.0,
         ),
         Button(
             entity_id="light.nightlight",
             service="light.toggle",
             icon_mdi="lightbulb-off",
             text="Enable Nightlight",
+            text_color="green",
+            delay=1800.0,
         ),
     ],
 }

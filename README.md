@@ -831,5 +831,24 @@ toggle_security_camera_recording:
 
 </details>
 
+<details>
+<summary>32. 🌡️ Display outside temperature with a ring indicator:</summary>
+
+```yaml
+- entity_id: sensor.temperature_sensor_outside_temperature
+  icon: >
+    {%- set temp = states('sensor.temperature_sensor_outside_temperature') -%}
+    {%- set min_temp = -10 -%}
+    {%- set max_temp = 40 -%}
+    {%- set pct = ((temp - min_temp) / (max_temp - min_temp)) * 100 -%}
+    ring:{{ pct | round }}
+  text: |
+    {%- set temp = states('sensor.temperature_sensor_outside_temperature') -%}
+    Outside
+    {{ temp | round(1) }}°C
+```
+
+</details>
+
 
 <!-- OUTPUT:END -->

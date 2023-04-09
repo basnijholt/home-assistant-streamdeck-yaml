@@ -517,11 +517,13 @@ class Config(BaseModel):
             return self.current_page()
 
         for i, p in enumerate(self.pages):
+            console.log(f"normal {p.name} ? {page}")
             if p.name == page:
                 self.current_page_index = i
                 return self.current_page()
 
         for p in self.anonymous_pages:
+            console.log(f"anon {p.name} ? {page}")
             if p.name == page:
                 self._detached_page = p
                 return p

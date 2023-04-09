@@ -25,6 +25,7 @@ from PIL import Image, ImageColor, ImageDraw, ImageFont, ImageOps
 from pydantic import BaseModel, Field, PrivateAttr, validator
 from pydantic.fields import Undefined
 from rich.console import Console
+from rich.table import Table
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.ImageHelpers import PILHelper
 
@@ -469,6 +470,21 @@ def to_pandas_table(cls: type[BaseModel]) -> pd.DataFrame:
 def to_markdown_table(cls: type[Button]) -> str:
     """Return a markdown table with the schema."""
     return to_pandas_table(cls).to_markdown(index=False)
+
+
+def pandas_to_rich_table(df: pd.DataFrame) -> Table:
+    """Return a rich table from a pandas DataFrame."""
+    table = Table()
+
+    # Add the columns
+    for column in df.columns:
+        table.add_column(column)
+
+    # Add the rows
+    for _, row in df.iterrows():
+        table.add_row(*row.astype(str).tolist())
+
+    return table
 
 
 class Page(BaseModel):
@@ -1606,6 +1622,25 @@ async def run(
         await handle_changes(websocket, complete_state, deck, config)
 
 
+def _rich_table_str(df: pd.DataFrame) -> str:
+    table = pandas_to_rich_table(df)
+    console = Console(file=io.StringIO(), width=120)
+    console.print(table)
+    return console.file.getvalue()
+
+
+def _usage() -> str:
+    try:
+        return (
+            f"See the configuration options below and see the command-line options below that:\n\n"
+            f"Config YAML options:\n{_rich_table_str(Config.to_pandas_table())}\n\n"
+            f"Page YAML options:\n{_rich_table_str(Page.to_pandas_table())}\n\n"
+            f"Button YAML options:\n{_rich_table_str(Button.to_pandas_table())}\n\n"
+        )
+    except ModuleNotFoundError:
+        return ""
+
+
 def main() -> None:
     """Start the Stream Deck integration."""
     import argparse
@@ -1615,7 +1650,7 @@ def main() -> None:
 
     load_dotenv()
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(usage=_usage())
     parser.add_argument("--host", default=os.environ.get("HASS_HOST", "localhost"))
     parser.add_argument("--token", default=os.environ.get("HASS_TOKEN"))
     parser.add_argument(

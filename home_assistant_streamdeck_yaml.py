@@ -520,7 +520,7 @@ class Config(BaseModel):
             if p.name == page:
                 self._detached_page = p
                 return p
-
+        console.log(f"Could find page {page}, staying on current page")
         return self.current_page()
 
 

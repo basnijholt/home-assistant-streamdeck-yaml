@@ -302,8 +302,8 @@ pages:
           {% endif %}
       - special_type: go-to-page
         special_type_data: timers
-      - entity_id: media_player.kef_ls50
-        icon_mdi: "does-not-exist"
+      # - entity_id: media_player.kef_ls50
+      #   icon_mdi: "does-not-exist"
 anonymous_pages:
   - name: timers
     single_click: true

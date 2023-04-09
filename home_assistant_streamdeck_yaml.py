@@ -497,12 +497,12 @@ class Page(BaseModel):
     )
 
     @classmethod
-    def to_pandas_table(cls: type[Page]) -> str:
+    def to_pandas_table(cls: type[Page]) -> pd.DataFrame:
         """Return a pandas DataFrame with the schema."""
         return to_pandas_table(cls)
 
     @classmethod
-    def to_markdown_table(cls: type[Button]) -> str:
+    def to_markdown_table(cls: type[Page]) -> str:
         """Return a markdown table with the schema."""
         return cls.to_pandas_table().to_markdown(index=False)
 
@@ -536,12 +536,12 @@ class Config(BaseModel):
     _detached_page: Page | None = PrivateAttr(default=None)
 
     @classmethod
-    def to_pandas_table(cls: type[Page]) -> str:
+    def to_pandas_table(cls: type[Config]) -> pd.DataFrame:
         """Return a pandas DataFrame with the schema."""
         return to_pandas_table(cls)
 
     @classmethod
-    def to_markdown_table(cls: type[Button]) -> str:
+    def to_markdown_table(cls: type[Config]) -> str:
         """Return a markdown table with the schema."""
         return cls.to_pandas_table().to_markdown(index=False)
 

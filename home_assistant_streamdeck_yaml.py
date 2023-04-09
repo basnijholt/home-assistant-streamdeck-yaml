@@ -1273,8 +1273,8 @@ async def _handle_key_press(
         assert button.service is not None  # for mypy
         await call_service(websocket, button.service, service_data, button.target)
 
-    if config._detached_page:  # SLF001
-        config._detached_page = None  # SLF001
+    if config._detached_page:  # noqa: SLF001
+        config._detached_page = None  # noqa: SLF001
         update_all()
 
 
@@ -1297,7 +1297,6 @@ def _on_press_callback(
             async def cb() -> None:
                 """Update the deck once more after the timer is over."""
                 assert button is not None  # for mypy
-                print(f"yolo {button}")
                 await _handle_key_press(websocket, complete_state, config, button, deck)
 
             if button.maybe_start_or_cancel_timer(cb):

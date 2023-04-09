@@ -23,6 +23,7 @@ import yaml
 from lxml import etree
 from PIL import Image, ImageColor, ImageDraw, ImageFont, ImageOps
 from pydantic import BaseModel, Field, PrivateAttr, validator
+from pydantic.fields import Undefined
 from rich.console import Console
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.ImageHelpers import PILHelper
@@ -436,23 +437,77 @@ def _to_filename(id_: str, suffix: str = "") -> Path:
     return filename.with_suffix(suffix)
 
 
+def to_markdown_table(cls: type[BaseModel]) -> str:
+    """Return a markdown table with the schema."""
+    import pandas as pd
+
+    rows = []
+    for k, field in cls.__fields__.items():
+        info = field.field_info
+        if info.description is None:
+            continue
+
+        def code(text: str) -> str:
+            return f"`{text}`"
+
+        row = {
+            "Variable name": code(k),
+            "Description": info.description,
+            "Default": code(info.default) if info.default is not Undefined else "",
+            "Type": code(field._type_display()),  # noqa: SLF001
+        }
+        rows.append(row)
+    return pd.DataFrame(rows).to_markdown(index=False)
+
+
 class Page(BaseModel):
     """A page of buttons."""
 
-    name: str
-    buttons: list[Button] = Field(default_factory=list)
+    name: str = Field(description="The name of the page.")
+    buttons: list[Button] = Field(
+        default_factory=list,
+        description="A list of buttons on the page.",
+    )
+
+    @classmethod
+    def to_markdown_table(cls: type[Page]) -> str:
+        """Return a markdown table with the schema."""
+        return to_markdown_table(cls)
 
 
 class Config(BaseModel):
     """Configuration file."""
 
-    pages: list[Page] = Field(default_factory=list)
-    anonymous_pages: list[Page] = Field(default_factory=list)
-    current_page_index: int = 0
-    state_entity_id: str | None = None
-    is_on: bool = True
-    brightness: int = 100
+    pages: list[Page] = Field(
+        default_factory=list,
+        description="A list of `Page`s in the configuration.",
+    )
+    anonymous_pages: list[Page] = Field(
+        default_factory=list,
+        description="A list of anonymous `Page`s in the configuration."
+        " These are pages that are not shown when skipping through pages."
+        " These pages are for single use only, meaning you click on a button"
+        " on this page, it goes back to last page.",
+    )
+    current_page_index: int = Field(0, description="The index of the current page.")
+    state_entity_id: str | None = Field(
+        default=None,
+        description="The entity ID to sync display state with.",
+    )
+    is_on: bool = Field(
+        default=True,
+        description="The on/off state of the Stream Deck.",
+    )
+    brightness: int = Field(
+        default=100,
+        description="The default brightness of the Stream Deck (0-100).",
+    )
     _detached_page: Page | None = PrivateAttr(default=None)
+
+    @classmethod
+    def to_markdown_table(cls: type[Page]) -> str:
+        """Return a markdown table with the schema."""
+        return to_markdown_table(cls)
 
     def update_timers(
         self,

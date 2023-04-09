@@ -1247,6 +1247,7 @@ async def _handle_key_press(
         assert isinstance(button.special_type_data, (str, int))
         config.to_page(button.special_type_data)  # type: ignore[arg-type]
         update_all()
+        return  # to skip the _detached_page reset below
     elif button.special_type == "turn-off":
         turn_off(config, deck)
     elif button.special_type == "light-control":

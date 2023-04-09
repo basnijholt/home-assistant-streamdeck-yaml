@@ -1001,6 +1001,9 @@ def _is_float(s: str) -> bool:
 
 def _maybe_number(s: str, *, rounded: bool = False) -> int | str | float:
     """Convert a string to a number if possible."""
+    if not isinstance(s, str):  # already a number or other type
+        return s
+
     if _is_integer(s):
         num = int(s)
     elif _is_float(s):

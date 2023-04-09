@@ -447,11 +447,12 @@ class Config(BaseModel):
     """Configuration file."""
 
     pages: list[Page] = Field(default_factory=list)
+    anonymous_pages: list[Page] = Field(default_factory=list)
     current_page_index: int = 0
-    special_page: Page | None = None
     state_entity_id: str | None = None
     is_on: bool = True
     brightness: int = 100
+    _detached_page: Page | None = PrivateAttr(default=None)
 
     def update_timers(
         self,
@@ -493,8 +494,8 @@ class Config(BaseModel):
 
     def current_page(self) -> Page:
         """Return the current page."""
-        if self.special_page is not None:
-            return self.special_page
+        if self._detached_page is not None:
+            return self._detached_page
         return self.pages[self.current_page_index]
 
     def button(self, key: int) -> Button | None:
@@ -508,11 +509,18 @@ class Config(BaseModel):
         """Go to a page based on the page name or index."""
         if isinstance(page, int):
             self.current_page_index = page
-        else:
-            for i, p in enumerate(self.pages):
-                if p.name == page:
-                    self.current_page_index = i
-                    break
+            return self.current_page()
+
+        for i, p in enumerate(self.pages):
+            if p.name == page:
+                self.current_page_index = i
+                return self.current_page()
+
+        for p in self.anonymous_pages:
+            if p.name == page:
+                self._detached_page = p
+                return p
+        console.log(f"Could find page {page}, staying on current page")
         return self.current_page()
 
 
@@ -938,7 +946,7 @@ def _render_jinja(text: str, complete_state: StateDict) -> str:
         env.filters["min"] = _min_filter
         env.filters["max"] = _max_filter
         template = env.from_string(text)
-        return template.render(  # noqa: TRY300
+        return template.render(
             min=min,
             max=max,
             is_state_attr=ft.partial(_is_state_attr, complete_state=complete_state),
@@ -1170,11 +1178,7 @@ def read_config(fname: Path) -> Config:
     """Read the configuration file."""
     with fname.open() as f:
         data = yaml.safe_load(f)
-        return Config(
-            pages=data["pages"],
-            state_entity_id=data.get("state_entity_id"),
-            brightness=data.get("brightness", 100),
-        )
+        return Config(**data)
 
 
 def turn_on(config: Config, deck: StreamDeck, complete_state: StateDict) -> None:
@@ -1210,19 +1214,22 @@ async def _handle_key_press(
     if not config.is_on:
         turn_on(config, deck, complete_state)
         return
+
+    def update_all() -> None:
+        deck.reset()
+        update_all_key_images(deck, config, complete_state)
+
     if button.special_type == "next-page":
         config.next_page()
-        deck.reset()
-        update_all_key_images(deck, config, complete_state)
+        update_all()
     elif button.special_type == "previous-page":
         config.previous_page()
-        deck.reset()
-        update_all_key_images(deck, config, complete_state)
+        update_all()
     elif button.special_type == "go-to-page":
         assert isinstance(button.special_type_data, (str, int))
         config.to_page(button.special_type_data)  # type: ignore[arg-type]
-        deck.reset()
-        update_all_key_images(deck, config, complete_state)
+        update_all()
+        return  # to skip the _detached_page reset below
     elif button.special_type == "turn-off":
         turn_off(config, deck)
     elif button.special_type == "light-control":
@@ -1233,10 +1240,9 @@ async def _handle_key_press(
             colormap=button.special_type_data.get("colormap", None),
             colors=button.special_type_data.get("colors", None),
         )
-        assert config.special_page is None
-        config.special_page = page
-        deck.reset()
-        update_all_key_images(deck, config, complete_state)
+        config._detached_page = page  # noqa: SLF001
+        update_all()
+        return  # to skip the _detached_page reset below
     elif button.service is not None:
         button = button.rendered_template_button(complete_state)
         if button.service_data is None:
@@ -1248,6 +1254,10 @@ async def _handle_key_press(
         console.log(f"Calling service {button.service} with data {service_data}")
         assert button.service is not None  # for mypy
         await call_service(websocket, button.service, service_data, button.target)
+
+    if config._detached_page:  # noqa: SLF001
+        config._detached_page = None  # noqa: SLF001
+        update_all()
 
 
 def _on_press_callback(
@@ -1283,13 +1293,7 @@ def _on_press_callback(
                 key_pressed=key_pressed,
             )
             if key_pressed:
-                has_special_page = config.special_page is not None
                 await _handle_key_press(websocket, complete_state, config, button, deck)
-                if has_special_page:
-                    # Reset after a keypress
-                    config.special_page = None
-                    deck.reset()
-                    update_all_key_images(deck, config, complete_state)
         except Exception as e:  # noqa: BLE001
             console.print_exception(show_locals=True)
             console.log(f"key_change_callback failed with a {type(e)}: {e}")

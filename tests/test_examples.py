@@ -1138,6 +1138,50 @@ start_timer = {
 }
 
 
+outside_temperature_display = {
+    "description": "🌡️ Display outside temperature with a ring indicator",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: sensor.temperature_sensor_outside_temperature
+          icon: >
+            {%- set temp = states('sensor.temperature_sensor_outside_temperature') -%}
+            {%- set min_temp = -10 -%}
+            {%- set max_temp = 40 -%}
+            {%- set pct = ((temp - min_temp) / (max_temp - min_temp)) * 100 -%}
+            ring:{{ pct | round }}
+          text: |
+            {%- set temp = states('sensor.temperature_sensor_outside_temperature') -%}
+            Outside
+            {{ temp | round(1) }}°C
+        """,
+    ),
+    "state": [
+        {
+            "sensor.temperature_sensor_outside_temperature": {
+                "state": "20",
+            },
+        },
+        {
+            "sensor.temperature_sensor_outside_temperature": {
+                "state": "10",
+            },
+        },
+    ],
+    "result": [
+        Button(
+            entity_id="sensor.temperature_sensor_outside_temperature",
+            icon="ring:60.0",
+            text="Outside\n20°C",
+        ),
+        Button(
+            entity_id="sensor.temperature_sensor_outside_temperature",
+            icon="ring:40.0",
+            text="Outside\n10°C",
+        ),
+    ],
+}
+
+
 BUTTONS = [
     activate_a_scene,
     toggle_a_cover,
@@ -1170,6 +1214,7 @@ BUTTONS = [
     change_cover_position,
     control_media_player_tv,
     start_timer,
+    outside_temperature_display,
 ]
 
 

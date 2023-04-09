@@ -295,7 +295,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 # copy to avoid modifying the cached image
                 image = _download_image(id_, filename, size).copy()
             if which == "ring":
-                image = _draw_percentage_ring(int(id_), size)
+                image = _draw_percentage_ring(_maybe_number(id_), size)
 
         icon_convert_to_grayscale = False
         text = button.text
@@ -682,7 +682,7 @@ class AsyncDelayedCallback:
 
 
 def _draw_percentage_ring(
-    percentage: int,
+    percentage: int | float,
     size: tuple[int, int],
     *,
     radius: int | None = None,
@@ -969,6 +969,37 @@ def _is_state_attr(
     return _state_attr(entity_id, attr, complete_state) == value
 
 
+def _is_integer(s: str) -> bool:
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+
+def _is_float(s: str) -> bool:
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
+def _maybe_number(s: str, *, rounded: bool = False) -> Any:
+    if _is_integer(s):
+        num = int(s)
+    elif _is_float(s):
+        num = float(s)
+    else:
+        return s
+
+    if rounded:
+        return round(num)
+
+    return num
+
+
+
 def _states(
     entity_id: str,
     *,
@@ -977,17 +1008,17 @@ def _states(
     complete_state: StateDict | None = None,
 ) -> Any:
     """Get the state for an entity."""
+
     assert complete_state is not None
     entity_state = complete_state.get(entity_id, {})
     if not entity_state:
         return None
     state = entity_state["state"]
+    state = _maybe_number(state, rounded=rounded)
     if with_unit:
         unit = entity_state.get("attributes", {}).get("unit_of_measurement")
         if unit:
             state += f" {unit}"
-    if rounded:
-        state = round(float(state))
     return state
 
 

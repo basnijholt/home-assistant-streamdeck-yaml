@@ -350,45 +350,45 @@ anonymous_pages:
     buttons:
       - entity_id: sensor.temperature_sensor_living_room_temperature
         icon: >
-          {%- set temp = state_attr('sensor.temperature_sensor_living_room_temperature', 'temperature') -%}
+          {%- set temp = states('sensor.temperature_sensor_living_room_temperature') -%}
           {%- set min_temp = 14 -%}
           {%- set max_temp = 30 -%}
           {%- set pct = ((temp - min_temp) / (max_temp - min_temp)) * 100 -%}
           ring:{{ pct | round }}
         text: |
           Living
-          {%- set temp = state_attr('sensor.temperature_sensor_living_room_temperature', 'temperature') -%}
+          {%- set temp = states('sensor.temperature_sensor_living_room_temperature') -%}
           {{ temp | round(1) }}°C
       - entity_id: sensor.temperature_sensor_baby_room_temperature
         icon: >
-          {%- set temp = state_attr('sensor.temperature_sensor_baby_room_temperature', 'temperature') -%}
+          {%- set temp = states('sensor.temperature_sensor_baby_room_temperature') -%}
           {%- set min_temp = 14 -%}
           {%- set max_temp = 30 -%}
           {%- set pct = ((temp - min_temp) / (max_temp - min_temp)) * 100 -%}
           ring:{{ pct | round }}
         text: |
-          {%- set temp = state_attr('sensor.temperature_sensor_baby_room_temperature', 'temperature') -%}
+          {%- set temp = states('sensor.temperature_sensor_baby_room_temperature') -%}
           Baby
           {{ temp | round(1) }}°C
       - entity_id: sensor.temperature_sensor_master_bedroom_temperature
         icon: >
-          {%- set temp = state_attr('sensor.temperature_sensor_master_bedroom_temperature', 'temperature') -%}
+          {%- set temp = states('sensor.temperature_sensor_master_bedroom_temperature') -%}
           {%- set min_temp = 14 -%}
           {%- set max_temp = 30 -%}
           {%- set pct = ((temp - min_temp) / (max_temp - min_temp)) * 100 -%}
           ring:{{ pct | round }}
         text: |
-          {%- set temp = state_attr('sensor.temperature_sensor_master_bedroom_temperature', 'temperature') -%}
+          {%- set temp = states('sensor.temperature_sensor_master_bedroom_temperature') -%}
           Bedroom
           {{ temp | round(1) }}°C
       - entity_id: sensor.temperature_sensor_outside_temperature
         icon: >
-          {%- set temp = state_attr('sensor.temperature_sensor_outside_temperature', 'temperature') -%}
+          {%- set temp = states('sensor.temperature_sensor_outside_temperature') -%}
           {%- set min_temp = 14 -%}
           {%- set max_temp = 30 -%}
           {%- set pct = ((temp - min_temp) / (max_temp - min_temp)) * 100 -%}
           ring:{{ pct | round }}
         text: |
-          {%- set temp = state_attr('sensor.temperature_sensor_outside_temperature', 'temperature') -%}
+          {%- set temp = states('sensor.temperature_sensor_outside_temperature') -%}
           Outside
           {{ temp | round(1) }}°C

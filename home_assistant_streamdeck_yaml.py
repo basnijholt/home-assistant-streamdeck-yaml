@@ -1204,14 +1204,11 @@ async def _handle_key_press(
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
     config: Config,
-    key: int,
+    button: Button,
     deck: StreamDeck,
 ) -> None:
     if not config.is_on:
         turn_on(config, deck, complete_state)
-        return
-    button = config.button(key)
-    if button is None:
         return
     if button.special_type == "next-page":
         config.next_page()
@@ -1266,11 +1263,13 @@ def _on_press_callback(
         console.log(f"Key {key} {'pressed' if key_pressed else 'released'}")
 
         button = config.button(key)
+        assert button is not None
         if button is not None and key_pressed:
 
             async def cb() -> None:
                 """Update the deck once more after the timer is over."""
-                await _handle_key_press(websocket, complete_state, config, key, deck)
+                assert button is not None  # for mypy
+                await _handle_key_press(websocket, complete_state, config, button, deck)
 
             if button.maybe_start_or_cancel_timer(cb):
                 key_pressed = False  # do not click now
@@ -1285,7 +1284,7 @@ def _on_press_callback(
             )
             if key_pressed:
                 has_special_page = config.special_page is not None
-                await _handle_key_press(websocket, complete_state, config, key, deck)
+                await _handle_key_press(websocket, complete_state, config, button, deck)
                 if has_special_page:
                     # Reset after a keypress
                     config.special_page = None

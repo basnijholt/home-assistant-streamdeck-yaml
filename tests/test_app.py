@@ -498,8 +498,9 @@ async def test_handle_key_press_toggle_light(
     config: Config,
 ) -> None:
     """Test handle_key_press toggle light."""
-    key = 0
-    await _handle_key_press(websocket_mock, state, config, key, mock_deck)
+    button = config.button(0)
+    assert button is not None
+    await _handle_key_press(websocket_mock, state, config, button, mock_deck)
 
     websocket_mock.send.assert_called_once()
     send_call_args = websocket_mock.send.call_args.args[0]
@@ -518,8 +519,9 @@ async def test_handle_key_press_next_page(
     config: Config,
 ) -> None:
     """Test handle_key_press next page."""
-    key = 14
-    await _handle_key_press(websocket_mock, state, config, key, mock_deck)
+    button = config.button(14)
+    assert button is not None
+    await _handle_key_press(websocket_mock, state, config, button, mock_deck)
 
     # No service should be called
     websocket_mock.send.assert_not_called()
@@ -544,7 +546,7 @@ async def test_button_with_target(
     _button = config.button(0)
     assert _button is not None
     assert _button.service == "media_player.join"
-    await _handle_key_press(websocket_mock, {}, config, 0, mock_deck)
+    await _handle_key_press(websocket_mock, {}, config, _button, mock_deck)
     # Check that the send method was called with the correct payload
     called_payload = json.loads(websocket_mock.send.call_args.args[0])
     expected_payload = {
@@ -1045,15 +1047,16 @@ def test_icon_failed_icon() -> None:
 
 async def test_delay() -> None:
     """Test the delay."""
-    button = Button(delay=2)
+    button = Button(delay=0.1)
     assert not button.is_sleeping()
     assert button.maybe_start_or_cancel_timer()
     await asyncio.sleep(0)  # TODO: figure out why this is needed
     assert button._timer is not None
     assert button._timer.is_sleeping
     assert button.is_sleeping()
-    image = button.render_icon({})
-    image.save("test.png")
+    _ = button.render_icon({})
+    await asyncio.sleep(0.1)
+    assert not button.is_sleeping()
 
 
 def test_to_markdown_table() -> None:

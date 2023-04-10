@@ -545,8 +545,8 @@ class Config(BaseModel):
     )
     auto_reload: bool = Field(
         default=False,
-        description="If True, the configuration file will be reloaded"
-        " when it is modified.",
+        description="If True, the configuration YAML file will automatically"
+        " be reloaded when it is modified.",
     )
     _current_page_index: int = PrivateAttr(default=0)
     _is_on: bool = PrivateAttr(default=True)

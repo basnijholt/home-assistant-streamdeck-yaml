@@ -1201,6 +1201,17 @@ outside_temperature_display = {
     ],
 }
 
+reload_configuration_yaml = {
+    "description": "🔄 Reload the `configuration.yaml` file",
+    "extra": "When pressed, the `configuration.yaml` is reloaded.",
+    "yaml": textwrap.dedent(
+        """
+        - special_type: reload
+        """,
+    ),
+    "state": [{}],
+    "result": [Button(special_type="reload")],
+}
 
 BUTTONS = [
     activate_a_scene,
@@ -1235,6 +1246,7 @@ BUTTONS = [
     control_media_player_tv,
     start_timer,
     outside_temperature_display,
+    reload_configuration_yaml,
 ]
 
 

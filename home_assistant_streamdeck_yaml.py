@@ -565,8 +565,12 @@ class Config(BaseModel):
     def reload(self) -> None:
         """Reload the configuration file."""
         assert self._configuration_file is not None
+        # Updates all public attributes
         new = self.load(self._configuration_file).__dict__
         self.__dict__.update(new)
+        # Set the private attributes we want to preserve
+        if self._detached_page is not None:
+            self._detached_page = self.to_page(self._detached_page.name)
 
     @classmethod
     def to_pandas_table(cls: type[Config]) -> pd.DataFrame:

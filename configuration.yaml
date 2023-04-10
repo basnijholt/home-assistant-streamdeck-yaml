@@ -22,33 +22,34 @@ pages:
             - "#00FFFF"  # cyan
             - "#FFD700"  # gold
             - "#008000"  # dark green
-      - entity_id: light.bedroom_lights_z2m
-        service: light.toggle
-        text: |
-          Bedroom
-          lights
       - special_type: go-to-page
         special_type_data: all-lights
         text: |
           All
-          lights
-      - entity_id: light.outside_lights_z2m
-        service: light.toggle
-        text: |
-          Outside
           lights
       - entity_id: light.dinner_area
         service: light.toggle
         text: |
           Dinner
           lights
-      # - entity_id: switch.space_heater
-      #   service: switch.toggle
-      #   text: '{{ states("switch.space_heater") }}'
-      #   icon: "space-heater.png"
-      #   text_size: 16
-      #   text_color: black
-      #   icon_gray_when_off: true
+      - icon: url:https://files.nijho.lt/bas.jpg
+        entity_id: person.bas
+        text: |
+          {{ "" if is_state("person.bas", "home") else "Not" }}
+          Home
+        special_type: go-to-page
+        special_type_data: bas
+        text_color: >
+          {{ "green" if is_state("person.bas", "home") else "red" }}
+        text_size: 16
+      - icon: url:https://files.nijho.lt/m.jpg
+        entity_id: person.marcella
+        text: |
+          {{ "" if is_state("person.marcella", "home") else "Not" }}
+          Home
+        text_color: >
+          {{ "green" if is_state("person.marcella", "home") else "red" }}
+        text_size: 16
       - entity_id: media_player.kef_ls50
         service: media_player.volume_set
         service_data:
@@ -359,6 +360,18 @@ anonymous_pages:
           message: "Food is ready in 30m!"
         icon_mdi: bell
         text_size: 15
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - text: Back
+        icon_mdi: keyboard-return
 
   - name: all-lights
     buttons:
@@ -381,12 +394,24 @@ anonymous_pages:
           Automatic
           lights
       - special_type: empty
+      - text: Pages
+      - entity_id: light.living_room_lights_z2m
+        service: light.toggle
+        text: |
+          Living room
+          lights
+      - entity_id: light.bedroom_lights_z2m
+        service: light.toggle
+        text: |
+          Bedroom
+          lights
+      - entity_id: light.outside_lights_z2m
+        service: light.toggle
+        text: |
+          Outside
+          lights
       - special_type: empty
-      - special_type: empty
-      - special_type: empty
-      - special_type: empty
-      - special_type: empty
-      - special_type: empty
+      - text: Toggle
       - special_type: empty
       - special_type: empty
       - special_type: empty
@@ -497,7 +522,12 @@ anonymous_pages:
       text: |
         Garage
         outside
-    - special_type: empty
+    - entity_id: light.outside_lights_z2m
+      service: light.toggle
+      icon_mdi: lamps
+      text: |
+        Outside
+        lights
     - special_type: empty
     - special_type: empty
     - special_type: empty

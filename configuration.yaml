@@ -303,11 +303,14 @@ pages:
           {% endif %}
       - special_type: go-to-page
         special_type_data: timers
+        text: " "
+        icon_mdi: timer
       - special_type: go-to-page
         special_type_data: sensors
         icon_mdi: thermometer-lines
         text: " "
       - special_type: reload
+        text: "Reload"
       - special_type: empty
       - special_type: empty
       - special_type: empty
@@ -326,28 +329,38 @@ anonymous_pages:
       - icon_mdi: timer-outline
         text: "30s"
         delay: 30
-      - entity_id: light.bedroom_lights_z2m
-        service: light.toggle
-        text: |
-          Bedroom
-          lights
-      - entity_id: light.sphere_tv
-        service: light.toggle
-        text: Sphere
-      - special_type: empty
-      - special_type: empty
-      - special_type: empty
-      - special_type: empty
-      - special_type: empty
-      - special_type: empty
+      - icon_mdi: timer-outline
+        text: "1m"
+        delay: 60
+      - icon_mdi: timer-outline
+        text: "2m"
+        delay: 120
+      - icon_mdi: timer-outline
+        text: "3m"
+        delay: 180
+      - icon_mdi: timer-outline
+        text: "5m"
+        delay: 180
+      - icon_mdi: timer-outline
+        text: "10m"
+        delay: 600
+      - icon_mdi: timer-outline
+        text: "20m"
+        delay: 1200
+      - icon_mdi: timer-outline
+        text: "30m"
+        delay: 1800
+      - icon_mdi: timer-outline
+        text: "50m"
+        delay: 3600
       - special_type: empty
       - special_type: empty
       - special_type: previous-page
       - special_type: next-page
 
-
   - name: sensors
     buttons:
+      - text: Temperature
       - entity_id: sensor.temperature_sensor_living_room_temperature
         icon: >
           {%- set temp = states('sensor.temperature_sensor_living_room_temperature') -%}
@@ -392,3 +405,81 @@ anonymous_pages:
           {%- set temp = states('sensor.temperature_sensor_outside_temperature') -%}
           Outside
           {{ temp | round(1) }}°C
+      - text: Humidity
+      - entity_id: sensor.temperature_sensor_living_room_humidity
+        icon: >
+          {%- set humidity = states('sensor.temperature_sensor_living_room_humidity') -%}
+          ring:{{ humidity | round }}
+        text: |
+          {%- set humidity = states('sensor.temperature_sensor_living_room_humidity') -%}
+          Living
+          {{ humidity | round(1) }}%
+      - entity_id: sensor.temperature_sensor_baby_room_humidity
+        icon: >
+          {%- set humidity = states('sensor.temperature_sensor_baby_room_humidity') -%}
+          ring:{{ humidity | round }}
+        text: |
+          {%- set humidity = states('sensor.temperature_sensor_baby_room_humidity') -%}
+          Baby
+          {{ humidity | round(1) }}%
+      - entity_id: sensor.temperature_sensor_master_bedroom_humidity
+        icon: >
+          {%- set humidity = states('sensor.temperature_sensor_master_bedroom_humidity') -%}
+          ring:{{ humidity | round }}
+        text: |
+          {%- set humidity = states('sensor.temperature_sensor_master_bedroom_humidity') -%}
+          Bedroom
+          {{ humidity | round(1) }}%
+      - entity_id: sensor.temperature_sensor_outside_humidity
+        icon: >
+          {%- set humidity = states('sensor.temperature_sensor_outside_humidity') -%}
+          ring:{{ humidity | round }}
+        text: |
+          {%- set humidity = states('sensor.temperature_sensor_outside_humidity') -%}
+          Outside
+          {{ humidity | round(1) }}%
+      - text: Pressure
+      - entity_id: sensor.temperature_sensor_living_room_pressure
+        icon: >
+          {%- set pressure = states('sensor.temperature_sensor_living_room_pressure') -%}
+          {%- set min_pressure = 1000 -%}
+          {%- set max_pressure = 1025 -%}
+          {%- set pct = ((pressure - min_pressure) / (max_pressure - min_pressure)) * 100 -%}
+          ring:{{ pct | round }}
+        text: |
+          {%- set pressure = states('sensor.temperature_sensor_living_room_pressure') -%}
+          Living
+          {{ pressure | int }} hPa
+      - entity_id: sensor.temperature_sensor_baby_room_pressure
+        icon: >
+          {%- set pressure = states('sensor.temperature_sensor_baby_room_pressure') -%}
+          {%- set min_pressure = 1000 -%}
+          {%- set max_pressure = 1025 -%}
+          {%- set pct = ((pressure - min_pressure) / (max_pressure - min_pressure)) * 100 -%}
+          ring:{{ pct | round }}
+        text: |
+          {%- set pressure = states('sensor.temperature_sensor_baby_room_pressure') -%}
+          Baby
+          {{ pressure | int }} hPa
+      - entity_id: sensor.temperature_sensor_master_bedroom_pressure
+        icon: >
+          {%- set pressure = states('sensor.temperature_sensor_master_bedroom_pressure') -%}
+          {%- set min_pressure = 1000 -%}
+          {%- set max_pressure = 1025 -%}
+          {%- set pct = ((pressure - min_pressure) / (max_pressure - min_pressure)) * 100 -%}
+          ring:{{ pct | round }}
+        text: |
+          {%- set pressure = states('sensor.temperature_sensor_master_bedroom_pressure') -%}
+          Bedroom
+          {{ pressure | int }} hPa
+      - entity_id: sensor.temperature_sensor_outside_pressure
+        icon: >
+          {%- set pressure = states('sensor.temperature_sensor_outside_pressure') -%}
+          {%- set min_pressure = 1000 -%}
+          {%- set max_pressure = 1025 -%}
+          {%- set pct = ((pressure - min_pressure) / (max_pressure - min_pressure)) * 100 -%}
+          ring:{{ pct | round }}
+        text: |
+          {%- set pressure = states('sensor.temperature_sensor_outside_pressure') -%}
+          Outside
+          {{ pressure | int }} hPa

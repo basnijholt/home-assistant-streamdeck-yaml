@@ -307,6 +307,12 @@ pages:
         icon_mdi: thermometer-lines
         text: " "
       - special_type: reload
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: previous-page
+      - special_type: next-page
       # - entity_id: media_player.kef_ls50
       #   icon_mdi: "does-not-exist"
 anonymous_pages:

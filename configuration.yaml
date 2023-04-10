@@ -1,4 +1,5 @@
 brightness: 100
+auto_reload: true
 state_entity_id: input_boolean.streamdeck
 pages:
   - name: Home
@@ -313,8 +314,6 @@ pages:
       - special_type: empty
       - special_type: previous-page
       - special_type: next-page
-      # - entity_id: media_player.kef_ls50
-      #   icon_mdi: "does-not-exist"
 anonymous_pages:
   - name: timers
     buttons:

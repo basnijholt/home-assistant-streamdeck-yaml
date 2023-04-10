@@ -179,6 +179,7 @@ Here's an example `configuration.yaml` file to help
 ```yaml
 brightness: 100  # Default brightness of the Stream Deck (0-100)
 state_entity_id: binary_sensor.anyone_home  # Entity to sync display state with
+auto_reload: true  # Automatically reload the configuration file when it changes
 pages:
   - name: Home
     buttons:

@@ -163,7 +163,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " (either an `int` or `str` (name of the page))."
         " If `light-control`, the button will control a light, and the `special_type_data`"
         " can be a dictionary, see its description."
-        " If `reload`, the button will reload the configuration file.",
+        " If `reload`, the button will reload the configuration file when pressed.",
     )
     special_type_data: Any | None = Field(
         default=None,

@@ -27,11 +27,11 @@ pages:
         text: |
           Bedroom
           lights
-      - entity_id: light.guest_room
-        service: light.toggle
+      - special_type: go-to-page
+        special_type_data: all-lights
         text: |
-          Guest room
-          light
+          All
+          lights
       - entity_id: light.outside_lights_z2m
         service: light.toggle
         text: |
@@ -311,13 +311,203 @@ pages:
         text: " "
       - special_type: reload
         text: "Reload"
-      - special_type: empty
+      - icon: url:https://media.githubusercontent.com/media/basnijholt/nijho.lt/master/content/authors/admin/avatar.jpg
+        entity_id: person.bas
+        text: |
+          ㅤ
+          {{ states("person.bas") }}
+        special_type: go-to-page
+        special_type_data: bas
       - special_type: empty
       - special_type: empty
       - special_type: empty
       - special_type: previous-page
       - special_type: next-page
+
 anonymous_pages:
+  - name: bas
+    buttons:
+      - text: |
+          Come
+          home!
+        service: notify.bas
+        service_data:
+          message: "Come home!"
+        icon_mdi: bell
+        text_size: 15
+      - text: |
+          Love
+          you!
+        service: notify.bas
+        service_data:
+          message: "Love you ❤️!"
+        icon_mdi: bell
+        text_size: 15
+      - text: |
+          Where are
+          you?
+        service: notify.bas
+        service_data:
+          message: "Where are you?"
+        icon_mdi: bell
+        text_size: 15
+      - text: |
+          Food
+          in 30m
+        service: notify.bas
+        service_data:
+          message: "Food is ready in 30m!"
+        icon_mdi: bell
+        text_size: 15
+
+  - name: all-lights
+    buttons:
+      - special_type: go-to-page
+        special_type_data: living-room-lights
+        icon_mdi: lightbulb
+        text: |
+          Living room
+          lights
+      - special_type: go-to-page
+        special_type_data: bedroom-lights
+        icon_mdi: lightbulb
+        text: |
+          Bedroom
+          lights
+      - special_type: go-to-page
+        special_type_data: automatic-lights
+        icon_mdi: lightbulb
+        text: |
+          Automatic
+          lights
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - text: Back
+        icon_mdi: keyboard-return
+
+
+  - name: living-room-lights
+    buttons:
+      - entity_id: light.sphere_tv
+        service: light.toggle
+        text: Sphere TV
+      - entity_id: light.sphere_2
+        service: light.toggle
+        text: Sphere 2
+      - entity_id: light.tv_led
+        service: light.toggle
+        text: TV LED
+      - entity_id: light.cabinet_led
+        service: light.toggle
+        text: |
+          Cabinet
+          LED
+      - entity_id: light.mid_room
+        service: light.toggle
+        text: Mid room
+      - entity_id: light.living_room_corner
+        service: light.toggle
+        text: Corner
+      - entity_id: light.shelve
+        service: light.toggle
+        text: Shelve
+      - entity_id: light.marble
+        service: light.toggle
+        text: Marble
+      - entity_id: light.dinner_area
+        service: light.toggle
+        text: |
+          Dinner
+          area
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - text: Back
+        icon_mdi: keyboard-return
+
+  - name: bedroom-lights
+    buttons:
+      - entity_id: light.bamboo
+        service: light.toggle
+        text: Bamboo
+      - entity_id: light.philips_go
+        service: light.toggle
+        text: |
+          Philips
+          Go
+      - entity_id: light.bed_led
+        service: light.toggle
+        text: |
+          Bed
+          LED
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - text: Back
+        icon_mdi: keyboard-return
+
+  - name: automatic-lights
+    buttons:
+    - entity_id: light.guest_room
+      service: light.toggle
+      text: |
+        Guest
+        room
+    - entity_id: light.baby_sphere
+      service: light.toggle
+      text: |
+        Baby
+        sphere
+    - entity_id: light.utility_room
+      service: light.toggle
+      text: |
+        Utility
+        room
+    - entity_id: light.outside_front_door
+      service: light.toggle
+      text: |
+        Outside
+        front door
+    - entity_id: light.bedroom_outside
+      service: light.toggle
+      text: |
+        Bedroom
+        outside
+    - entity_id: light.garage_outside
+      service: light.toggle
+      text: |
+        Garage
+        outside
+    - special_type: empty
+    - special_type: empty
+    - special_type: empty
+    - special_type: empty
+    - special_type: empty
+    - special_type: empty
+    - special_type: empty
+    - special_type: empty
+    - text: Back
+      icon_mdi: keyboard-return
+
   - name: timers
     buttons:
       - icon_mdi: timer-outline

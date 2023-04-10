@@ -956,6 +956,8 @@ async def handle_changes(
                 last_modified_time = config._configuration_file.stat().st_mtime
                 try:
                     config.reload()
+                    deck.reset()
+                    update_all_key_images(deck, config, complete_state)
                 except Exception as e:  # noqa: BLE001
                     console.log(f"Error reloading configuration: {e}")
 

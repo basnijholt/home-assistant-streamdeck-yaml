@@ -26,7 +26,7 @@ With this Python script, you can control your Home Assistant instance via a Stre
 You might have seen a similar project ([`cgiesche/streamdeck-homeassistant`](https://github.com/cgiesche/streamdeck-homeassistant)) on Github before [[†](https://github.com/cgiesche/streamdeck-homeassistant)].
 However, our solution is more versatile and allows you to connect a Stream Deck to the same Linux machine where Home Assistant is running.
 The native Stream Deck software doesn't support Linux, but we've got you covered with the help of the [`python-elgato-streamdeck`](https://github.com/abcminiuser/python-elgato-streamdeck) library.
-If you are looking for some inspiration, check out the [>20 Button Configurations ideas](#bulb-more-than-20-button-configurations-ideas) section below.
+If you are looking for some inspiration, check out the [>20 Button Configurations ideas](#bulb-more-than-30-button-configurations-ideas) section below.
 
 **Check out the video below to see it in action!**
 

@@ -256,7 +256,7 @@ Each YAML config can take the following configuration
 | `anonymous_pages` | A list of anonymous Pages in the configuration. These pages are hidden and not displayed when cycling through the pages. They can only be reached using the `special_type: 'go-to-page'` button. Designed for single use, these pages return to the previous page upon clicking a button. |           | `List[Page]`    |
 | `state_entity_id` | The entity ID to sync display state with. For example `input_boolean.streamdeck` or `binary_sensor.anyone_home`.                                                                                                                                                                          | `None`    | `Optional[str]` |
 | `brightness`      | The default brightness of the Stream Deck (0-100).                                                                                                                                                                                                                                        | `100`     | `int`           |
-| `auto_reload`     | If True, the configuration file will be reloaded when it is modified.                                                                                                                                                                                                                     | `False`   | `bool`          |
+| `auto_reload`     | If True, the configuration YAML file will automatically be reloaded when it is modified.                                                                                                                                                                                                  | `False`   | `bool`          |
 
 <!-- OUTPUT:END -->
 

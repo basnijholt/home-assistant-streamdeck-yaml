@@ -39,7 +39,6 @@ from home_assistant_streamdeck_yaml import (
     _to_filename,
     _url_to_filename,
     get_states,
-    read_config,
     setup_ws,
     update_key_image,
 )
@@ -51,9 +50,18 @@ IS_CONNECTED_TO_HOMEASSISTANT = False
 BUTTONS_PER_PAGE = 15
 
 
-def test_read_config() -> None:
-    """Test read_config."""
-    read_config(DEFAULT_CONFIG)
+def test_load_config() -> None:
+    """Test Config.load."""
+    Config.load(DEFAULT_CONFIG)
+
+
+def test_reload_config() -> None:
+    """Test Config.load."""
+    c = Config.load(DEFAULT_CONFIG)
+    c.pages = []
+    assert c.pages == []
+    c.reload()
+    assert c.pages != []
 
 
 @pytest.fixture()

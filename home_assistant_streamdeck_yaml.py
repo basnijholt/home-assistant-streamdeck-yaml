@@ -149,6 +149,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         "go-to-page",
         "turn-off",
         "light-control",
+        "reload",
     ] | None = Field(
         default=None,
         allow_template=False,
@@ -161,7 +162,8 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " If `go-to-page`, the button will go to the page specified by `special_type_data`"
         " (either an `int` or `str` (name of the page))."
         " If `light-control`, the button will control a light, and the `special_type_data`"
-        " can be a dictionary, see its description.",
+        " can be a dictionary, see its description."
+        " If `reload`, the button will reload the configuration file.",
     )
     special_type_data: Any | None = Field(
         default=None,
@@ -320,6 +322,9 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         elif button.special_type == "turn-off":
             text = button.text or "Turn off"
             icon_mdi = button.icon_mdi or "power"
+        elif button.special_type == "reload":
+            text = button.text or "Reload\nconfig"
+            icon_mdi = button.icon_mdi or "reload"
         elif button.entity_id in complete_state:
             # Has entity_id
             state = complete_state[button.entity_id]
@@ -541,6 +546,22 @@ class Config(BaseModel):
     _current_page_index: int = PrivateAttr(default=0)
     _is_on: bool = PrivateAttr(default=True)
     _detached_page: Page | None = PrivateAttr(default=None)
+    _configuration_file: Path | None = PrivateAttr(default=None)
+
+    @classmethod
+    def load(cls: type[Config], fname: Path) -> Config:
+        """Read the configuration file."""
+        with fname.open() as f:
+            data = yaml.safe_load(f)
+            config = cls(**data)
+            config._configuration_file = fname
+            return config
+
+    def reload(self) -> None:
+        """Reload the configuration file."""
+        assert self._configuration_file is not None
+        new = self.load(self._configuration_file).__dict__
+        self.__dict__.update(new)
 
     @classmethod
     def to_pandas_table(cls: type[Config]) -> pd.DataFrame:
@@ -1309,13 +1330,6 @@ def get_deck() -> StreamDeck:
     return deck
 
 
-def read_config(fname: Path) -> Config:
-    """Read the configuration file."""
-    with fname.open() as f:
-        data = yaml.safe_load(f)
-        return Config(**data)
-
-
 def turn_on(config: Config, deck: StreamDeck, complete_state: StateDict) -> None:
     """Turn on the Stream Deck and update all key images."""
     console.log(f"Calling turn_on, with {config._is_on=}")
@@ -1378,6 +1392,10 @@ async def _handle_key_press(
         config._detached_page = page
         update_all()
         return  # to skip the _detached_page reset below
+    elif button.special_type == "reload":
+        config.reload()
+        update_all()
+        return
     elif button.service is not None:
         button = button.rendered_template_button(complete_state)
         if button.service_data is None:
@@ -1715,7 +1733,7 @@ def main() -> None:
     console.log(
         f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}",
     )
-    config = read_config(args.config)
+    config = Config.load(args.config)
     asyncio.run(
         run(
             host=args.host,

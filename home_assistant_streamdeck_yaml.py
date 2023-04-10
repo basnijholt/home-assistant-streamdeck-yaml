@@ -543,6 +543,11 @@ class Config(BaseModel):
         default=100,
         description="The default brightness of the Stream Deck (0-100).",
     )
+    auto_reload: bool = Field(
+        default=False,
+        description="If True, the configuration file will be reloaded"
+        " when it is modified.",
+    )
     _current_page_index: int = PrivateAttr(default=0)
     _is_on: bool = PrivateAttr(default=True)
     _detached_page: Page | None = PrivateAttr(default=None)
@@ -936,8 +941,33 @@ async def handle_changes(
             await asyncio.sleep(1)
             config.update_timers(deck, complete_state)
 
+    async def watch_configuration_file() -> None:
+        """Watch for changes to the configuration file and reload config when it changes."""
+        if config._configuration_file is None:
+            console.log("No configuration file to watch")
+            return
+        last_modified_time = config._configuration_file.stat().st_mtime
+        while True:
+            if (
+                config.auto_reload
+                and config._configuration_file is not None
+                and config._configuration_file.stat().st_mtime != last_modified_time
+            ):
+                console.log("Configuration file has been modified, reloading")
+                last_modified_time = config._configuration_file.stat().st_mtime
+                try:
+                    config.reload()
+                except Exception as e:  # noqa: BLE001
+                    console.log(f"Error reloading configuration: {e}")
+
+            await asyncio.sleep(1)
+
     # Run the websocket message processing and timer update tasks concurrently
-    await asyncio.gather(process_websocket_messages(), call_update_timers())
+    await asyncio.gather(
+        process_websocket_messages(),
+        call_update_timers(),
+        watch_configuration_file(),
+    )
 
 
 def _keys(entity_id: str, buttons: list[Button]) -> list[int]:

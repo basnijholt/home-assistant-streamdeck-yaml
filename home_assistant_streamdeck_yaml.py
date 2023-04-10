@@ -8,6 +8,7 @@ import functools as ft
 import hashlib
 import io
 import json
+import platform
 import re
 import time
 import warnings
@@ -257,7 +258,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         key_pressed: bool = False,
         size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
         icon_mdi_margin: int = 0,
-        font_filename: str = DEFAULT_FONT,
+        font_filename: str | Path | None = None,
     ) -> Image.Image:
         """Try to render the icon."""
         try:
@@ -275,7 +276,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 IconWarning,
                 stacklevel=2,
             )
-            return _generate_failed_icon(size)
+            return _generate_failed_icon(size, font_filename)
 
     def render_icon(  # noqa: PLR0912 PLR0915
         self,
@@ -284,7 +285,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         key_pressed: bool = False,
         size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
         icon_mdi_margin: int = 0,
-        font_filename: str = DEFAULT_FONT,
+        font_filename: str | Path | None = None,
     ) -> Image.Image:
         """Render the icon."""
         if self.is_sleeping():
@@ -363,10 +364,10 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
 
         _add_text(
             image,
-            font_filename,
-            self.text_size,
-            text,
+            text_size=self.text_size,
+            text=text,
             text_color=text_color if not key_pressed else "green",
+            font_filename=font_filename,
         )
         return image
 
@@ -1292,13 +1293,33 @@ def _init_icon(
 
 def _add_text(
     image: Image.Image,
-    font_filename: str,
+    *,
     text_size: int,
     text: str,
     text_color: str,
+    font_filename: str | Path | None = None,
 ) -> None:
     draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype(str(ASSETS_PATH / font_filename), text_size)
+    default_font = ASSETS_PATH / DEFAULT_FONT
+
+    if font_filename is not None:
+        font_name = font_filename
+    elif default_font.exists():
+        font_name = default_font
+    else:
+        system = platform.system()
+        if system == "Windows":
+            font_name = "arial.ttf"
+        elif system == "Darwin":  # macOS
+            font_name = "/System/Library/Fonts/Helvetica.ttc"
+        elif system == "Linux":
+            font_name = "Helvetica"
+        else:
+            msg = f"Unsupported platform: {system}"
+            raise ValueError(msg)
+
+    font = ImageFont.truetype(str(font_name), text_size)
+
     draw.text(
         (image.width / 2, image.height / 2),
         text=text,
@@ -1311,11 +1332,11 @@ def _add_text(
 
 def _generate_failed_icon(
     size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
+    font_filename: str | Path | None = None,
 ) -> Image.Image:
     """Generate a red icon with 'rendering failed' text."""
     background_color = "red"
     text_color = "white"
-    font_filename = DEFAULT_FONT
     text_size = int(min(size) * 0.15)  # Adjust font size based on the icon size
     icon = Image.new("RGB", size, background_color)
     _add_text(

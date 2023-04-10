@@ -950,7 +950,6 @@ async def handle_changes(
         while True:
             if (
                 config.auto_reload
-                and config._configuration_file is not None
                 and config._configuration_file.stat().st_mtime != last_modified_time
             ):
                 console.log("Configuration file has been modified, reloading")

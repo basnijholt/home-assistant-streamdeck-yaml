@@ -326,25 +326,6 @@ anonymous_pages:
       - icon_mdi: timer-outline
         text: "30s"
         delay: 30
-      - special_type: next-page
-      - entity_id: light.living_room_lights
-        service: light.toggle
-        text: |
-          Living room
-          lights
-        special_type: light-control
-        special_type_data:
-          colors:
-            - "#FF0000"  # red
-            - "#00FF00"  # green
-            - "#0000FF"  # blue
-            - "#FFFF00"  # yellow
-            - "#FFC0CB"  # pink
-            - "#800080"  # purple
-            - "#FFA500"  # orange
-            - "#00FFFF"  # cyan
-            - "#FFD700"  # gold
-            - "#008000"  # dark green
       - entity_id: light.bedroom_lights_z2m
         service: light.toggle
         text: |
@@ -353,6 +334,17 @@ anonymous_pages:
       - entity_id: light.sphere_tv
         service: light.toggle
         text: Sphere
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: previous-page
+      - special_type: next-page
+
 
   - name: sensors
     buttons:

@@ -860,5 +860,16 @@ This sets 0% to -10°C and 100% to 40°C.
 
 </details>
 
+<details>
+<summary>33. 🔄 Reload the `configuration.yaml` file:</summary>
+
+```yaml
+- special_type: reload
+```
+
+When pressed, the `configuration.yaml` is reloaded.
+
+</details>
+
 
 <!-- OUTPUT:END -->

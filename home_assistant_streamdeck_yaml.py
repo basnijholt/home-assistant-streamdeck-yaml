@@ -944,7 +944,7 @@ async def handle_changes(
     async def watch_configuration_file() -> None:
         """Watch for changes to the configuration file and reload config when it changes."""
         if config._configuration_file is None:
-            console.log("No configuration file to watch")
+            console.log("[red bold] No configuration file to watch[/]")
             return
         last_modified_time = config._configuration_file.stat().st_mtime
         while True:

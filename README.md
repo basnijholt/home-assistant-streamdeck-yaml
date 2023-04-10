@@ -310,7 +310,7 @@ Each button can take the following configuration
 
 # :bulb: More than 30 Button Configurations ideas
 
-Here are >30 interesting uses for the Stream Deck with Home Assistant:
+Here are >30 interesting uses for the Stream Deck with Home Assistant (click on text to expand):
 
 <!-- CODE:START -->
 <!-- import os, sys -->

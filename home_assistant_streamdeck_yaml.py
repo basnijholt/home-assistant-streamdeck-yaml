@@ -42,7 +42,11 @@ SCRIPT_DIR = Path(__file__).parent
 ASSETS_PATH = SCRIPT_DIR / "assets"
 DEFAULT_CONFIG = SCRIPT_DIR / "configuration.yaml"
 DEFAULT_FONT: str = "Roboto-Regular.ttf"
-DEFAULT_MDI_ICONS = {"light": "lightbulb", "switch": "power-socket-eu"}
+DEFAULT_MDI_ICONS = {
+    "light": "lightbulb",
+    "switch": "power-socket-eu",
+    "script": "script",
+}
 ICON_PIXELS = 72
 _ID_COUNTER = 0
 

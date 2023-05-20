@@ -99,6 +99,13 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         allow_template=False,
         description="Integer size of the text.",
     )
+    text_offset: int = Field(
+        default=0,
+        allow_template=False,
+        description="The text's position can be moved up or down from the center of"
+        " the button, and this movement is measured in pixels. The value can be"
+        " positive (for upward movement) or negative (for downward movement).",
+    )
     icon: str | None = Field(
         default=None,
         allow_template=True,
@@ -362,11 +369,12 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             image = _convert_to_grayscale(image)
 
         _add_text(
-            image,
-            font_filename,
-            self.text_size,
-            text,
+            image=image,
+            font_filename=font_filename,
+            text_size=self.text_size,
+            text=text,
             text_color=text_color if not key_pressed else "green",
+            text_offset=self.text_offset,
         )
         return image
 
@@ -1291,16 +1299,18 @@ def _init_icon(
 
 
 def _add_text(
+    *,
     image: Image.Image,
     font_filename: str,
     text_size: int,
     text: str,
     text_color: str,
+    text_offset: int = 0,
 ) -> None:
     draw = ImageDraw.Draw(image)
     font = ImageFont.truetype(str(ASSETS_PATH / font_filename), text_size)
     draw.text(
-        (image.width / 2, image.height / 2),
+        (image.width / 2, image.height / 2 + text_offset),
         text=text,
         font=font,
         anchor="ms",

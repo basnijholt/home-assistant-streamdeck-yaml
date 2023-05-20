@@ -121,6 +121,7 @@ def button_dict() -> dict[str, dict[str, Any]]:
         "script_with_text_and_icon": {
             "service": "script.turn_off_everything",
             "text": "ALL OFF",
+            "text_offset": 4,
             "icon": "night_sky.png",
         },
         "input_select_with_template": {

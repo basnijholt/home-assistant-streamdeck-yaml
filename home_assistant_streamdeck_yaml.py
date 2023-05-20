@@ -102,7 +102,9 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     text_offset: int = Field(
         default=0,
         allow_template=False,
-        description="Number of pixels offset of the text from the center of the button can be positive or negative.",
+        description="The text's position can be moved up or down from the center of"
+        " the button, and this movement is measured in pixels. The value can be"
+        " positive (for upward movement) or negative (for downward movement).",
     )
     icon: str | None = Field(
         default=None,

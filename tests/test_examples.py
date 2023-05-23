@@ -254,16 +254,18 @@ toggle_fan = {
 }
 
 lock_unlock_door = {
-    "description": "🔒 Lock/unlock a door",
+    "description": "🔒 Lock/unlock a door after 30 seconds",
     "yaml": textwrap.dedent(
         """
         - entity_id: lock.front_door
           service: lock.toggle
+          delay: "{{ 30 if is_state('lock.front_door', 'unlocked') else 0 }}"
           icon_mdi: "{{ 'door-open' if is_state('lock.front_door', 'unlocked') else 'door-closed' }}"
           text: |
             Front Door
             {{ 'Unlocked' if is_state('lock.front_door', 'unlocked') else 'Locked' }}
           text_size: 10
+          text_color: "{{ 'green' if is_state('lock.front_door', 'unlocked') else 'red' }}"
         """,
     ),
     "state": [
@@ -277,6 +279,8 @@ lock_unlock_door = {
             icon_mdi="door-open",
             text="Front Door\nUnlocked",
             text_size=10,
+            delay=30.0,
+            text_color="green",
         ),
         Button(
             entity_id="lock.front_door",
@@ -284,21 +288,25 @@ lock_unlock_door = {
             icon_mdi="door-closed",
             text="Front Door\nLocked",
             text_size=10,
+            delay=0.0,
+            text_color="red",
         ),
     ],
 }
 
-
 arm_disarm_alarm_system = {
-    "description": "⚠️ Arm/disarm an alarm system",
+    "description": "⚠️ Arm/disarm an alarm system after 30 seconds",
+    "extra": "Arm the alarm system in 30 seconds if it's disarmed, disarm it immediately if it's armed.",
     "yaml": textwrap.dedent(
         """
         - entity_id: alarm_control_panel.home_alarm
+          delay: "{{ 0 if is_state('alarm_control_panel.home_alarm', 'armed_away') else 30 }}"
           service: "{{ 'alarm_control_panel.alarm_disarm' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'alarm_control_panel.alarm_arm_away' }}"
           icon_mdi: "{{ 'shield-check' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'shield-off' }}"
           text: |
             {{ 'Disarm' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'Arm' }}
             Alarm
+          text_color: "{{ 'red' if is_state('alarm_control_panel.home_alarm', 'armed_away') else 'green' }}"
         """,
     ),
     "state": [
@@ -311,15 +319,20 @@ arm_disarm_alarm_system = {
             service="alarm_control_panel.alarm_disarm",
             icon_mdi="shield-check",
             text="Disarm\nAlarm",
+            text_color="red",
+            delay=0.0,
         ),
         Button(
             entity_id="alarm_control_panel.home_alarm",
             service="alarm_control_panel.alarm_arm_away",
             icon_mdi="shield-off",
             text="Arm\nAlarm",
+            text_color="green",
+            delay=30.0,
         ),
     ],
 }
+
 
 set_alarm_time_for_next_day = {
     "description": "⏰ Set an alarm time for the next day",
@@ -906,13 +919,15 @@ start_stop_security_camera_recording = {
 }
 
 enable_disable_nightlight = {
-    "description": "🌙 Enable/disable a nightlight",
+    "description": "🌙 Enable/disable a nightlight after 30 min",
     "yaml": textwrap.dedent(
         """
         - entity_id: light.nightlight
           service: light.toggle
+          delay: 1800
           icon_mdi: "{{ 'lightbulb-on' if is_state('light.nightlight', 'on') else 'lightbulb-off' }}"
           text: "{{ 'Disable' if is_state('light.nightlight', 'on') else 'Enable' }} Nightlight"
+          text_color: "{{ 'red' if is_state('light.nightlight', 'on') else 'green' }}"
         """,
     ),
     "state": [
@@ -925,12 +940,16 @@ enable_disable_nightlight = {
             service="light.toggle",
             icon_mdi="lightbulb-on",
             text="Disable Nightlight",
+            text_color="red",
+            delay=1800.0,
         ),
         Button(
             entity_id="light.nightlight",
             service="light.toggle",
             icon_mdi="lightbulb-off",
             text="Enable Nightlight",
+            text_color="green",
+            delay=1800.0,
         ),
     ],
 }
@@ -1078,6 +1097,121 @@ change_cover_position = {
     ],
 }
 
+control_media_player_tv = {
+    "description": "📺 Toggle a media player (e.g., TV) and show different images",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: media_player.tv
+          service: media_player.toggle
+          icon: >
+            {% if is_state('media_player.tv', 'on') %}
+            url:https://raw.githubusercontent.com/basnijholt/home-assistant-streamdeck-yaml/main/assets/fireplace.png
+            {% else %}
+            url:https://raw.githubusercontent.com/basnijholt/home-assistant-streamdeck-yaml/main/assets/hogwarts.png
+            {% endif %}
+          text: >
+            Turn {{ 'Off' if is_state('media_player.tv', 'on') else 'On' }}
+        """,
+    ),
+    "state": [
+        {"media_player.tv": {"state": "on"}},
+        {"media_player.tv": {"state": "off"}},
+    ],
+    "result": [
+        Button(
+            entity_id="media_player.tv",
+            service="media_player.toggle",
+            icon="url:https://raw.githubusercontent.com/basnijholt/home-assistant-streamdeck-yaml/main/assets/fireplace.png",
+            text="Turn Off",
+        ),
+        Button(
+            entity_id="media_player.tv",
+            service="media_player.toggle",
+            icon="url:https://raw.githubusercontent.com/basnijholt/home-assistant-streamdeck-yaml/main/assets/hogwarts.png",
+            text="Turn On",
+        ),
+    ],
+}
+
+start_timer = {
+    "description": "⏰ Turn off all lights in 60s",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: light.all_lights
+          service: light.turn_off
+          text: |
+            Turn off
+            in 60s
+          delay: 60
+        """,
+    ),
+    "state": [{}],
+    "result": [
+        Button(
+            entity_id="light.all_lights",
+            service="light.turn_off",
+            text="Turn off\nin 60s\n",
+            delay=60.0,
+        ),
+    ],
+}
+
+
+outside_temperature_display = {
+    "description": "🌡️ Display outside temperature with a ring indicator",
+    "extra": "This sets 0% to -10°C and 100% to 40°C.",
+    "yaml": textwrap.dedent(
+        """
+        - entity_id: sensor.temperature_sensor_outside_temperature
+          icon: >
+            {%- set temp = states('sensor.temperature_sensor_outside_temperature') -%}
+            {%- set min_temp = -10 -%}
+            {%- set max_temp = 40 -%}
+            {%- set pct = ((temp - min_temp) / (max_temp - min_temp)) * 100 -%}
+            ring:{{ pct | round }}
+          text: |
+            {%- set temp = states('sensor.temperature_sensor_outside_temperature') -%}
+            Outside
+            {{ temp | round(1) }}°C
+        """,
+    ),
+    "state": [
+        {
+            "sensor.temperature_sensor_outside_temperature": {
+                "state": "20",
+            },
+        },
+        {
+            "sensor.temperature_sensor_outside_temperature": {
+                "state": "10",
+            },
+        },
+    ],
+    "result": [
+        Button(
+            entity_id="sensor.temperature_sensor_outside_temperature",
+            icon="ring:60.0",
+            text="Outside\n20°C",
+        ),
+        Button(
+            entity_id="sensor.temperature_sensor_outside_temperature",
+            icon="ring:40.0",
+            text="Outside\n10°C",
+        ),
+    ],
+}
+
+reload_configuration_yaml = {
+    "description": "🔄 Reload the `configuration.yaml` file",
+    "extra": "When pressed, the `configuration.yaml` is reloaded.",
+    "yaml": textwrap.dedent(
+        """
+        - special_type: reload
+        """,
+    ),
+    "state": [{}],
+    "result": [Button(special_type="reload")],
+}
 
 BUTTONS = [
     activate_a_scene,
@@ -1109,6 +1243,10 @@ BUTTONS = [
     toggle_smart_plug,
     irrigation_toggle,
     change_cover_position,
+    control_media_player_tv,
+    start_timer,
+    outside_temperature_display,
+    reload_configuration_yaml,
 ]
 
 

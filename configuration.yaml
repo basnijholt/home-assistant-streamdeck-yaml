@@ -1,4 +1,5 @@
 brightness: 100
+auto_reload: true
 state_entity_id: input_boolean.streamdeck
 pages:
   - name: Home
@@ -21,33 +22,34 @@ pages:
             - "#00FFFF"  # cyan
             - "#FFD700"  # gold
             - "#008000"  # dark green
-      - entity_id: light.bedroom_lights_z2m
-        service: light.toggle
+      - special_type: go-to-page
+        special_type_data: all-lights
         text: |
-          Bedroom
-          lights
-      - entity_id: light.guest_room
-        service: light.toggle
-        text: |
-          Guest room
-          light
-      - entity_id: light.outside_lights_z2m
-        service: light.toggle
-        text: |
-          Outside
+          All
           lights
       - entity_id: light.dinner_area
         service: light.toggle
         text: |
           Dinner
           lights
-      # - entity_id: switch.space_heater
-      #   service: switch.toggle
-      #   text: '{{ states("switch.space_heater") }}'
-      #   icon: "space-heater.png"
-      #   text_size: 16
-      #   text_color: black
-      #   icon_gray_when_off: true
+      - icon: url:https://files.nijho.lt/bas.jpg
+        entity_id: person.bas
+        text: |
+          {{ "" if is_state("person.bas", "home") else "Not" }}
+          Home
+        special_type: go-to-page
+        special_type_data: bas
+        text_color: >
+          {{ "green" if is_state("person.bas", "home") else "red" }}
+        text_size: 16
+      - icon: url:https://files.nijho.lt/m.jpg
+        entity_id: person.marcella
+        text: |
+          {{ "" if is_state("person.marcella", "home") else "Not" }}
+          Home
+        text_color: >
+          {{ "green" if is_state("person.marcella", "home") else "red" }}
+        text_size: 16
       - entity_id: media_player.kef_ls50
         service: media_player.volume_set
         service_data:
@@ -300,5 +302,412 @@ pages:
           {% else %}
           Mute
           {% endif %}
-      - entity_id: media_player.kef_ls50
-        icon_mdi: "does-not-exist"
+      - special_type: go-to-page
+        special_type_data: timers
+        text: " "
+        icon_mdi: timer
+      - special_type: go-to-page
+        special_type_data: sensors
+        icon_mdi: thermometer-lines
+        text: " "
+      - special_type: reload
+        text: "Reload"
+      - icon: url:https://media.githubusercontent.com/media/basnijholt/nijho.lt/master/content/authors/admin/avatar.jpg
+        entity_id: person.bas
+        text: |
+          ㅤ
+          {{ states("person.bas") }}
+        special_type: go-to-page
+        special_type_data: bas
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: previous-page
+      - special_type: next-page
+
+anonymous_pages:
+  - name: bas
+    buttons:
+      - text: |
+          Come
+          home!
+        service: notify.bas
+        service_data:
+          message: "Come home!"
+        icon_mdi: bell
+        text_size: 15
+      - text: |
+          Love
+          you!
+        service: notify.bas
+        service_data:
+          message: "Love you ❤️!"
+        icon_mdi: bell
+        text_size: 15
+      - text: |
+          Where are
+          you?
+        service: notify.bas
+        service_data:
+          message: "Where are you?"
+        icon_mdi: bell
+        text_size: 15
+      - text: |
+          Food
+          in 30m
+        service: notify.bas
+        service_data:
+          message: "Food is ready in 30m!"
+        icon_mdi: bell
+        text_size: 15
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - text: Back
+        icon_mdi: keyboard-return
+
+  - name: all-lights
+    buttons:
+      - special_type: go-to-page
+        special_type_data: living-room-lights
+        icon_mdi: lightbulb
+        text: |
+          Living room
+          lights
+      - special_type: go-to-page
+        special_type_data: bedroom-lights
+        icon_mdi: lightbulb
+        text: |
+          Bedroom
+          lights
+      - special_type: go-to-page
+        special_type_data: automatic-lights
+        icon_mdi: lightbulb
+        text: |
+          Automatic
+          lights
+      - special_type: empty
+      - text: Pages
+      - entity_id: light.living_room_lights_z2m
+        service: light.toggle
+        text: |
+          Living room
+          lights
+      - entity_id: light.bedroom_lights_z2m
+        service: light.toggle
+        text: |
+          Bedroom
+          lights
+      - entity_id: light.outside_lights_z2m
+        service: light.toggle
+        text: |
+          Outside
+          lights
+      - special_type: empty
+      - text: Toggle
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - text: Back
+        icon_mdi: keyboard-return
+
+
+  - name: living-room-lights
+    buttons:
+      - entity_id: light.sphere_tv
+        service: light.toggle
+        text: Sphere TV
+      - entity_id: light.sphere_2
+        service: light.toggle
+        text: Sphere 2
+      - entity_id: light.tv_led
+        service: light.toggle
+        text: TV LED
+      - entity_id: light.cabinet_led
+        service: light.toggle
+        text: |
+          Cabinet
+          LED
+      - entity_id: light.mid_room
+        service: light.toggle
+        text: Mid room
+      - entity_id: light.living_room_corner
+        service: light.toggle
+        text: Corner
+      - entity_id: light.shelve
+        service: light.toggle
+        text: Shelve
+      - entity_id: light.marble
+        service: light.toggle
+        text: Marble
+      - entity_id: light.dinner_area
+        service: light.toggle
+        text: |
+          Dinner
+          area
+      - special_type: empty
+      - text: Scripts
+      - icon_mdi: script
+        service: script.cozy_lights_living_room
+        text: |
+          Cozy
+          lights
+      - icon_mdi: script
+        service: script.white_lights_living_room
+        text: |
+          White
+          lights
+      - special_type: empty
+      - text: Back
+        icon_mdi: keyboard-return
+
+  - name: bedroom-lights
+    buttons:
+      - entity_id: light.bamboo
+        service: light.toggle
+        text: Bamboo
+      - entity_id: light.philips_go
+        service: light.toggle
+        text: |
+          Philips
+          Go
+      - entity_id: light.bed_led
+        service: light.toggle
+        text: |
+          Bed
+          LED
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - special_type: empty
+      - text: Back
+        icon_mdi: keyboard-return
+
+  - name: automatic-lights
+    buttons:
+    - entity_id: light.guest_room
+      service: light.toggle
+      text: |
+        Guest
+        room
+    - entity_id: light.baby_sphere
+      service: light.toggle
+      text: |
+        Baby
+        sphere
+    - entity_id: light.utility_room
+      service: light.toggle
+      text: |
+        Utility
+        room
+    - entity_id: light.outside_front_door
+      service: light.toggle
+      text: |
+        Outside
+        front door
+    - entity_id: light.bedroom_outside
+      service: light.toggle
+      text: |
+        Bedroom
+        outside
+    - entity_id: light.garage_outside
+      service: light.toggle
+      text: |
+        Garage
+        outside
+    - entity_id: light.outside_lights_z2m
+      service: light.toggle
+      icon_mdi: lamps
+      text: |
+        Outside
+        lights
+    - special_type: empty
+    - special_type: empty
+    - special_type: empty
+    - special_type: empty
+    - special_type: empty
+    - special_type: empty
+    - special_type: empty
+    - text: Back
+      icon_mdi: keyboard-return
+
+  - name: timers
+    buttons:
+      - icon_mdi: timer-outline
+        text: "10s"
+        delay: 10
+      - icon_mdi: timer-outline
+        text: "20s"
+        delay: 20
+      - icon_mdi: timer-outline
+        text: "30s"
+        delay: 30
+      - icon_mdi: timer-outline
+        text: "1m"
+        delay: 60
+      - icon_mdi: timer-outline
+        text: "2m"
+        delay: 120
+      - icon_mdi: timer-outline
+        text: "3m"
+        delay: 180
+      - icon_mdi: timer-outline
+        text: "5m"
+        delay: 180
+      - icon_mdi: timer-outline
+        text: "10m"
+        delay: 600
+      - icon_mdi: timer-outline
+        text: "20m"
+        delay: 1200
+      - icon_mdi: timer-outline
+        text: "30m"
+        delay: 1800
+      - icon_mdi: timer-outline
+        text: "50m"
+        delay: 3600
+      - special_type: empty
+      - special_type: empty
+      - special_type: previous-page
+      - special_type: next-page
+
+  - name: sensors
+    buttons:
+      - text: Temperature
+      - entity_id: sensor.temperature_sensor_living_room_temperature
+        icon: >
+          {%- set temp = states('sensor.temperature_sensor_living_room_temperature') -%}
+          {%- set min_temp = 14 -%}
+          {%- set max_temp = 30 -%}
+          {%- set pct = ((temp - min_temp) / (max_temp - min_temp)) * 100 -%}
+          ring:{{ pct | round }}
+        text: |
+          {%- set temp = states('sensor.temperature_sensor_living_room_temperature') -%}
+          Living
+          {{ temp | round(1) }}°C
+      - entity_id: sensor.temperature_sensor_baby_room_temperature
+        icon: >
+          {%- set temp = states('sensor.temperature_sensor_baby_room_temperature') -%}
+          {%- set min_temp = 14 -%}
+          {%- set max_temp = 30 -%}
+          {%- set pct = ((temp - min_temp) / (max_temp - min_temp)) * 100 -%}
+          ring:{{ pct | round }}
+        text: |
+          {%- set temp = states('sensor.temperature_sensor_baby_room_temperature') -%}
+          Baby
+          {{ temp | round(1) }}°C
+      - entity_id: sensor.temperature_sensor_master_bedroom_temperature
+        icon: >
+          {%- set temp = states('sensor.temperature_sensor_master_bedroom_temperature') -%}
+          {%- set min_temp = 14 -%}
+          {%- set max_temp = 30 -%}
+          {%- set pct = ((temp - min_temp) / (max_temp - min_temp)) * 100 -%}
+          ring:{{ pct | round }}
+        text: |
+          {%- set temp = states('sensor.temperature_sensor_master_bedroom_temperature') -%}
+          Bedroom
+          {{ temp | round(1) }}°C
+      - entity_id: sensor.temperature_sensor_outside_temperature
+        icon: >
+          {%- set temp = states('sensor.temperature_sensor_outside_temperature') -%}
+          {%- set min_temp = 14 -%}
+          {%- set max_temp = 30 -%}
+          {%- set pct = ((temp - min_temp) / (max_temp - min_temp)) * 100 -%}
+          ring:{{ pct | round }}
+        text: |
+          {%- set temp = states('sensor.temperature_sensor_outside_temperature') -%}
+          Outside
+          {{ temp | round(1) }}°C
+      - text: Humidity
+      - entity_id: sensor.temperature_sensor_living_room_humidity
+        icon: >
+          {%- set humidity = states('sensor.temperature_sensor_living_room_humidity') -%}
+          ring:{{ humidity | round }}
+        text: |
+          {%- set humidity = states('sensor.temperature_sensor_living_room_humidity') -%}
+          Living
+          {{ humidity | round(1) }}%
+      - entity_id: sensor.temperature_sensor_baby_room_humidity
+        icon: >
+          {%- set humidity = states('sensor.temperature_sensor_baby_room_humidity') -%}
+          ring:{{ humidity | round }}
+        text: |
+          {%- set humidity = states('sensor.temperature_sensor_baby_room_humidity') -%}
+          Baby
+          {{ humidity | round(1) }}%
+      - entity_id: sensor.temperature_sensor_master_bedroom_humidity
+        icon: >
+          {%- set humidity = states('sensor.temperature_sensor_master_bedroom_humidity') -%}
+          ring:{{ humidity | round }}
+        text: |
+          {%- set humidity = states('sensor.temperature_sensor_master_bedroom_humidity') -%}
+          Bedroom
+          {{ humidity | round(1) }}%
+      - entity_id: sensor.temperature_sensor_outside_humidity
+        icon: >
+          {%- set humidity = states('sensor.temperature_sensor_outside_humidity') -%}
+          ring:{{ humidity | round }}
+        text: |
+          {%- set humidity = states('sensor.temperature_sensor_outside_humidity') -%}
+          Outside
+          {{ humidity | round(1) }}%
+      - text: Pressure
+      - entity_id: sensor.temperature_sensor_living_room_pressure
+        icon: >
+          {%- set pressure = states('sensor.temperature_sensor_living_room_pressure') -%}
+          {%- set min_pressure = 1000 -%}
+          {%- set max_pressure = 1025 -%}
+          {%- set pct = ((pressure - min_pressure) / (max_pressure - min_pressure)) * 100 -%}
+          ring:{{ pct | round }}
+        text: |
+          {%- set pressure = states('sensor.temperature_sensor_living_room_pressure') -%}
+          Living
+          {{ pressure | int }} hPa
+      - entity_id: sensor.temperature_sensor_baby_room_pressure
+        icon: >
+          {%- set pressure = states('sensor.temperature_sensor_baby_room_pressure') -%}
+          {%- set min_pressure = 1000 -%}
+          {%- set max_pressure = 1025 -%}
+          {%- set pct = ((pressure - min_pressure) / (max_pressure - min_pressure)) * 100 -%}
+          ring:{{ pct | round }}
+        text: |
+          {%- set pressure = states('sensor.temperature_sensor_baby_room_pressure') -%}
+          Baby
+          {{ pressure | int }} hPa
+      - entity_id: sensor.temperature_sensor_master_bedroom_pressure
+        icon: >
+          {%- set pressure = states('sensor.temperature_sensor_master_bedroom_pressure') -%}
+          {%- set min_pressure = 1000 -%}
+          {%- set max_pressure = 1025 -%}
+          {%- set pct = ((pressure - min_pressure) / (max_pressure - min_pressure)) * 100 -%}
+          ring:{{ pct | round }}
+        text: |
+          {%- set pressure = states('sensor.temperature_sensor_master_bedroom_pressure') -%}
+          Bedroom
+          {{ pressure | int }} hPa
+      - entity_id: sensor.temperature_sensor_outside_pressure
+        icon: >
+          {%- set pressure = states('sensor.temperature_sensor_outside_pressure') -%}
+          {%- set min_pressure = 1000 -%}
+          {%- set max_pressure = 1025 -%}
+          {%- set pct = ((pressure - min_pressure) / (max_pressure - min_pressure)) * 100 -%}
+          ring:{{ pct | round }}
+        text: |
+          {%- set pressure = states('sensor.temperature_sensor_outside_pressure') -%}
+          Outside
+          {{ pressure | int }} hPa

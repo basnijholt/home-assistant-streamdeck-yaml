@@ -1,11 +1,11 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools>=42", "wheel", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "home_assistant_streamdeck_yaml"
 description = "Home Assistant on Stream Deck: configured via YAML (with templates) and running on Linux, MacOS, and Windows"
-version = "0.1.0"
+dynamic = ["version"]
 authors = [{ name = "Bas Nijholt", email = "bas@nijho.lt" }]
 dependencies = [
     "cairosvg",
@@ -45,7 +45,7 @@ addopts = """
     --cov=home_assistant_streamdeck_yaml
     --cov-report term
     --cov-report html
-    --cov-fail-under=64
+    --cov-fail-under=70
     --asyncio-mode=auto
 """
 
@@ -73,12 +73,16 @@ ignore = [
     "D402",    # First line should not be the function's signature
     "PLW0603", # Using the global statement to update `X` is discouraged
     "D401",    # First line of docstring should be in imperative mood
+    "SLF001",  # Private member accessed
+    "PLR0913", # Too many arguments to function call (N > 5)
+    "TD002",   # Missing author in TODO; try: `# TODO(<author_name>): ...`
+    "TD003",   # Missing issue link on the line following this TODO
 ]
 
 [tool.ruff.per-file-ignores]
 "tests/*" = ["SLF001"]
-"ci/*" = ["INP001"]
 "tests/test_examples.py" = ["E501"]
+".github/*" = ["INP001"]
 
 [tool.ruff.mccabe]
 max-complexity = 18
@@ -89,3 +93,5 @@ python_version = "3.10"
 [tool.ruff.pep8-naming]
 # Allow Pydantic's `@validator` decorator to trigger class method treatment.
 classmethod-decorators = ["classmethod", "pydantic.validator"]
+
+[tool.setuptools_scm]

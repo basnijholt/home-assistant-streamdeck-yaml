@@ -1,12 +1,13 @@
 """Test Home Assistant Stream Deck YAML."""
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 import textwrap
 from pathlib import Path
 from typing import Any
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 import websockets
@@ -32,12 +33,12 @@ from home_assistant_streamdeck_yaml import (
     _keys,
     _light_page,
     _named_to_hex,
+    _on_press_callback,
     _render_jinja,
     _states,
     _to_filename,
     _url_to_filename,
     get_states,
-    read_config,
     setup_ws,
     update_key_image,
 )
@@ -49,9 +50,18 @@ IS_CONNECTED_TO_HOMEASSISTANT = False
 BUTTONS_PER_PAGE = 15
 
 
-def test_read_config() -> None:
-    """Test read_config."""
-    read_config(DEFAULT_CONFIG)
+def test_load_config() -> None:
+    """Test Config.load."""
+    Config.load(DEFAULT_CONFIG)
+
+
+def test_reload_config() -> None:
+    """Test Config.load."""
+    c = Config.load(DEFAULT_CONFIG)
+    c.pages = []
+    assert c.pages == []
+    c.reload()
+    assert c.pages != []
 
 
 @pytest.fixture()
@@ -111,6 +121,7 @@ def button_dict() -> dict[str, dict[str, Any]]:
         "script_with_text_and_icon": {
             "service": "script.turn_off_everything",
             "text": "ALL OFF",
+            "text_offset": 4,
             "icon": "night_sky.png",
         },
         "input_select_with_template": {
@@ -130,6 +141,11 @@ def button_dict() -> dict[str, dict[str, Any]]:
                 "source": "KEF LS50",
             },
             "icon": "spotify:playlist/37i9dQZF1DXaRycgyh6kXP",
+        },
+        "grayscale_button": {
+            "entity_id": "input_select.sleep_mode",
+            "icon": "spotify:playlist/37i9dQZF1DXaRycgyh6kXP",
+            "icon_gray_when_off": True,
         },
         "special_empty": {"special_type": "empty"},
         "special_goto_0": {"special_type": "go-to-page", "special_type_data": 0},
@@ -162,17 +178,17 @@ def buttons(button_dict: dict[str, dict[str, Any]]) -> list[Button]:
         "special_goto_home",
         "special_prev_page",
         "special_next_page",
+        "grayscale_button",
     ]
 
-    assert len(button_order) == BUTTONS_PER_PAGE
     return [Button(**button_dict[key]) for key in button_order]
 
 
 @pytest.fixture()
 def config(buttons: list[Button]) -> Config:
     """Config fixture."""
-    page_1 = Page(buttons=buttons, name="Home")
-    page_2 = Page(buttons=buttons[::-1], name="Second")
+    page_1 = Page(buttons=buttons[:BUTTONS_PER_PAGE], name="Home")
+    page_2 = Page(buttons=buttons[BUTTONS_PER_PAGE:], name="Second")
     return Config(pages=[page_1, page_2])
 
 
@@ -185,20 +201,20 @@ def test_named_to_hex() -> None:
 def test_example_config_browsing_pages(config: Config) -> None:
     """Test example config browsing pages."""
     assert isinstance(config, Config)
-    assert config.current_page_index == 0
+    assert config._current_page_index == 0
     second_page = config.next_page()
     assert isinstance(second_page, Page)
-    assert config.current_page_index == 1
+    assert config._current_page_index == 1
     first_page = config.previous_page()
     assert isinstance(first_page, Page)
-    assert config.current_page_index == 0
+    assert config._current_page_index == 0
     assert len(first_page.buttons) == BUTTONS_PER_PAGE
-    assert len(second_page.buttons) == BUTTONS_PER_PAGE
+    assert len(second_page.buttons) == 1  # update when adding more buttons
     second_page = config.to_page(1)
     assert isinstance(second_page, Page)
-    assert config.current_page_index == 1
+    assert config._current_page_index == 1
     first_page = config.to_page(first_page.name)
-    assert config.current_page_index == 0
+    assert config._current_page_index == 0
     assert config.button(0) == first_page.buttons[0]
 
 
@@ -305,7 +321,6 @@ def test_download_and_save_mdi() -> None:
 def test_init_icon() -> None:
     """Test init icon."""
     _init_icon(icon_filename="xbox.png")
-    _init_icon(icon_filename="xbox.png", icon_convert_to_grayscale=True)
     _init_icon(
         icon_mdi="phone",
         icon_mdi_margin=1,
@@ -350,7 +365,7 @@ def test_update_key_image(
     """Test update_key_image with MockDeck."""
     update_key_image(mock_deck, key=0, config=config, complete_state=state)
     page = config.current_page()
-    assert config.current_page_index == 0
+    assert config._current_page_index == 0
     for key, _ in enumerate(page.buttons):
         update_key_image(mock_deck, key=key, config=config, complete_state=state)
 
@@ -493,8 +508,9 @@ async def test_handle_key_press_toggle_light(
     config: Config,
 ) -> None:
     """Test handle_key_press toggle light."""
-    key = 0
-    await _handle_key_press(websocket_mock, state, config, key, mock_deck)
+    button = config.button(0)
+    assert button is not None
+    await _handle_key_press(websocket_mock, state, config, button, mock_deck)
 
     websocket_mock.send.assert_called_once()
     send_call_args = websocket_mock.send.call_args.args[0]
@@ -513,14 +529,15 @@ async def test_handle_key_press_next_page(
     config: Config,
 ) -> None:
     """Test handle_key_press next page."""
-    key = 14
-    await _handle_key_press(websocket_mock, state, config, key, mock_deck)
+    button = config.button(14)
+    assert button is not None
+    await _handle_key_press(websocket_mock, state, config, button, mock_deck)
 
     # No service should be called
     websocket_mock.send.assert_not_called()
 
     # Ensure that the next_page method is called
-    assert config.current_page_index == 1
+    assert config._current_page_index == 1
 
 
 async def test_button_with_target(
@@ -539,7 +556,7 @@ async def test_button_with_target(
     _button = config.button(0)
     assert _button is not None
     assert _button.service == "media_player.join"
-    await _handle_key_press(websocket_mock, {}, config, 0, mock_deck)
+    await _handle_key_press(websocket_mock, {}, config, _button, mock_deck)
     # Check that the send method was called with the correct payload
     called_payload = json.loads(websocket_mock.send.call_args.args[0])
     expected_payload = {
@@ -1036,3 +1053,71 @@ def test_icon_failed_icon() -> None:
     assert icon is not None
     assert isinstance(icon, Image.Image)
     assert icon.size == (100, 100)
+
+
+async def test_delay() -> None:
+    """Test the delay."""
+    button = Button(delay=0.1)
+    assert not button.is_sleeping()
+    assert button.maybe_start_or_cancel_timer()
+    await asyncio.sleep(0)  # TODO: figure out why this is needed
+    assert button._timer is not None
+    assert button._timer.is_sleeping
+    assert button.is_sleeping()
+    _ = button.render_icon({})
+    await asyncio.sleep(0.1)
+    assert not button.is_sleeping()
+
+
+def test_to_markdown_table() -> None:
+    """Test to_markdown_table for docs."""
+    table = Button.to_markdown_table()
+    assert isinstance(table, str)
+
+
+async def test_anonymous_page(
+    mock_deck: Mock,
+    websocket_mock: Mock,
+    state: dict[str, dict[str, Any]],
+) -> None:
+    """Test that the anonymous page works."""
+    home = Page(
+        name="home",
+        buttons=[Button(special_type="go-to-page", special_type_data="anon")],
+    )
+    anon = Page(
+        name="anon",
+        buttons=[Button(text="yolo"), Button(text="foo", delay=0.1)],
+    )
+    config = Config(pages=[home], anonymous_pages=[anon])
+    assert config._current_page_index == 0
+    assert config._detached_page is None
+    assert config.to_page("anon") == anon
+    assert config._detached_page is not None
+    assert config.current_page() == anon
+    button = config.button(0)
+    assert button.text == "yolo"
+    press = _on_press_callback(websocket_mock, state, config)
+    # Click the button
+    await press(mock_deck, 0, key_pressed=True)
+    # Should now be the button on the first page
+    button = config.button(0)
+    assert button.special_type == "go-to-page"
+    # Back to anon page
+    assert config.to_page("anon") == anon
+    # Click the delay button
+    button = config.button(1)
+    assert button.text == "foo"
+    await press(mock_deck, 1, key_pressed=True)
+    # Should now still be the button because of the delay
+    assert button.text == "foo"
+    assert config._detached_page is not None
+    assert config.current_page() == anon
+    with patch("home_assistant_streamdeck_yaml.update_all_key_images") as mock:
+        await asyncio.sleep(0.15)  # longer than delay should then switch to home
+        mock.assert_called_once()
+    assert config._detached_page is None
+    assert config.current_page() == home
+    # Should now be the button on the first page
+    button = config.button(0)
+    assert button.special_type == "go-to-page"

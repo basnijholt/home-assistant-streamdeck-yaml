@@ -20,7 +20,9 @@ RUN apk --update --no-cache add \
     # General
     gcc python3-dev musl-dev \
     # Needed for matplotlib
-    g++ gfortran py-pip build-base wget
+    g++ gfortran py-pip build-base wget \
+    # Needed for getting version from git
+    git
 
 # Add udev rule for the Stream Deck
 RUN mkdir -p /etc/udev/rules.d && \
@@ -33,7 +35,8 @@ WORKDIR /app
 COPY pyproject.toml /app/
 
 # Install the required dependencies
-RUN pip3 install -e ".[colormap]" --no-cache-dir && \
+RUN --mount=source=.git,target=.git,type=bind \
+    pip3 install -e ".[colormap]" --no-cache-dir && \
     # Remove musl-dev and gcc
     apk del build-deps && \
     rm -rf /var/cache/apk/*

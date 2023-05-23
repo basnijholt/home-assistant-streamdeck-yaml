@@ -9,32 +9,44 @@ import hashlib
 import io
 import json
 import re
+import time
 import warnings
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Literal, TypeAlias
 
 import jinja2
+import pkg_resources
 import requests
 import websockets
 import yaml
 from lxml import etree
 from PIL import Image, ImageColor, ImageDraw, ImageFont, ImageOps
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, PrivateAttr, validator
+from pydantic.fields import Undefined
 from rich.console import Console
+from rich.table import Table
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.ImageHelpers import PILHelper
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
 
+    import pandas as pd
     from StreamDeck.Devices import StreamDeck
+
+__version__ = pkg_resources.get_distribution("home_assistant_streamdeck_yaml").version
+
 
 SCRIPT_DIR = Path(__file__).parent
 ASSETS_PATH = SCRIPT_DIR / "assets"
 DEFAULT_CONFIG = SCRIPT_DIR / "configuration.yaml"
 DEFAULT_FONT: str = "Roboto-Regular.ttf"
-DEFAULT_MDI_ICONS = {"light": "lightbulb", "switch": "power-socket-eu"}
+DEFAULT_MDI_ICONS = {
+    "light": "lightbulb",
+    "switch": "power-socket-eu",
+    "script": "script",
+}
 ICON_PIXELS = 72
 _ID_COUNTER = 0
 
@@ -87,15 +99,26 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         allow_template=False,
         description="Integer size of the text.",
     )
+    text_offset: int = Field(
+        default=0,
+        allow_template=False,
+        description="The text's position can be moved up or down from the center of"
+        " the button, and this movement is measured in pixels. The value can be"
+        " positive (for upward movement) or negative (for downward movement).",
+    )
     icon: str | None = Field(
         default=None,
         allow_template=True,
         description="The icon filename to display on the button."
+        " Make the path absolute (e.g., `/config/streamdeck/my_icon.png`) or relative to the"
+        " `assets` directory (e.g., `my_icon.png`)."
         " If empty, a icon with `icon_background_color` and `text` is displayed."
         " The icon can be a URL to an image,"
         " like `'url:https://www.nijho.lt/authors/admin/avatar.jpg'`, or a `spotify:`"
         " icon, like `'spotify:album/6gnYcXVaffdG0vwVM34cr8'`."
-        " If the icon is a `spotify:` icon, the icon will be downloaded and cached.",
+        " If the icon is a `spotify:` icon, the icon will be downloaded and cached."
+        " The icon can also display a partially complete ring, like a progress bar,"
+        " or sensor value, like `ring:25` for a 25% complete ring.",
     )
     icon_mdi: str | None = Field(
         default=None,
@@ -121,6 +144,15 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         allow_template=False,
         description="When specifying `icon` and `entity_id`, if the state is `off`, the icon will be converted to grayscale.",
     )
+    delay: float | str = Field(
+        default=0.0,
+        allow_template=True,
+        description="The delay (in seconds) before the `service` is called."
+        " This is useful if you want to wait before calling the `service`."
+        " Counts down from the time the button is pressed."
+        " If while counting the button is pressed again, the timer is cancelled."
+        " Should be a float or template string that evaluates to a float.",
+    )
     special_type: Literal[
         "next-page",
         "previous-page",
@@ -128,6 +160,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         "go-to-page",
         "turn-off",
         "light-control",
+        "reload",
     ] | None = Field(
         default=None,
         allow_template=False,
@@ -140,7 +173,8 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " If `go-to-page`, the button will go to the page specified by `special_type_data`"
         " (either an `int` or `str` (name of the page))."
         " If `light-control`, the button will control a light, and the `special_type_data`"
-        " can be a dictionary, see its description.",
+        " can be a dictionary, see its description."
+        " If `reload`, the button will reload the configuration file when pressed.",
     )
     special_type_data: Any | None = Field(
         default=None,
@@ -155,6 +189,8 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",
     )
 
+    _timer: AsyncDelayedCallback | None = PrivateAttr(None)
+
     @classmethod
     def from_yaml(cls: type[Button], yaml_str: str) -> Button:
         """Set the attributes from a YAML string."""
@@ -162,8 +198,8 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         return cls(**data[0])
 
     @classmethod
-    def to_markdown_table(cls: type[Button]) -> str:
-        """Return a markdown table with the schema."""
+    def to_pandas_table(cls: type[Button]) -> pd.DataFrame:
+        """Return a pandas table with the schema."""
         import pandas as pd
 
         rows = []
@@ -177,13 +213,18 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
 
             row = {
                 "Variable name": code(k),
-                "Description": info.description,
                 "Allow template": "✅" if info.extra["allow_template"] else "❌",
+                "Description": info.description,
                 "Default": code(info.default) if info.default else "",
-                "Type": code(field._type_display()),  # noqa: SLF001
+                "Type": code(field._type_display()),
             }
             rows.append(row)
-        return pd.DataFrame(rows).to_markdown(index=False)
+        return pd.DataFrame(rows)
+
+    @classmethod
+    def to_markdown_table(cls: type[Button]) -> str:
+        """Return a markdown table with the schema."""
+        return cls.to_pandas_table().to_markdown(index=False)
 
     @property
     def domain(self) -> str | None:
@@ -224,7 +265,6 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
         icon_mdi_margin: int = 0,
         font_filename: str = DEFAULT_FONT,
-        font_size: int = 12,
     ) -> Image.Image:
         """Try to render the icon."""
         try:
@@ -234,7 +274,6 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 size=size,
                 icon_mdi_margin=icon_mdi_margin,
                 font_filename=font_filename,
-                font_size=font_size,
             )
         except Exception as exc:  # noqa: BLE001
             console.print_exception()
@@ -245,7 +284,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             )
             return _generate_failed_icon(size)
 
-    def render_icon(
+    def render_icon(  # noqa: PLR0912 PLR0915
         self,
         complete_state: StateDict,
         *,
@@ -253,19 +292,28 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
         icon_mdi_margin: int = 0,
         font_filename: str = DEFAULT_FONT,
-        font_size: int = 12,
     ) -> Image.Image:
         """Render the icon."""
-        if isinstance(self.icon, str) and ":" in self.icon:
-            which, id_ = self.icon.split(":", 1)
+        if self.is_sleeping():
+            button, image = self.sleep_button_and_image(size)
+        else:
+            button = self.rendered_template_button(complete_state)
+            image = None
+
+        if isinstance(button.icon, str) and ":" in button.icon:
+            which, id_ = button.icon.split(":", 1)
             if which == "spotify":
-                filename = _to_filename(self.icon, ".jpeg")
-                return _download_spotify_image(id_, filename)
+                filename = _to_filename(button.icon, ".jpeg")
+                # copy to avoid modifying the cached image
+                image = _download_spotify_image(id_, filename).copy()
             if which == "url":
                 filename = _url_to_filename(id_)
-                return _download_image(id_, filename, size)
-
-        button = self.rendered_template_button(complete_state)
+                # copy to avoid modifying the cached image
+                image = _download_image(id_, filename, size).copy()
+            if which == "ring":
+                pct = _maybe_number(id_)
+                assert isinstance(pct, (int, float)), f"Invalid ring percentage: {id_}"
+                image = _draw_percentage_ring(pct, size)
 
         icon_convert_to_grayscale = False
         text = button.text
@@ -285,6 +333,9 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         elif button.special_type == "turn-off":
             text = button.text or "Turn off"
             icon_mdi = button.icon_mdi or "power"
+        elif button.special_type == "reload":
+            text = button.text or "Reload\nconfig"
+            icon_mdi = button.icon_mdi or "reload"
         elif button.entity_id in complete_state:
             # Has entity_id
             state = complete_state[button.entity_id]
@@ -304,21 +355,26 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             if state["state"] == "off":
                 icon_convert_to_grayscale = button.icon_gray_when_off
 
-        image = _init_icon(
-            icon_background_color=button.icon_background_color,
-            icon_filename=button.icon,
-            icon_mdi=icon_mdi,
-            icon_mdi_margin=icon_mdi_margin,
-            icon_mdi_color=_named_to_hex(button.icon_mdi_color or text_color),
-            icon_convert_to_grayscale=icon_convert_to_grayscale,
-            size=size,
-        ).copy()  # copy to avoid modifying the cached image
+        if image is None:
+            image = _init_icon(
+                icon_background_color=button.icon_background_color,
+                icon_filename=button.icon,
+                icon_mdi=icon_mdi,
+                icon_mdi_margin=icon_mdi_margin,
+                icon_mdi_color=_named_to_hex(button.icon_mdi_color or text_color),
+                size=size,
+            ).copy()  # copy to avoid modifying the cached image
+
+        if icon_convert_to_grayscale:
+            image = _convert_to_grayscale(image)
+
         _add_text(
-            image,
-            font_filename,
-            font_size,
-            text,
+            image=image,
+            font_filename=font_filename,
+            text_size=self.text_size,
+            text=text,
             text_color=text_color if not key_pressed else "green",
+            text_offset=self.text_offset,
         )
         return image
 
@@ -347,7 +403,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             if not isinstance(v, dict):
                 msg = (
                     "With 'light-control', 'special_type_data' must"
-                    f" be a dict, not {v}"
+                    f" be a dict, not '{v}'"
                 )
                 raise AssertionError(msg)
             # Can only have the following keys: colors and colormap
@@ -371,6 +427,45 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 v["colors"] = tuple(v["colors"])
         return v
 
+    def maybe_start_or_cancel_timer(
+        self,
+        callback: Callable[[], None | Coroutine] | None = None,
+    ) -> bool:
+        """Start or cancel the timer."""
+        if self.delay:
+            if self._timer is None:
+                assert isinstance(
+                    self.delay,
+                    (int, float),
+                ), f"Invalid delay: {self.delay}"
+                self._timer = AsyncDelayedCallback(delay=self.delay, callback=callback)
+            if self._timer.is_running():
+                self._timer.cancel()
+            else:
+                self._timer.start()
+            return True
+        return False
+
+    def is_sleeping(self) -> bool:
+        """Return True if the timer is sleeping."""
+        return self._timer is not None and self._timer.is_sleeping
+
+    def sleep_button_and_image(
+        self,
+        size: tuple[int, int],
+    ) -> tuple[Button, Image.Image]:
+        """Return the button and image for the sleep button."""
+        assert self._timer is not None
+        assert isinstance(self.delay, (int, float)), f"Invalid delay: {self.delay}"
+        remaining = self._timer.remaining_time()
+        pct = round(remaining / self.delay * 100)
+        image = _draw_percentage_ring(pct, size)
+        button = Button(
+            text=f"{remaining:.0f}s\n{pct}%",
+            text_color="white",
+        )
+        return button, image
+
 
 def _to_filename(id_: str, suffix: str = "") -> Path:
     """Converts an id with ":" and "_" to a filename with optional suffix."""
@@ -378,48 +473,173 @@ def _to_filename(id_: str, suffix: str = "") -> Path:
     return filename.with_suffix(suffix)
 
 
+def to_pandas_table(cls: type[BaseModel]) -> pd.DataFrame:
+    """Return a markdown table with the schema."""
+    import pandas as pd
+
+    rows = []
+    for k, field in cls.__fields__.items():
+        info = field.field_info
+        if info.description is None:
+            continue
+
+        def code(text: str) -> str:
+            return f"`{text}`"
+
+        row = {
+            "Variable name": code(k),
+            "Description": info.description,
+            "Default": code(info.default) if info.default is not Undefined else "",
+            "Type": code(field._type_display()),
+        }
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def _pandas_to_rich_table(df: pd.DataFrame) -> Table:
+    """Return a rich table from a pandas DataFrame."""
+    table = Table()
+
+    # Add the columns
+    for column in df.columns:
+        table.add_column(column)
+
+    # Add the rows
+    for _, row in df.iterrows():
+        table.add_row(*row.astype(str).tolist())
+
+    return table
+
+
 class Page(BaseModel):
     """A page of buttons."""
 
-    name: str
-    buttons: list[Button] = Field(default_factory=list)
+    name: str = Field(description="The name of the page.")
+    buttons: list[Button] = Field(
+        default_factory=list,
+        description="A list of buttons on the page.",
+    )
+
+    @classmethod
+    def to_pandas_table(cls: type[Page]) -> pd.DataFrame:
+        """Return a pandas DataFrame with the schema."""
+        return to_pandas_table(cls)
+
+    @classmethod
+    def to_markdown_table(cls: type[Page]) -> str:
+        """Return a markdown table with the schema."""
+        return cls.to_pandas_table().to_markdown(index=False)
 
 
 class Config(BaseModel):
     """Configuration file."""
 
-    pages: list[Page] = Field(default_factory=list)
-    current_page_index: int = 0
-    special_page: Page | None = None
-    state_entity_id: str | None = None
-    is_on: bool = True
-    brightness: int = 100
+    pages: list[Page] = Field(
+        default_factory=list,
+        description="A list of `Page`s in the configuration.",
+    )
+    anonymous_pages: list[Page] = Field(
+        default_factory=list,
+        description="A list of anonymous Pages in the configuration."
+        " These pages are hidden and not displayed when cycling through the pages."
+        " They can only be reached using the `special_type: 'go-to-page'` button."
+        " Designed for single use, these pages return to the previous page"
+        " upon clicking a button.",
+    )
+    state_entity_id: str | None = Field(
+        default=None,
+        description="The entity ID to sync display state with. For"
+        " example `input_boolean.streamdeck` or `binary_sensor.anyone_home`.",
+    )
+    brightness: int = Field(
+        default=100,
+        description="The default brightness of the Stream Deck (0-100).",
+    )
+    auto_reload: bool = Field(
+        default=False,
+        description="If True, the configuration YAML file will automatically"
+        " be reloaded when it is modified.",
+    )
+    _current_page_index: int = PrivateAttr(default=0)
+    _is_on: bool = PrivateAttr(default=True)
+    _detached_page: Page | None = PrivateAttr(default=None)
+    _configuration_file: Path | None = PrivateAttr(default=None)
+
+    @classmethod
+    def load(cls: type[Config], fname: Path) -> Config:
+        """Read the configuration file."""
+        with fname.open() as f:
+            data = yaml.safe_load(f)
+            config = cls(**data)
+            config._configuration_file = fname
+            return config
+
+    def reload(self) -> None:
+        """Reload the configuration file."""
+        assert self._configuration_file is not None
+        # Updates all public attributes
+        new = self.load(self._configuration_file).__dict__
+        self.__dict__.update(new)
+        # Set the private attributes we want to preserve
+        if self._detached_page is not None:
+            self._detached_page = self.to_page(self._detached_page.name)
+        if self._current_page_index >= len(self.pages):
+            # In case pages were removed, reset to the first page
+            self._current_page_index = 0
+
+    @classmethod
+    def to_pandas_table(cls: type[Config]) -> pd.DataFrame:
+        """Return a pandas DataFrame with the schema."""
+        return to_pandas_table(cls)
+
+    @classmethod
+    def to_markdown_table(cls: type[Config]) -> str:
+        """Return a markdown table with the schema."""
+        return cls.to_pandas_table().to_markdown(index=False)
+
+    def update_timers(
+        self,
+        deck: StreamDeck,
+        complete_state: dict[str, dict[str, Any]],
+    ) -> None:
+        """Update all timers."""
+        for key in range(deck.key_count()):
+            button = self.button(key)
+            if button is not None and button.is_sleeping():
+                console.log(f"Updating timer for key {key}")
+                update_key_image(
+                    deck,
+                    key=key,
+                    config=self,
+                    complete_state=complete_state,
+                    key_pressed=False,
+                )
 
     def next_page(self) -> Page:
         """Go to the next page."""
-        self.current_page_index = self.next_page_index
-        return self.pages[self.current_page_index]
+        self._current_page_index = self.next_page_index
+        return self.pages[self._current_page_index]
 
     @property
     def next_page_index(self) -> int:
         """Return the next page index."""
-        return (self.current_page_index + 1) % len(self.pages)
+        return (self._current_page_index + 1) % len(self.pages)
 
     @property
     def previous_page_index(self) -> int:
         """Return the previous page index."""
-        return (self.current_page_index - 1) % len(self.pages)
+        return (self._current_page_index - 1) % len(self.pages)
 
     def previous_page(self) -> Page:
         """Go to the previous page."""
-        self.current_page_index = self.previous_page_index
-        return self.pages[self.current_page_index]
+        self._current_page_index = self.previous_page_index
+        return self.pages[self._current_page_index]
 
     def current_page(self) -> Page:
         """Return the current page."""
-        if self.special_page is not None:
-            return self.special_page
-        return self.pages[self.current_page_index]
+        if self._detached_page is not None:
+            return self._detached_page
+        return self.pages[self._current_page_index]
 
     def button(self, key: int) -> Button | None:
         """Return the button for a key."""
@@ -431,12 +651,19 @@ class Config(BaseModel):
     def to_page(self, page: int | str) -> Page:
         """Go to a page based on the page name or index."""
         if isinstance(page, int):
-            self.current_page_index = page
-        else:
-            for i, p in enumerate(self.pages):
-                if p.name == page:
-                    self.current_page_index = i
-                    break
+            self._current_page_index = page
+            return self.current_page()
+
+        for i, p in enumerate(self.pages):
+            if p.name == page:
+                self._current_page_index = i
+                return self.current_page()
+
+        for p in self.anonymous_pages:
+            if p.name == page:
+                self._detached_page = p
+                return p
+        console.log(f"Could find page {page}, staying on current page")
         return self.current_page()
 
 
@@ -444,6 +671,111 @@ def _next_id() -> int:
     global _ID_COUNTER
     _ID_COUNTER += 1
     return _ID_COUNTER
+
+
+class AsyncDelayedCallback:
+    """A callback that is called after a delay.
+
+    Parameters
+    ----------
+    delay
+        The delay in seconds after which the callback will be called.
+    callback
+        The function or coroutine to be called after the delay.
+    """
+
+    def __init__(
+        self,
+        delay: float,
+        callback: Callable[[], None | Coroutine] | None = None,
+    ) -> None:
+        """Initialize."""
+        self.delay = delay
+        self.callback = callback
+        self.task: asyncio.Task | None = None
+        self.start_time: float | None = None
+        self.is_sleeping: bool = False
+
+    async def _run(self) -> None:
+        """Run the timer. Don't call this directly, use start() instead."""
+        self.is_sleeping = True
+        self.start_time = time.time()
+        await asyncio.sleep(self.delay)
+        self.is_sleeping = False
+        if self.callback is not None:
+            if asyncio.iscoroutinefunction(self.callback):
+                await self.callback()
+            else:
+                self.callback()
+
+    def is_running(self) -> bool:
+        """Return whether the timer is running."""
+        return self.task is not None and not self.task.done()
+
+    def start(self) -> None:
+        """Start the timer."""
+        if self.task is not None and not self.task.done():
+            self.cancel()
+        self.task = asyncio.ensure_future(self._run())
+
+    def cancel(self) -> None:
+        """Cancel the timer."""
+        console.log("Cancel timer")
+        if self.task:
+            self.task.cancel()
+            self.is_sleeping = False
+            self.task = None
+
+    def remaining_time(self) -> float:
+        """Return the remaining time before the timer expires."""
+        if self.task is None:
+            return 0
+        if self.start_time is not None:
+            elapsed_time = time.time() - self.start_time
+            return max(0, self.delay - elapsed_time)
+        return 0
+
+
+def _draw_percentage_ring(
+    percentage: int | float,
+    size: tuple[int, int],
+    *,
+    radius: int | None = None,
+    thickness: int = 4,
+    ring_color: tuple[int, int, int] = (255, 0, 0),
+    full_ring_backgroud_color: tuple[int, int, int] = (100, 100, 100),
+) -> Image.Image:
+    """Draw a ring with a percentage."""
+    img = Image.new("RGB", size, (0, 0, 0))
+
+    if radius is None:
+        radius = size[0] // 2 - thickness // 2
+
+    # Draw the full ring for the background
+    draw = ImageDraw.Draw(img)
+    draw.ellipse(
+        [
+            (size[0] // 2 - radius, size[1] // 2 - radius),
+            (size[0] // 2 + radius, size[1] // 2 + radius),
+        ],
+        outline=full_ring_backgroud_color,
+        width=thickness,
+    )
+
+    # Draw the percentage of the ring with a bright color
+    start_angle = -90
+    end_angle = start_angle + (360 * percentage / 100)
+    draw.arc(
+        [
+            (size[0] // 2 - radius, size[1] // 2 - radius),
+            (size[0] // 2 + radius, size[1] // 2 + radius),
+        ],
+        start_angle,
+        end_angle,
+        fill=ring_color,
+        width=thickness,
+    )
+    return img
 
 
 def _linspace(start: float, stop: float, num: int) -> list[float]:
@@ -608,17 +940,54 @@ async def subscribe_state_changes(
     await websocket.send(json.dumps(subscribe_payload))
 
 
-async def handle_state_changes(
+async def handle_changes(
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
     deck: StreamDeck,
     config: Config,
 ) -> None:
     """Handle state changes."""
-    # Wait for the state change events
-    while True:
-        data = json.loads(await websocket.recv())
-        _update_state(complete_state, data, config, deck)
+
+    async def process_websocket_messages() -> None:
+        """Process websocket messages."""
+        while True:
+            data = json.loads(await websocket.recv())
+            _update_state(complete_state, data, config, deck)
+
+    async def call_update_timers() -> None:
+        """Call config.update_timers every second."""
+        while True:
+            await asyncio.sleep(1)
+            config.update_timers(deck, complete_state)
+
+    async def watch_configuration_file() -> None:
+        """Watch for changes to the configuration file and reload config when it changes."""
+        if config._configuration_file is None:
+            console.log("[red bold] No configuration file to watch[/]")
+            return
+        last_modified_time = config._configuration_file.stat().st_mtime
+        while True:
+            if (
+                config.auto_reload
+                and config._configuration_file.stat().st_mtime != last_modified_time
+            ):
+                console.log("Configuration file has been modified, reloading")
+                last_modified_time = config._configuration_file.stat().st_mtime
+                try:
+                    config.reload()
+                    deck.reset()
+                    update_all_key_images(deck, config, complete_state)
+                except Exception as e:  # noqa: BLE001
+                    console.log(f"Error reloading configuration: {e}")
+
+            await asyncio.sleep(1)
+
+    # Run the websocket message processing and timer update tasks concurrently
+    await asyncio.gather(
+        process_websocket_messages(),
+        call_update_timers(),
+        watch_configuration_file(),
+    )
 
 
 def _keys(entity_id: str, buttons: list[Button]) -> list[int]:
@@ -668,7 +1037,9 @@ def _state_attr(
     complete_state: StateDict,
 ) -> Any:
     """Get the state attribute for an entity."""
-    return complete_state.get(entity_id, {}).get("attributes", {}).get(attr)
+    attrs = complete_state.get(entity_id, {}).get("attributes", {})
+    state_attr = attrs.get(attr)
+    return _maybe_number(state_attr)
 
 
 def _is_state_attr(
@@ -678,7 +1049,43 @@ def _is_state_attr(
     complete_state: StateDict,
 ) -> bool:
     """Check if the state attribute for an entity is a value."""
-    return _state_attr(entity_id, attr, complete_state) == value
+    return _state_attr(entity_id, attr, complete_state) == _maybe_number(value)
+
+
+def _is_float(s: str) -> bool:
+    try:
+        float(s)
+    except ValueError:
+        return False
+    else:
+        return True
+
+
+def _maybe_number(s: str, *, rounded: bool = False) -> int | str | float:
+    """Convert a string to a number if possible."""
+    if not isinstance(s, str):  # already a number or other type
+        return s
+
+    if _is_integer(s):
+        num = int(s)
+    elif _is_float(s):
+        num = float(s)  # type: ignore[assignment]
+    else:
+        return s
+
+    if rounded:
+        return round(num)
+
+    return num
+
+
+def _is_integer(s: str) -> bool:
+    try:
+        int(s)
+    except ValueError:
+        return False
+    else:
+        return True
 
 
 def _states(
@@ -694,12 +1101,11 @@ def _states(
     if not entity_state:
         return None
     state = entity_state["state"]
+    state = _maybe_number(state, rounded=rounded)
     if with_unit:
         unit = entity_state.get("attributes", {}).get("unit_of_measurement")
         if unit:
             state += f" {unit}"
-    if rounded:
-        state = round(float(state))
     return state
 
 
@@ -709,7 +1115,7 @@ def _is_state(
     complete_state: StateDict,
 ) -> bool:
     """Check if the state for an entity is a value."""
-    return _states(entity_id, complete_state=complete_state) == state
+    return _states(entity_id, complete_state=complete_state) == _maybe_number(state)
 
 
 def _min_filter(value: float, other_value: float) -> float:
@@ -746,7 +1152,7 @@ def _render_jinja(text: str, complete_state: StateDict) -> str:
         env.filters["min"] = _min_filter
         env.filters["max"] = _max_filter
         template = env.from_string(text)
-        return template.render(  # noqa: TRY300
+        return template.render(
             min=min,
             max=max,
             is_state_attr=ft.partial(_is_state_attr, complete_state=complete_state),
@@ -863,14 +1269,13 @@ def _init_icon(
     icon_mdi_margin: int | None = None,
     icon_mdi_color: str | None = None,  # hex color
     icon_background_color: str | None = None,  # hex color
-    icon_convert_to_grayscale: bool = False,
     size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
 ) -> Image.Image:
     """Initialize the icon."""
     if icon_filename is not None:
-        icon = Image.open(ASSETS_PATH / icon_filename)
-        if icon_convert_to_grayscale:
-            icon = _convert_to_grayscale(icon)
+        icon_path = Path(icon_filename)
+        path = icon_path if icon_path.is_absolute() else ASSETS_PATH / icon_path
+        icon = Image.open(path)
         # Convert to RGB if needed
         if icon.mode != "RGB":
             icon = icon.convert("RGB")
@@ -894,16 +1299,18 @@ def _init_icon(
 
 
 def _add_text(
+    *,
     image: Image.Image,
     font_filename: str,
-    font_size: int,
+    text_size: int,
     text: str,
     text_color: str,
+    text_offset: int = 0,
 ) -> None:
     draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype(str(ASSETS_PATH / font_filename), font_size)
+    font = ImageFont.truetype(str(ASSETS_PATH / font_filename), text_size)
     draw.text(
-        (image.width / 2, image.height / 2),
+        (image.width / 2, image.height / 2 + text_offset),
         text=text,
         font=font,
         anchor="ms",
@@ -919,12 +1326,12 @@ def _generate_failed_icon(
     background_color = "red"
     text_color = "white"
     font_filename = DEFAULT_FONT
-    font_size = int(min(size) * 0.15)  # Adjust font size based on the icon size
+    text_size = int(min(size) * 0.15)  # Adjust font size based on the icon size
     icon = Image.new("RGB", size, background_color)
     _add_text(
         image=icon,
         font_filename=font_filename,
-        font_size=font_size,
+        text_size=text_size,
         text="Rendering\nfailed",
         text_color=text_color,
     )
@@ -975,33 +1382,22 @@ def get_deck() -> StreamDeck:
     return deck
 
 
-def read_config(fname: Path) -> Config:
-    """Read the configuration file."""
-    with fname.open() as f:
-        data = yaml.safe_load(f)
-        return Config(
-            pages=data["pages"],
-            state_entity_id=data.get("state_entity_id"),
-            brightness=data.get("brightness", 100),
-        )
-
-
 def turn_on(config: Config, deck: StreamDeck, complete_state: StateDict) -> None:
     """Turn on the Stream Deck and update all key images."""
-    console.log(f"Calling turn_on, with {config.is_on=}")
-    if config.is_on:
+    console.log(f"Calling turn_on, with {config._is_on=}")
+    if config._is_on:
         return
-    config.is_on = True
+    config._is_on = True
     update_all_key_images(deck, config, complete_state)
     deck.set_brightness(config.brightness)
 
 
 def turn_off(config: Config, deck: StreamDeck) -> None:
     """Turn off the Stream Deck."""
-    console.log(f"Calling turn_off, with {config.is_on=}")
-    if not config.is_on:
+    console.log(f"Calling turn_off, with {config._is_on=}")
+    if not config._is_on:
         return
-    config.is_on = False
+    config._is_on = False
     # This resets all buttons except the turn-off button that
     # was just pressed, however, this doesn't matter with the
     # 0 brightness. Unless no button was pressed.
@@ -1013,28 +1409,28 @@ async def _handle_key_press(
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
     config: Config,
-    key: int,
+    button: Button,
     deck: StreamDeck,
 ) -> None:
-    if not config.is_on:
+    if not config._is_on:
         turn_on(config, deck, complete_state)
         return
-    button = config.button(key)
-    if button is None:
-        return
+
+    def update_all() -> None:
+        deck.reset()
+        update_all_key_images(deck, config, complete_state)
+
     if button.special_type == "next-page":
         config.next_page()
-        deck.reset()
-        update_all_key_images(deck, config, complete_state)
+        update_all()
     elif button.special_type == "previous-page":
         config.previous_page()
-        deck.reset()
-        update_all_key_images(deck, config, complete_state)
+        update_all()
     elif button.special_type == "go-to-page":
         assert isinstance(button.special_type_data, (str, int))
         config.to_page(button.special_type_data)  # type: ignore[arg-type]
-        deck.reset()
-        update_all_key_images(deck, config, complete_state)
+        update_all()
+        return  # to skip the _detached_page reset below
     elif button.special_type == "turn-off":
         turn_off(config, deck)
     elif button.special_type == "light-control":
@@ -1045,10 +1441,13 @@ async def _handle_key_press(
             colormap=button.special_type_data.get("colormap", None),
             colors=button.special_type_data.get("colors", None),
         )
-        assert config.special_page is None
-        config.special_page = page
-        deck.reset()
-        update_all_key_images(deck, config, complete_state)
+        config._detached_page = page
+        update_all()
+        return  # to skip the _detached_page reset below
+    elif button.special_type == "reload":
+        config.reload()
+        update_all()
+        return
     elif button.service is not None:
         button = button.rendered_template_button(complete_state)
         if button.service_data is None:
@@ -1060,6 +1459,10 @@ async def _handle_key_press(
         console.log(f"Calling service {button.service} with data {service_data}")
         assert button.service is not None  # for mypy
         await call_service(websocket, button.service, service_data, button.target)
+
+    if config._detached_page:
+        config._detached_page = None
+        update_all()
 
 
 def _on_press_callback(
@@ -1073,6 +1476,19 @@ def _on_press_callback(
         key_pressed: bool,  # noqa: FBT001
     ) -> None:
         console.log(f"Key {key} {'pressed' if key_pressed else 'released'}")
+
+        button = config.button(key)
+        assert button is not None
+        if button is not None and key_pressed:
+
+            async def cb() -> None:
+                """Update the deck once more after the timer is over."""
+                assert button is not None  # for mypy
+                await _handle_key_press(websocket, complete_state, config, button, deck)
+
+            if button.maybe_start_or_cancel_timer(cb):
+                key_pressed = False  # do not click now
+
         try:
             update_key_image(
                 deck,
@@ -1082,13 +1498,7 @@ def _on_press_callback(
                 key_pressed=key_pressed,
             )
             if key_pressed:
-                has_special_page = config.special_page is not None
-                await _handle_key_press(websocket, complete_state, config, key, deck)
-                if has_special_page:
-                    # Reset after a keypress
-                    config.special_page = None
-                    deck.reset()
-                    update_all_key_images(deck, config, complete_state)
+                await _handle_key_press(websocket, complete_state, config, button, deck)
         except Exception as e:  # noqa: BLE001
             console.print_exception(show_locals=True)
             console.log(f"key_change_callback failed with a {type(e)}: {e}")
@@ -1323,7 +1733,26 @@ async def run(
         )
         deck.set_brightness(config.brightness)
         await subscribe_state_changes(websocket)
-        await handle_state_changes(websocket, complete_state, deck, config)
+        await handle_changes(websocket, complete_state, deck, config)
+
+
+def _rich_table_str(df: pd.DataFrame) -> str:
+    table = _pandas_to_rich_table(df)
+    console = Console(file=io.StringIO(), width=120)
+    console.print(table)
+    return console.file.getvalue()
+
+
+def _help() -> str:
+    try:
+        return (
+            f"See the configuration options below:\n\n"
+            f"Config YAML options:\n{_rich_table_str(Config.to_pandas_table())}\n\n"
+            f"Page YAML options:\n{_rich_table_str(Page.to_pandas_table())}\n\n"
+            f"Button YAML options:\n{_rich_table_str(Button.to_pandas_table())}\n\n"
+        )
+    except ModuleNotFoundError:
+        return ""
 
 
 def main() -> None:
@@ -1335,7 +1764,10 @@ def main() -> None:
 
     load_dotenv()
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        epilog=_help(),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument("--host", default=os.environ.get("HASS_HOST", "localhost"))
     parser.add_argument("--token", default=os.environ.get("HASS_TOKEN"))
     parser.add_argument(
@@ -1349,10 +1781,11 @@ def main() -> None:
         choices=["wss", "ws"],
     )
     args = parser.parse_args()
+    console.log(f"Using version {__version__} of the Home Assistant Stream Deck.")
     console.log(
         f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}",
     )
-    config = read_config(args.config)
+    config = Config.load(args.config)
     asyncio.run(
         run(
             host=args.host,

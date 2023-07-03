@@ -12,7 +12,7 @@ dependencies = [
     "jinja2",
     "lxml",
     "pillow",
-    "pydantic",
+    "pydantic<2",
     "python-dotenv",
     "pyyaml",
     "requests",

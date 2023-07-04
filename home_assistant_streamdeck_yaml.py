@@ -1696,8 +1696,7 @@ def _download_image(
         image = image.convert("RGB")
     if filename is not None:
         image.save(filename)
-    image = image.resize(size)
-    return image
+    return image.resize(size)
 
 
 def update_all_key_images(

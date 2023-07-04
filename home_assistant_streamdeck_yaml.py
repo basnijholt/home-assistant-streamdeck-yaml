@@ -61,7 +61,8 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         default=None,
         allow_template=True,
         description="The `entity_id` that this button controls."
-        " This entitity will be passed to the `service` when the button is pressed.",
+        " This entitity will be passed to the `service` when the button is pressed."
+        " The button is re-rendered whenever the state of this entity changes.",
     )
     service: str | None = Field(
         default=None,

@@ -921,7 +921,7 @@ async def setup_ws(
                 console.log(auth_response)
                 console.log("Connected to Home Assistant")
                 yield websocket
-        except ConnectionResetError:
+        except ConnectionResetError:  # noqa: PERF203
             # Connection was reset, retrying in 3 seconds
             console.print_exception(show_locals=True)
             console.log("Connection was reset, retrying in 3 seconds")

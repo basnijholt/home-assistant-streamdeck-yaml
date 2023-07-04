@@ -253,9 +253,9 @@ def test_buttons(buttons: list[Button], state: dict[str, dict[str, Any]]) -> Non
     page = Page(name="Home", buttons=buttons)
     config = Config(pages=[page])
     first_page = config.to_page(0)
-    rendered_buttons = []
-    for button in first_page.buttons:
-        rendered_buttons.append(button.rendered_template_button(state))
+    rendered_buttons = [
+        button.rendered_template_button(state) for button in first_page.buttons
+    ]
 
     b = rendered_buttons[0]  # LIGHT
     assert b.domain == "light"

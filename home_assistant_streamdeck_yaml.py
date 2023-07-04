@@ -922,7 +922,7 @@ async def setup_ws(
                 console.log(auth_response)
                 console.log("Connected to Home Assistant")
                 yield websocket
-        except ConnectionResetError:
+        except ConnectionResetError:  # noqa: PERF203
             # Connection was reset, retrying in 3 seconds
             console.print_exception(show_locals=True)
             console.log("Connection was reset, retrying in 3 seconds")
@@ -1697,8 +1697,7 @@ def _download_image(
         image = image.convert("RGB")
     if filename is not None:
         image.save(filename)
-    image = image.resize(size)
-    return image
+    return image.resize(size)
 
 
 def update_all_key_images(

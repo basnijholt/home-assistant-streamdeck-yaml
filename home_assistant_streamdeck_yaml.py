@@ -1280,6 +1280,9 @@ def _init_icon(
         # Convert to RGB if needed
         if icon.mode != "RGB":
             icon = icon.convert("RGB")
+        if icon.size != size:
+            # Resize image to the correct resolution if needed
+            icon = icon.resize(size, Image.ANTIALIAS)
         return icon
     if icon_mdi is not None:
         assert icon_mdi_margin is not None

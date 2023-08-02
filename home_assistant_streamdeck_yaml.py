@@ -382,7 +382,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         return image
 
     @validator("special_type_data")
-    def _validate_special_type(
+    def _validate_special_type(  # noqa: PLR0912
         cls: type[Button],
         v: Any,
         values: dict[str, Any],
@@ -426,12 +426,15 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                     if not isinstance(color, str):
                         msg = "All colors must be strings"
                         raise AssertionError(msg)  # noqa: TRY004
+                # Cast colors to tuple (to make it hashable)
+                v["colors"] = tuple(v["colors"])
+            if "color_temp_kelvin" in v:
                 for kelvin in v["color_temp_kelvin"]:
                     if not isinstance(kelvin, int):
                         msg = "All color_temp_kelvin must be integers"
                         raise AssertionError(msg)  # noqa: TRY004
-                # Cast colors to tuple (to make it hashable)
-                v["colors"] = tuple(v["colors"])
+                # Cast color_temp_kelvin to tuple (to make it hashable)
+                v["color_temp_kelvin"] = tuple(v["color_temp_kelvin"])
         return v
 
     def maybe_start_or_cancel_timer(

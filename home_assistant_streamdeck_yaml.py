@@ -934,7 +934,7 @@ def _light_page(
     entity_id: str,
     n_colors: int,
     colors: tuple[str, ...] | None,
-    temperatures: tuple[int, ...] | None,
+    color_temp_kelvin: tuple[int, ...] | None,
     colormap: str | None,
 ) -> Page:
     """Return a page of buttons for controlling lights."""
@@ -963,7 +963,7 @@ def _light_page(
                 "color_temp_kelvin": kelvin,
             },
         )
-        for kelvin in (temperatures or ())
+        for kelvin in (color_temp_kelvin or ())
     ]
     buttons_brightness = []
     for brightness in [0, 10, 30, 60, 100]:
@@ -1525,7 +1525,7 @@ async def _handle_key_press(
             n_colors=10,
             colormap=button.special_type_data.get("colormap", None),
             colors=button.special_type_data.get("colors", None),
-            temperatures=button.special_type_data.get("color_temp_kelvin", None),
+            color_temp_kelvin=button.special_type_data.get("color_temp_kelvin", None),
         )
         config._detached_page = page
         update_all()

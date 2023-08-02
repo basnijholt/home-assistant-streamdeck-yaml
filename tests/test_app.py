@@ -423,6 +423,7 @@ def test_light_page() -> None:
         n_colors=10,
         colormap="hsv",
         colors=None,
+        color_temp_kelvin=None,
     )
     buttons = page.buttons
     assert len(buttons) == BUTTONS_PER_PAGE
@@ -433,6 +434,7 @@ def test_light_page() -> None:
         n_colors=10,
         colormap=None,
         colors=None,
+        color_temp_kelvin=None,
     )
     buttons = page.buttons
     assert len(buttons) == BUTTONS_PER_PAGE
@@ -456,6 +458,7 @@ def test_light_page() -> None:
         n_colors=10,
         colormap=None,
         colors=hex_colors,
+        color_temp_kelvin=None,
     )
     buttons = page.buttons
 

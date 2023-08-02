@@ -8,6 +8,7 @@ import functools as ft
 import hashlib
 import io
 import json
+import math
 import re
 import time
 import warnings
@@ -185,6 +186,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " If `light-control`, the data should optionally be a dictionary."
         " The dictionary can contain the following keys:"
         " The `colors` key and a value a list of max (`n_keys_on_streamdeck - 5`) hex colors."
+        " The `color_temp_kelvin` key and a value a list of max (`n_keys_on_streamdeck - 5`) color temperatures in Kelvin."
         " The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html)"
         " can be used. This requires the `matplotlib` package to be installed. If no"
         " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",
@@ -380,7 +382,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         return image
 
     @validator("special_type_data")
-    def _validate_special_type(
+    def _validate_special_type(  # noqa: PLR0912
         cls: type[Button],
         v: Any,
         values: dict[str, Any],
@@ -408,7 +410,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 )
                 raise AssertionError(msg)
             # Can only have the following keys: colors and colormap
-            allowed_keys = {"colors", "colormap"}
+            allowed_keys = {"colors", "colormap", "color_temp_kelvin"}
             invalid_keys = v.keys() - allowed_keys
             if invalid_keys:
                 msg = (
@@ -426,6 +428,13 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                         raise AssertionError(msg)  # noqa: TRY004
                 # Cast colors to tuple (to make it hashable)
                 v["colors"] = tuple(v["colors"])
+            if "color_temp_kelvin" in v:
+                for kelvin in v["color_temp_kelvin"]:
+                    if not isinstance(kelvin, int):
+                        msg = "All color_temp_kelvin must be integers"
+                        raise AssertionError(msg)  # noqa: TRY004
+                # Cast color_temp_kelvin to tuple (to make it hashable)
+                v["color_temp_kelvin"] = tuple(v["color_temp_kelvin"])
         return v
 
     def maybe_start_or_cancel_timer(
@@ -801,6 +810,69 @@ def _generate_colors_from_colormap(num_colors: int, colormap: str) -> tuple[str,
     return tuple(plt.matplotlib.colors.to_hex(color) for color in colors)
 
 
+def _color_temp_kelvin_to_rgb(  # noqa: PLR0912
+    colour_temperature: int,
+) -> tuple[int, int, int]:
+    """Converts from K to RGB.
+
+    Algorithm courtesy of
+    http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code/.
+    """
+    # range check
+    if colour_temperature < 1000:  # noqa: PLR2004
+        colour_temperature = 1000
+    elif colour_temperature > 40000:  # noqa: PLR2004
+        colour_temperature = 40000
+
+    tmp_internal = colour_temperature / 100.0
+
+    # red
+    if tmp_internal <= 66:  # noqa: PLR2004
+        red = 255
+    else:
+        tmp_red = 329.698727446 * math.pow(tmp_internal - 60, -0.1332047592)
+        if tmp_red < 0:
+            red = 0
+        elif tmp_red > 255:  # noqa: PLR2004
+            red = 255
+        else:
+            red = int(tmp_red)
+
+    # green
+    if tmp_internal <= 66:  # noqa: PLR2004
+        tmp_green = 99.4708025861 * math.log(tmp_internal) - 161.1195681661
+        if tmp_green < 0:
+            green = 0
+        elif tmp_green > 255:  # noqa: PLR2004
+            green = 255
+        else:
+            green = int(tmp_green)
+    else:
+        tmp_green = 288.1221695283 * math.pow(tmp_internal - 60, -0.0755148492)
+        if tmp_green < 0:
+            green = 0
+        elif tmp_green > 255:  # noqa: PLR2004
+            green = 255
+        else:
+            green = int(tmp_green)
+
+    # blue
+    if tmp_internal >= 66:  # noqa: PLR2004
+        blue = 255
+    elif tmp_internal <= 19:  # noqa: PLR2004
+        blue = 0
+    else:
+        tmp_blue = 138.5177312231 * math.log(tmp_internal - 10) - 305.0447927307
+        if tmp_blue < 0:
+            blue = 0
+        elif tmp_blue > 255:  # noqa: PLR2004
+            blue = 255
+        else:
+            blue = int(tmp_blue)
+
+    return red, green, blue
+
+
 def _generate_uniform_hex_colors(n_colors: int) -> tuple[str, ...]:
     """Generate a list of `n_colors` hex colors that are uniformly perceptually spaced.
 
@@ -865,6 +937,7 @@ def _light_page(
     entity_id: str,
     n_colors: int,
     colors: tuple[str, ...] | None,
+    color_temp_kelvin: tuple[int, ...] | None,
     colormap: str | None,
 ) -> Page:
     """Return a page of buttons for controlling lights."""
@@ -884,6 +957,17 @@ def _light_page(
         )
         for color in colors
     ]
+    buttons_color_temp_kelvin = [
+        Button(
+            icon_background_color=_rgb_to_hex(_color_temp_kelvin_to_rgb(kelvin)),
+            service="light.turn_on",
+            service_data={
+                "entity_id": entity_id,
+                "color_temp_kelvin": kelvin,
+            },
+        )
+        for kelvin in (color_temp_kelvin or ())
+    ]
     buttons_brightness = []
     for brightness in [0, 10, 30, 60, 100]:
         background_color = _scale_hex_color("#FFFFFF", brightness / 100)
@@ -898,7 +982,10 @@ def _light_page(
             },
         )
         buttons_brightness.append(button)
-    return Page(name="Lights", buttons=buttons_colors + buttons_brightness)
+    return Page(
+        name="Lights",
+        buttons=buttons_colors + buttons_color_temp_kelvin + buttons_brightness,
+    )
 
 
 @asynccontextmanager
@@ -1441,6 +1528,7 @@ async def _handle_key_press(
             n_colors=10,
             colormap=button.special_type_data.get("colormap", None),
             colors=button.special_type_data.get("colors", None),
+            color_temp_kelvin=button.special_type_data.get("color_temp_kelvin", None),
         )
         config._detached_page = page
         update_all()

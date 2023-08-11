@@ -1381,6 +1381,8 @@ def _init_icon(
         # Convert to RGB if needed
         if icon.mode != "RGB":
             icon = icon.convert("RGB")
+        if icon.size != size:
+            icon = icon.resize(size)
         return icon
     if icon_mdi is not None:
         assert icon_mdi_margin is not None

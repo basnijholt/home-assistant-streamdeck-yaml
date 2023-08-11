@@ -1,0 +1,106 @@
+# Electronica Romantica
+- service_data:
+    id: playlist:37i9dQZF1DXaRycgyh6kXP
+    source: KEF LS50
+  icon: "spotify:playlist/37i9dQZF1DXaRycgyh6kXP"
+  service: script.start_spotify
+
+# Gui Borato's track IDs
+- service_data:
+    id: playlist:37i9dQZF1DX4fgrmoIzHtd
+    source: KEF LS50
+  icon: "spotify:playlist/37i9dQZF1DX4fgrmoIzHtd"
+  service: script.start_spotify
+
+# Hijos del Sol
+- service_data:
+    id: album:6gnYcXVaffdG0vwVM34cr8
+    source: KEF LS50
+  icon: "spotify:album/6gnYcXVaffdG0vwVM34cr8"
+  service: script.start_spotify
+
+# Lofi
+- service_data:
+    id: playlist:0vvXsWCC9xrXsKd4FyS8kM
+    source: KEF LS50
+  icon: "spotify:playlist/0vvXsWCC9xrXsKd4FyS8kM"
+  service: script.start_spotify
+
+# Whiskey Bar playlist
+- service_data:
+    id: playlist:7fAwscs01z0Rji0HIIB19l
+    source: KEF LS50
+  icon: "spotify:playlist/7fAwscs01z0Rji0HIIB19l"
+  service: script.start_spotify
+
+# Deep House Relax
+- service_data:
+    id: playlist:37i9dQZF1DX2TRYkJECvfC
+    source: KEF LS50
+  icon: "spotify:playlist/37i9dQZF1DX2TRYkJECvfC"
+  service: script.start_spotify
+
+# Discover Weekly
+- service_data:
+    id: playlist:37i9dQZEVXcJ4MCS0sT9Qc
+    source: KEF LS50
+  icon: "spotify:playlist/37i9dQZEVXcJ4MCS0sT9Qc"
+  service: script.start_spotify
+
+# Bas Nijholt's playlist
+- service_data:
+    id: playlist:6rPTm9dYftKcFAfwyRqmDZ
+    source: KEF LS50
+  icon: "spotify:playlist/6rPTm9dYftKcFAfwyRqmDZ"
+  service: script.start_spotify
+
+# Techno Yoga
+- service_data:
+    id: playlist:78MrlTajauLF07fztVmEv3
+    source: KEF LS50
+  icon: "spotify:playlist/78MrlTajauLF07fztVmEv3"
+  service: script.start_spotify
+
+# Nicolas Jaar Essential Mix
+- service_data:
+    id: playlist:5DKwqbNTYB384iW7TGQGAh
+    source: KEF LS50
+  icon: "spotify:playlist/5DKwqbNTYB384iW7TGQGAh"
+  service: script.start_spotify
+
+# # Coding mode
+# - service_data:
+#     id: playlist:37i9dQZF1DX5trt9i14X7j
+#     source: KEF LS50
+#   icon: "spotify:playlist/37i9dQZF1DX5trt9i14X7j"
+#   service: script.start_spotify
+
+# Next song
+- service: media_player.media_next_track
+  entity_id: media_player.spotify
+  icon_mdi: "skip-next"
+  text: Next
+
+# Volume down
+- entity_id: media_player.kef_ls50
+  service: media_player.volume_set
+  service_data:
+    volume_level: '{{ (state_attr("media_player.kef_ls50", "volume_level") - 0.05) | max(0) }}'
+    entity_id: media_player.kef_ls50
+  text: '{{ (100 * state_attr("media_player.kef_ls50", "volume_level")) | int }}%'
+  text_size: 16
+  icon_mdi: "volume-minus"
+
+# Volume up
+- entity_id: media_player.kef_ls50
+  service: media_player.volume_set
+  service_data:
+    volume_level: '{{ (state_attr("media_player.kef_ls50", "volume_level") + 0.05) | min(1) }}'
+    entity_id: media_player.kef_ls50
+  text: '{{ (100 * state_attr("media_player.kef_ls50", "volume_level")) | int }}%'
+  text_size: 16
+  icon_mdi: volume-plus
+
+# Change pages
+- special_type: previous-page
+- special_type: next-page

@@ -266,17 +266,7 @@ In your main configuration:
 # configuration.yaml
 pages:
   - name: Home
-    buttons: !include common_buttons.yaml
-  ...
-```
-
-or separate out pages into their own files:
-
-```yaml
-# configuration.yaml
-pages:
-  - !include page1.yaml
-  - !include page2.yaml
+    buttons: !include includes/home.yaml
   ...
 ```
 

@@ -1,0 +1,46 @@
+- entity_id: light.sphere_tv
+  service: light.toggle
+  text: Sphere TV
+- entity_id: light.sphere_2
+  service: light.toggle
+  text: Sphere 2
+- entity_id: light.tv_led
+  service: light.toggle
+  text: TV LED
+- entity_id: light.cabinet_led
+  service: light.toggle
+  text: |
+    Cabinet
+    LED
+- entity_id: light.mid_room
+  service: light.toggle
+  text: Mid room
+- entity_id: light.living_room_corner
+  service: light.toggle
+  text: Corner
+- entity_id: light.shelve
+  service: light.toggle
+  text: Shelve
+- entity_id: light.marble
+  service: light.toggle
+  text: Marble
+- entity_id: light.dinner_area
+  service: light.toggle
+  text: |
+    Dinner
+    area
+- special_type: empty
+- text: Scripts
+- icon_mdi: script
+  service: script.cozy_lights_living_room
+  text: |
+    Cozy
+    lights
+- icon_mdi: script
+  service: script.white_lights_living_room
+  text: |
+    White
+    lights
+- special_type: empty
+- text: Back
+  icon_mdi: keyboard-return

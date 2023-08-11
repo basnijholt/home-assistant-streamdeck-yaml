@@ -1,0 +1,44 @@
+- text: |
+    Come
+    home!
+  service: notify.bas
+  service_data:
+    message: "Come home!"
+  icon_mdi: bell
+  text_size: 15
+- text: |
+    Love
+    you!
+  service: notify.bas
+  service_data:
+    message: "Love you ❤️!"
+  icon_mdi: bell
+  text_size: 15
+- text: |
+    Where are
+    you?
+  service: notify.bas
+  service_data:
+    message: "Where are you?"
+  icon_mdi: bell
+  text_size: 15
+- text: |
+    Food
+    in 30m
+  service: notify.bas
+  service_data:
+    message: "Food is ready in 30m!"
+  icon_mdi: bell
+  text_size: 15
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- text: Back
+  icon_mdi: keyboard-return

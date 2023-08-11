@@ -1,0 +1,26 @@
+- entity_id: light.bamboo
+  service: light.toggle
+  text: Bamboo
+- entity_id: light.philips_go
+  service: light.toggle
+  text: |
+    Philips
+    Go
+- entity_id: light.bed_led
+  service: light.toggle
+  text: |
+    Bed
+    LED
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- text: Back
+  icon_mdi: keyboard-return

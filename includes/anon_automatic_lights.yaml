@@ -1,0 +1,45 @@
+- entity_id: light.guest_room
+  service: light.toggle
+  text: |
+    Guest
+    room
+- entity_id: light.baby_sphere
+  service: light.toggle
+  text: |
+    Baby
+    sphere
+- entity_id: light.utility_room
+  service: light.toggle
+  text: |
+    Utility
+    room
+- entity_id: light.outside_front_door
+  service: light.toggle
+  text: |
+    Outside
+    front door
+- entity_id: light.bedroom_outside
+  service: light.toggle
+  text: |
+    Bedroom
+    outside
+- entity_id: light.garage_outside
+  service: light.toggle
+  text: |
+    Garage
+    outside
+- entity_id: light.outside_lights_z2m
+  service: light.toggle
+  icon_mdi: lamps
+  text: |
+    Outside
+    lights
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- text: Back
+  icon_mdi: keyboard-return

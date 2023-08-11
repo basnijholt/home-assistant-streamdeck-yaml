@@ -1,0 +1,61 @@
+- special_type: turn-off
+- special_type: previous-page
+- special_type: next-page
+- icon: "url:https://raw.githubusercontent.com/basnijholt/home-assistant-streamdeck-yaml/main/assets/fireplace.png"
+  text: "yo"
+- entity_id: light.living_room_lights
+  service: light.turn_on
+  service_data:
+    entity_id: light.living_room_lights
+    brightness: >-
+      {% set current_brightness = state_attr('light.living_room_lights', 'brightness') or 0 %}
+      {% set next_brightness = (current_brightness + 25.5) % 255 %}
+      {{ min(next_brightness, 255) | int }}
+  text: >-
+    {% set current_brightness = state_attr('light.living_room_lights', 'brightness') or 0 %}
+    {% set brightness_pct = (current_brightness / 255) * 100 %}
+    {{ brightness_pct | round }}%
+- entity_id: media_player.kef_ls50
+  service: media_player.volume_mute
+  service_data:
+    entity_id: media_player.kef_ls50
+    is_volume_muted: >-
+      {% if is_state_attr('media_player.kef_ls50', 'is_volume_muted', true) %}
+      false
+      {% else %}
+      true
+      {% endif %}
+  icon_mdi: >-
+    {% if is_state_attr('media_player.kef_ls50', 'is_volume_muted', true) %}
+    volume-off
+    {% else %}
+    volume-high
+    {% endif %}
+  text: >-
+    {% if is_state_attr('media_player.kef_ls50', 'is_volume_muted', true) %}
+    Unmute
+    {% else %}
+    Mute
+    {% endif %}
+- special_type: go-to-page
+  special_type_data: timers
+  text: " "
+  icon_mdi: timer
+- special_type: go-to-page
+  special_type_data: sensors
+  icon_mdi: thermometer-lines
+  text: " "
+- special_type: reload
+  text: "Reload"
+- icon: url:https://media.githubusercontent.com/media/basnijholt/nijho.lt/3102bf92be5d3b09c38d4943d46bc8f1b6413815/content/authors/admin/avatar.jpg
+  entity_id: person.bas
+  text: |
+    ㅤ
+    {{ states("person.bas") }}
+  special_type: go-to-page
+  special_type_data: bas
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: previous-page
+- special_type: next-page

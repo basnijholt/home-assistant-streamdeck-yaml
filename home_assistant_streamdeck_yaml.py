@@ -1382,6 +1382,7 @@ def _init_icon(
         if icon.mode != "RGB":
             icon = icon.convert("RGB")
         if icon.size != size:
+            console.log(f"Resizing icon {icon_filename} to from {icon.size} to {size}")
             icon = icon.resize(size)
         return icon
     if icon_mdi is not None:

@@ -1,0 +1,61 @@
+- icon: netflix.png
+  service: script.start_spotify
+- icon: xbox.png
+  service: script.start_xbox
+- special_type: empty
+- special_type: empty
+- icon_mdi: restart
+  service: homeassistant.restart
+  text: |
+    Restart
+    HA
+- icon_mdi: lightbulb
+  service: script.cozy_lights_living_room
+  text: |
+    Cozy
+    lights
+- icon_mdi: lightbulb
+  service: script.white_lights_living_room
+  text: |
+    White
+    lights
+- icon_mdi: lightbulb
+  entity_id: light.living_room_lights
+  service: light.turn_on
+  service_data:
+    entity_id: light.living_room_lights
+    brightness_pct: 1
+  text: |
+    1%
+    brightness
+- icon_mdi: lightbulb
+  entity_id: light.living_room_lights
+  service: light.turn_on
+  service_data:
+    brightness_pct: 50
+    entity_id: light.living_room_lights
+  text: |
+    50%
+    brightness
+- icon_mdi: lightbulb
+  entity_id: light.living_room_lights
+  service: light.turn_on
+  service_data:
+    brightness_pct: 100
+    entity_id: light.living_room_lights
+  text: |
+    100%
+    brightness
+- icon_mdi: movie
+  service: automation.trigger
+  service_data:
+    entity_id: automation.apple_watch_movie_time
+  text: |
+    Movie
+    time
+- special_type: go-to-page
+  special_type_data: Home
+- special_type: go-to-page
+  special_type_data: 0
+- special_type: previous-page
+- special_type: next-page

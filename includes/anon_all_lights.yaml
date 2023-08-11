@@ -1,0 +1,43 @@
+- special_type: go-to-page
+  special_type_data: living-room-lights
+  icon_mdi: lightbulb
+  text: |
+    Living room
+    lights
+- special_type: go-to-page
+  special_type_data: bedroom-lights
+  icon_mdi: lightbulb
+  text: |
+    Bedroom
+    lights
+- special_type: go-to-page
+  special_type_data: automatic-lights
+  icon_mdi: lightbulb
+  text: |
+    Automatic
+    lights
+- special_type: empty
+- text: Pages
+- entity_id: light.living_room_lights_z2m
+  service: light.toggle
+  text: |
+    Living room
+    lights
+- entity_id: light.bedroom_lights_z2m
+  service: light.toggle
+  text: |
+    Bedroom
+    lights
+- entity_id: light.outside_lights_z2m
+  service: light.toggle
+  text: |
+    Outside
+    lights
+- special_type: empty
+- text: Toggle
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- special_type: empty
+- text: Back
+  icon_mdi: keyboard-return

@@ -597,8 +597,9 @@ class Config(BaseModel):
         """Reload the configuration file."""
         assert self._configuration_file is not None
         # Updates all public attributes
-        new = self.load(self._configuration_file).__dict__
-        self.__dict__.update(new)
+        new_config = self.load(self._configuration_file)
+        self.__dict__.update(new_config.__dict__)
+        self._include_files = new_config._include_files
         # Set the private attributes we want to preserve
         if self._detached_page is not None:
             self._detached_page = self.to_page(self._detached_page.name)
@@ -1066,7 +1067,7 @@ async def handle_changes(
         while True:
             files = [config._configuration_file, *config._include_files]
             if config.auto_reload and any(
-                fn.stat().st_mtime != last_modified_time for fn in files
+                fn.stat().st_mtime > last_modified_time for fn in files
             ):
                 console.log("Configuration file has been modified, reloading")
                 last_modified_time = max(fn.stat().st_mtime for fn in files)

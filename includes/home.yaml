@@ -1,0 +1,86 @@
+- entity_id: light.living_room_lights
+  service: light.toggle
+  text: |
+    Living room
+    lights
+  special_type: light-control
+  special_type_data:
+    colors:
+      - "#81ADFF"  # from default HA options
+      - "#D797FF"  # from default HA options
+      - "#FF9FF2"  # from default HA options
+      - "#FF7056"  # from default HA options
+      - "#0000FF"  # blue
+      - "#FF0000"  # red
+    color_temp_kelvin:
+      - 2000  # from default HA options
+      - 3521  # from default HA options
+      - 5025  # from default HA options
+      - 6535  # from default HA options
+- special_type: go-to-page
+  special_type_data: all-lights
+  text: |
+    All
+    lights
+- entity_id: light.dinner_area
+  service: light.toggle
+  text: |
+    Dinner
+    lights
+- icon: url:https://files.nijho.lt/bas.jpg
+  entity_id: person.bas
+  text: |
+    {{ "" if is_state("person.bas", "home") else "Not" }}
+    Home
+  special_type: go-to-page
+  special_type_data: bas
+  text_color: >
+    {{ "green" if is_state("person.bas", "home") else "red" }}
+  text_size: 16
+- icon: url:https://files.nijho.lt/m.jpg
+  entity_id: person.marcella
+  text: |
+    {{ "" if is_state("person.marcella", "home") else "Not" }}
+    Home
+  text_color: >
+    {{ "green" if is_state("person.marcella", "home") else "red" }}
+  text_size: 16
+- entity_id: media_player.kef_ls50
+  service: media_player.volume_set
+  service_data:
+    volume_level: '{{ (state_attr("media_player.kef_ls50", "volume_level") - 0.05) | max(0) }}'
+    entity_id: media_player.kef_ls50
+  text: '{{ (100 * state_attr("media_player.kef_ls50", "volume_level")) | int }}%'
+  text_size: 16
+  icon_mdi: "volume-minus"
+- entity_id: media_player.kef_ls50
+  service: media_player.volume_set
+  service_data:
+    volume_level: '{{ (state_attr("media_player.kef_ls50", "volume_level") + 0.05) | min(1) }}'
+    entity_id: media_player.kef_ls50
+  text: '{{ (100 * state_attr("media_player.kef_ls50", "volume_level")) | int }}%'
+  text_size: 16
+  icon_mdi: volume-plus
+- service: script.reset_adaptive_lighting
+  text: |
+    Reset
+    adaptive
+    lighting
+- icon: night_sky.png
+  service: script.turn_off_everything
+  text: ALL OFF
+- entity_id: input_select.sleep_mode
+  service: input_select.select_previous
+  text: Sleep {{ states("input_select.sleep_mode") }}
+  icon_mdi: power-sleep
+- icon: fireplace.png
+  service: script.start_fireplace_netflix
+- service_data:
+    id: playlist:37i9dQZF1DXaRycgyh6kXP
+    source: KEF LS50
+  icon: spotify.png
+  service: script.start_spotify
+- icon: hogwarts.png
+  service: script.start_hogwarts_legacy
+- special_type: previous-page
+- special_type: next-page

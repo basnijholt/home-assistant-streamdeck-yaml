@@ -47,6 +47,7 @@ https://user-images.githubusercontent.com/6897215/226788119-6c198ea6-2950-4f95-9
       - [:desktop_computer: Windows](#desktop_computer-windows)
   - [:gear: Configuration](#gear-configuration)
     - [:page_facing_up: `configuration.yaml`](#page_facing_up-configurationyaml)
+    - [:link: Using `!include` for Modular Configuration](#link-using-include-for-modular-configuration)
     - [:clipboard: Config YAML configuration](#clipboard-config-yaml-configuration)
     - [:bookmark_tabs: Page YAML configuration](#bookmark_tabs-page-yaml-configuration)
     - [:white_square_button: Button YAML configuration](#white_square_button-button-yaml-configuration)

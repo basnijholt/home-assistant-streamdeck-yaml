@@ -58,3 +58,23 @@ def test_invalid_yaml() -> None:
     """
     with pytest.raises(yaml.YAMLError):
         safe_load_yaml(StringIO(content))
+
+
+def test_missing_include_file(tmp_path: Path) -> None:
+    """Test yaml loading where the !include file is missing."""
+    main_content = """
+    main_key: !include missing.yaml
+    """
+    main_file = tmp_path / "main.yaml"
+    main_file.write_text(main_content)
+
+    with pytest.raises(FileNotFoundError), main_file.open() as f:
+        safe_load_yaml(f)
+
+
+def test_non_existent_file(tmp_path: Path) -> None:
+    """Test yaml loading with a non-existent file."""
+    non_existent_file = tmp_path / "non_existent.yaml"
+
+    with pytest.raises(FileNotFoundError), non_existent_file.open() as f:
+        safe_load_yaml(f)

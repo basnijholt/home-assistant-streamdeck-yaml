@@ -1063,14 +1063,18 @@ async def handle_changes(
         if config._configuration_file is None:
             console.log("[red bold] No configuration file to watch[/]")
             return
-        last_modified_time = config._configuration_file.stat().st_mtime
+
+        def edit_time(fn: Path) -> float:
+            return fn.stat().st_mtime if fn.exists() else 0
+
+        last_modified_time = edit_time(config._configuration_file)
         while True:
             files = [config._configuration_file, *config._include_files]
             if config.auto_reload and any(
-                fn.stat().st_mtime > last_modified_time for fn in files
+                edit_time(fn) > last_modified_time for fn in files
             ):
                 console.log("Configuration file has been modified, reloading")
-                last_modified_time = max(fn.stat().st_mtime for fn in files)
+                last_modified_time = max(edit_time(fn) for fn in files)
                 try:
                     config.reload()
                     deck.reset()

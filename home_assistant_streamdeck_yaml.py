@@ -14,7 +14,14 @@ import time
 import warnings
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Literal, TextIO, TypeAlias
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Literal,
+    TextIO,
+    TypeAlias,
+)
 
 import jinja2
 import pkg_resources
@@ -580,7 +587,7 @@ class Config(BaseModel):
         """Read the configuration file."""
         with fname.open() as f:
             data = safe_load_yaml(f)
-            config = cls(**data)
+            config = cls(**data)  # type: ignore[arg-type]
             config._configuration_file = fname
             return config
 
@@ -1831,27 +1838,35 @@ def _rich_table_str(df: pd.DataFrame) -> str:
     return console.file.getvalue()
 
 
-class IncludeLoader(yaml.SafeLoader):
-    """YAML Loader with `!include` constructor."""
-
-    def __init__(self, stream: Any) -> None:
-        """Initialize IncludeLoader."""
-        self._root = Path(stream.name).parent if hasattr(stream, "name") else Path.cwd()
-        super().__init__(stream)
-
-
-def _include(loader: IncludeLoader, node: yaml.nodes.Node) -> Any:
-    """Include file referenced at node."""
-    filepath = loader._root / str(loader.construct_scalar(node))  # type: ignore[arg-type]
-    return yaml.load(filepath.read_text(), IncludeLoader)  # noqa: S506
-
-
-IncludeLoader.add_constructor("!include", _include)
-
-
-def safe_load_yaml(f: TextIO | str) -> Any:
+def safe_load_yaml(
+    f: TextIO | str,
+    *,
+    return_included_paths: bool = False,
+) -> Any | tuple[Any, list]:
     """Load a YAML file."""
-    return yaml.load(f, IncludeLoader)  # noqa: S506
+    included_files = []
+
+    class IncludeLoader(yaml.SafeLoader):
+        """YAML Loader with `!include` constructor."""
+
+        def __init__(self, stream: Any) -> None:
+            """Initialize IncludeLoader."""
+            self._root = (
+                Path(stream.name).parent if hasattr(stream, "name") else Path.cwd()
+            )
+            super().__init__(stream)
+
+    def _include(loader: IncludeLoader, node: yaml.nodes.Node) -> Any:
+        """Include file referenced at node."""
+        filepath = loader._root / str(loader.construct_scalar(node))  # type: ignore[arg-type]
+        included_files.append(filepath)
+        return yaml.load(filepath.read_text(), IncludeLoader)  # noqa: S506
+
+    IncludeLoader.add_constructor("!include", _include)
+    loaded_data = yaml.load(f, IncludeLoader)  # noqa: S506
+    if return_included_paths:
+        return loaded_data, included_files
+    return loaded_data
 
 
 def _help() -> str:

@@ -1410,6 +1410,7 @@ def _add_text(
     text_offset: int = 0,
 ) -> None:
     draw = ImageDraw.Draw(image)
+    text_size = max(1, text_size)
     font = ImageFont.truetype(str(ASSETS_PATH / font_filename), text_size)
     draw.text(
         (image.width / 2, image.height / 2 + text_offset),

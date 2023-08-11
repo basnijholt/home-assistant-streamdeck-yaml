@@ -250,7 +250,7 @@ This is especially useful for large setups or when you want to share certain con
 For example, if you have a set of common buttons that you want to use across multiple pages, you can define them in a separate YAML file and then include them in your main configuration:
 
 ```yaml
-# common_buttons.yaml
+# includes/home.yaml
 - entity_id: light.bedroom_lights
   service: light.toggle
   text: |

@@ -1410,7 +1410,9 @@ def _add_text(
     text_offset: int = 0,
 ) -> None:
     draw = ImageDraw.Draw(image)
-    text_size = max(1, text_size)
+    if text_size == 0:
+        console.log(f"Text size is 0, not drawing text: {text!r}")
+        return
     font = ImageFont.truetype(str(ASSETS_PATH / font_filename), text_size)
     draw.text(
         (image.width / 2, image.height / 2 + text_offset),

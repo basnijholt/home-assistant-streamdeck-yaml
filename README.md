@@ -241,6 +241,46 @@ pages:
         special_type_data: 0
 ```
 
+### :link: Using `!include` for Modular Configuration
+
+To make your configuration more organized and maintainable, you can use the `!include` directive to split your configuration into multiple files.
+This is especially useful for large setups or when you want to share certain configurations across multiple setups.
+
+For example, if you have a set of common buttons that you want to use across multiple pages, you can define them in a separate YAML file and then include them in your main configuration:
+
+```yaml
+# common_buttons.yaml
+- entity_id: light.bedroom_lights
+  service: light.toggle
+  text: |
+    Bedroom
+    lights
+- icon: netflix.png
+  service: script.start_spotify
+```
+
+In your main configuration:
+
+```yaml
+# configuration.yaml
+pages:
+  - name: Home
+    buttons: !include common_buttons.yaml
+  ...
+```
+
+or separate out pages into their own files:
+
+```yaml
+# configuration.yaml
+pages:
+  - !include page1.yaml
+  - !include page2.yaml
+  ...
+```
+
+By using `!include`, you can keep your configuration clean and easily reusable.
+
 ### :clipboard: Config YAML configuration
 
 Each YAML config can take the following configuration

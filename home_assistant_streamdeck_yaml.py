@@ -14,7 +14,14 @@ import time
 import warnings
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Literal, TypeAlias
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Literal,
+    TextIO,
+    TypeAlias,
+)
 
 import jinja2
 import pkg_resources
@@ -197,7 +204,7 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     @classmethod
     def from_yaml(cls: type[Button], yaml_str: str) -> Button:
         """Set the attributes from a YAML string."""
-        data = yaml.safe_load(yaml_str)
+        data = safe_load_yaml(yaml_str)
         return cls(**data[0])
 
     @classmethod
@@ -574,14 +581,16 @@ class Config(BaseModel):
     _is_on: bool = PrivateAttr(default=True)
     _detached_page: Page | None = PrivateAttr(default=None)
     _configuration_file: Path | None = PrivateAttr(default=None)
+    _include_files: list[Path] = PrivateAttr(default_factory=list)
 
     @classmethod
     def load(cls: type[Config], fname: Path) -> Config:
         """Read the configuration file."""
         with fname.open() as f:
-            data = yaml.safe_load(f)
-            config = cls(**data)
+            data, include_files = safe_load_yaml(f, return_included_paths=True)
+            config = cls(**data)  # type: ignore[arg-type]
             config._configuration_file = fname
+            config._include_files = include_files
             return config
 
     def reload(self) -> None:
@@ -1055,12 +1064,12 @@ async def handle_changes(
             return
         last_modified_time = config._configuration_file.stat().st_mtime
         while True:
-            if (
-                config.auto_reload
-                and config._configuration_file.stat().st_mtime != last_modified_time
+            files = [config._configuration_file, *config._include_files]
+            if config.auto_reload and any(
+                fn.stat().st_mtime != last_modified_time for fn in files
             ):
                 console.log("Configuration file has been modified, reloading")
-                last_modified_time = config._configuration_file.stat().st_mtime
+                last_modified_time = max(fn.stat().st_mtime for fn in files)
                 try:
                     config.reload()
                     deck.reset()
@@ -1829,6 +1838,37 @@ def _rich_table_str(df: pd.DataFrame) -> str:
     console = Console(file=io.StringIO(), width=120)
     console.print(table)
     return console.file.getvalue()
+
+
+def safe_load_yaml(
+    f: TextIO | str,
+    *,
+    return_included_paths: bool = False,
+) -> Any | tuple[Any, list]:
+    """Load a YAML file."""
+    included_files = []
+
+    class IncludeLoader(yaml.SafeLoader):
+        """YAML Loader with `!include` constructor."""
+
+        def __init__(self, stream: Any) -> None:
+            """Initialize IncludeLoader."""
+            self._root = (
+                Path(stream.name).parent if hasattr(stream, "name") else Path.cwd()
+            )
+            super().__init__(stream)
+
+    def _include(loader: IncludeLoader, node: yaml.nodes.Node) -> Any:
+        """Include file referenced at node."""
+        filepath = loader._root / str(loader.construct_scalar(node))  # type: ignore[arg-type]
+        included_files.append(filepath)
+        return yaml.load(filepath.read_text(), IncludeLoader)  # noqa: S506
+
+    IncludeLoader.add_constructor("!include", _include)
+    loaded_data = yaml.load(f, IncludeLoader)  # noqa: S506
+    if return_included_paths:
+        return loaded_data, included_files
+    return loaded_data
 
 
 def _help() -> str:

@@ -47,6 +47,7 @@ https://user-images.githubusercontent.com/6897215/226788119-6c198ea6-2950-4f95-9
       - [:desktop_computer: Windows](#desktop_computer-windows)
   - [:gear: Configuration](#gear-configuration)
     - [:page_facing_up: `configuration.yaml`](#page_facing_up-configurationyaml)
+    - [:link: Using `!include` for Modular Configuration](#link-using-include-for-modular-configuration)
     - [:clipboard: Config YAML configuration](#clipboard-config-yaml-configuration)
     - [:bookmark_tabs: Page YAML configuration](#bookmark_tabs-page-yaml-configuration)
     - [:white_square_button: Button YAML configuration](#white_square_button-button-yaml-configuration)
@@ -240,6 +241,48 @@ pages:
       - special_type: go-to-page
         special_type_data: 0
 ```
+
+### :link: Using `!include` for Modular Configuration
+
+To make your configuration more organized and maintainable, you can use the `!include` directive to split your configuration into multiple files, just like you can do in Home Assistant.
+This is especially useful for large setups or when you want to share certain configurations across multiple setups.
+
+For example, if you have a set of common buttons that you want to use across multiple pages, you can define them in a separate YAML file and then include them in your main configuration:
+
+```yaml
+# common_buttons.yaml
+- entity_id: light.bedroom_lights
+  service: light.toggle
+  text: |
+    Bedroom
+    lights
+- icon: netflix.png
+  service: script.start_spotify
+```
+
+In your main configuration:
+
+```yaml
+# configuration.yaml
+pages:
+  - name: Home
+    buttons: !include common_buttons.yaml
+  ...
+```
+
+or separate out pages into their own files:
+
+```yaml
+# configuration.yaml
+pages:
+  - !include page1.yaml
+  - !include page2.yaml
+  ...
+```
+
+By using `!include`, you can keep your configuration clean and easily reusable.
+
+> **Warning:** Any other directives that Home Assistant supports, such as `!secret` or `!include_dir_list`, are not supported by this library.
 
 ### :clipboard: Config YAML configuration
 

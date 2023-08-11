@@ -244,7 +244,7 @@ pages:
 
 ### :link: Using `!include` for Modular Configuration
 
-To make your configuration more organized and maintainable, you can use the `!include` directive to split your configuration into multiple files.
+To make your configuration more organized and maintainable, you can use the `!include` directive to split your configuration into multiple files, just like you can do in Home Assistant.
 This is especially useful for large setups or when you want to share certain configurations across multiple setups.
 
 For example, if you have a set of common buttons that you want to use across multiple pages, you can define them in a separate YAML file and then include them in your main configuration:
@@ -281,6 +281,8 @@ pages:
 ```
 
 By using `!include`, you can keep your configuration clean and easily reusable.
+
+> **Warning:** Any other directives that Home Assistant supports, such as `!secret` or `!include_dir_list`, are not supported by this library.
 
 ### :clipboard: Config YAML configuration
 

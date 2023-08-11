@@ -92,7 +92,7 @@ Follow the steps below to get up and running with Home Assistant on Stream Deck.
 4. Use the [`basnijholt/home-assistant-streamdeck-yaml:latest`](https://hub.docker.com/r/basnijholt/home-assistant-streamdeck-yaml) Docker image with:
 
 ```bash
-docker run --rm -it --privileged --env-file=$(pwd)/.env -v $(pwd)/configuration.yaml:/app/configuration.yaml basnijholt/home-assistant-streamdeck-yaml:latest
+docker run --rm -it --privileged --env-file=$(pwd)/.env -v $(pwd)/:/app/ basnijholt/home-assistant-streamdeck-yaml:latest
 ```
 
 Or use the a `docker-compose` file, an example of which is here: [`docker-compose.yaml`](docker-compose.yaml)

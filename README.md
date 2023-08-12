@@ -244,6 +244,8 @@ pages:
 
 ### :link: Using `!include` for Modular Configuration
 
+> Warning: This feature does not work in the add-on version of this library at the moment.
+
 To make your configuration more organized and maintainable, you can use the `!include` directive to split your configuration into multiple files, just like you can do in Home Assistant.
 This is especially useful for large setups or when you want to share certain configurations across multiple setups.
 

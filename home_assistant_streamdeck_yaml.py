@@ -757,7 +757,7 @@ class AsyncDelayedCallback:
 
 
 def _draw_percentage_ring(
-    percentage: int | float,
+    percentage: float,
     size: tuple[int, int],
     *,
     radius: int | None = None,

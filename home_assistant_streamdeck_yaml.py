@@ -13,6 +13,7 @@ import re
 import time
 import warnings
 from contextlib import asynccontextmanager
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -24,7 +25,6 @@ from typing import (
 )
 
 import jinja2
-import pkg_resources
 import requests
 import websockets
 import yaml
@@ -43,7 +43,11 @@ if TYPE_CHECKING:
     import pandas as pd
     from StreamDeck.Devices import StreamDeck
 
-__version__ = pkg_resources.get_distribution("home_assistant_streamdeck_yaml").version
+
+try:
+    __version__ = version("home_assistant_streamdeck_yaml")
+except PackageNotFoundError:
+    __version__ = "unknown"
 
 
 SCRIPT_DIR = Path(__file__).parent

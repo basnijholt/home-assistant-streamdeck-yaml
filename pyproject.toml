@@ -1,25 +1,12 @@
 [build-system]
-requires = ["setuptools>=42", "wheel", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools>=42", "wheel", "setuptools_scm[toml]>=6.2", "unidep[toml]"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "home_assistant_streamdeck_yaml"
 description = "Home Assistant on Stream Deck: configured via YAML (with templates) and running on Linux, MacOS, and Windows"
-dynamic = ["version"]
+dynamic = ["version", "dependencies"]
 authors = [{ name = "Bas Nijholt", email = "bas@nijho.lt" }]
-dependencies = [
-    "cairosvg",
-    "jinja2",
-    "lxml",
-    "pillow",
-    "pydantic<2",
-    "python-dotenv",
-    "pyyaml",
-    "requests",
-    "rich",
-    "streamdeck",
-    "websockets",
-]
 requires-python = ">=3.10"
 
 [project.readme]
@@ -36,6 +23,26 @@ colormap = ["matplotlib"]
 
 [project.scripts]
 home-assistant-streamdeck-yaml = "home_assistant_streamdeck_yaml:main"
+
+[tool.unidep]
+channels = ["conda-forge"]
+dependencies = [
+    {pip = "streamdeck"},
+    "cairosvg",
+    "jinja2",
+    "lxml",
+    "pillow",
+    "pydantic<2",
+    "python-dotenv",
+    "pyyaml",
+    "requests",
+    "rich",
+    "websockets",
+    {conda = "libusb"},
+    {conda = "libffi"},
+    {conda = "libhidapi"},
+    {conda = "libudev:linux"},
+]
 
 [tool.setuptools]
 py-modules = ["home_assistant_streamdeck_yaml"]

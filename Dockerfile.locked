@@ -1,0 +1,26 @@
+# This Dockerfile uses micromamba to install the dependencies from the lock file.
+FROM mambaorg/micromamba:lunar
+
+# Run the container as root to get access to the USB devices
+USER root
+
+WORKDIR /app
+
+# Install the dependencies from the lock file
+COPY conda-lock.yml /app/conda-lock.yml
+RUN micromamba install --name base --file conda-lock.yml
+
+# Install git
+RUN micromamba install --name base --channel conda-forge --yes git && \
+    micromamba clean --all --yes
+
+# Copy the rest of the files
+COPY . /app/
+COPY .git /app/.git
+
+# Install home-assistant-streamdeck-yaml
+RUN micromamba run \
+    pip install --no-deps -e .
+
+# Set the entrypoint
+CMD ["home-assistant-streamdeck-yaml"]

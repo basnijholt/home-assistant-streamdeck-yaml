@@ -1,0 +1,21 @@
+# This Dockerfile uses unidep to install all (unpinned) dependencies
+FROM mambaorg/micromamba:lunar
+
+# Run the container as root to get access to the USB devices
+USER root
+
+# Install unidep and git
+RUN micromamba install --name base --channel conda-forge --yes unidep git
+WORKDIR /app
+
+# Copy the dependencies file for pip
+COPY . /app/
+COPY .git /app/.git
+
+# Install the required dependencies
+RUN micromamba run \
+    unidep install -e . && \
+    micromamba clean --all --yes
+
+# Set the entrypoint
+CMD ["home-assistant-streamdeck-yaml"]

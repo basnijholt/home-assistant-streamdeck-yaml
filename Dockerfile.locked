@@ -1,3 +1,4 @@
+# This Dockerfile uses micromamba to install the dependencies from the lock file.
 FROM mambaorg/micromamba:lunar
 
 # Run the container as root to get access to the USB devices

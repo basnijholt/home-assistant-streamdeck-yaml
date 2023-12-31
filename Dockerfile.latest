@@ -1,3 +1,4 @@
+# This Dockerfile uses unidep to install all (unpinned) dependencies
 FROM mambaorg/micromamba:lunar
 
 # Run the container as root to get access to the USB devices

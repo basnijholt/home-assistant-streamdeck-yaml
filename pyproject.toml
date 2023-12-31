@@ -39,7 +39,6 @@ dependencies = [
     "rich",
     "websockets",
     {conda = "libusb"},
-    {conda = "libffi"},
     {conda = "libhidapi"},
     {conda = "libudev:linux"},
     {conda = "matplotlib"}, # remove once unidep supports optional dependencies

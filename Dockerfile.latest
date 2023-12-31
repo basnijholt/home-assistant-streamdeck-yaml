@@ -13,7 +13,8 @@ COPY .git /app/.git
 
 # Install the required dependencies
 RUN micromamba run \
-    unidep install -e .
+    unidep install -e . && \
+    micromamba clean --all --yes
 
 # Set the entrypoint
 CMD ["home-assistant-streamdeck-yaml"]

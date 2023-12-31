@@ -3,7 +3,7 @@ FROM mambaorg/micromamba:lunar
 # Run the container as root to get access to the USB devices
 USER root
 
-# Install unidep
+# Install unidep and git
 RUN micromamba install --name base --channel conda-forge --yes unidep git
 WORKDIR /app
 
@@ -12,8 +12,7 @@ COPY . /app/
 COPY .git /app/.git
 
 # Install the required dependencies
-RUN eval "$(micromamba shell hook --shell bash)" && \
-    micromamba activate base && \
+RUN micromamba run \
     unidep install -e .
 
 # Set the entrypoint

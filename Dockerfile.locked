@@ -18,8 +18,7 @@ COPY . /app/
 COPY .git /app/.git
 
 # Install home-assistant-streamdeck-yaml
-RUN eval "$(micromamba shell hook --shell bash)" && \
-    micromamba activate base && \
+RUN micromamba run \
     pip install --no-deps -e .
 
 # Set the entrypoint

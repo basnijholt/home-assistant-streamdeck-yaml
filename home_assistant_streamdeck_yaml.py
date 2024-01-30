@@ -10,6 +10,7 @@ import io
 import json
 import math
 import re
+import signal
 import time
 import warnings
 from contextlib import asynccontextmanager
@@ -27,7 +28,6 @@ from typing import (
 import jinja2
 import requests
 import websockets
-import signal
 import yaml
 from lxml import etree
 from PIL import Image, ImageColor, ImageDraw, ImageFont, ImageOps
@@ -1900,12 +1900,13 @@ def _help() -> str:
     except ModuleNotFoundError:
         return ""
 
+
 def handler(signum, frame):
-    console.log(f"Signal caught: {signum=}");
+    console.log(f"Signal caught: {signum=}")
     if usedDeck is not None:
-       usedDeck.reset()
-       usedDeck.close()
-       console.log(f"Closed deck connection {usedDeck=}")
+        usedDeck.reset()
+        usedDeck.close()
+        console.log(f"Closed deck connection {usedDeck=}")
     exit(0)
 
 

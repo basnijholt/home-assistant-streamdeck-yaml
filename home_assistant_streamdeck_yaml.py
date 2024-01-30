@@ -1526,7 +1526,7 @@ async def _handle_key_press(
 ) -> None:
     if not config._is_on:
         turn_on(config, deck, complete_state)
-        if config.state_entity_id is not None:
+        if config.state_entity_id is not None and config.state_entity_id.startswith("input_boolean"):
             service_data = {}
             service_data["entity_id"] = config.state_entity_id
             await call_service(websocket, "input_boolean.turn_on", service_data)
@@ -1549,7 +1549,7 @@ async def _handle_key_press(
         return  # to skip the _detached_page reset below
     elif button.special_type == "turn-off":
         turn_off(config, deck)
-        if config.state_entity_id is not None:
+        if config.state_entity_id is not None and config.state_entity_id.startswith("input_boolean"):
             service_data = {}
             service_data["entity_id"] = config.state_entity_id
             await call_service(websocket, "input_boolean.turn_off", service_data)
@@ -1848,11 +1848,12 @@ async def run(
     async with setup_ws(host, token, protocol) as websocket:
         complete_state = await get_states(websocket)
 
-        is_off = complete_state[config.state_entity_id]["state"] == "off"
-        if is_off:
-            turn_off(config, deck)
-        else:
-            deck.set_brightness(config.brightness)
+        deck.set_brightness(config.brightness)
+
+        if config.state_entity_id is not None:
+            is_off = complete_state[config.state_entity_id]["state"] == "off"
+            if is_off:
+                turn_off(config, deck)
 
         update_all_key_images(deck, config, complete_state)
         deck.set_key_callback_async(

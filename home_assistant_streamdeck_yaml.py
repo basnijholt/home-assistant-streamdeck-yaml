@@ -1122,8 +1122,13 @@ def _update_state(
             complete_state[eid] = event_data["new_state"]
 
             # Handle brightness update
-            if eid == config.brightness_entity_id and config.brightness_entity_id is not None:
-                brightness = int(float(complete_state[config.brightness_entity_id]["state"]))
+            if (
+                eid == config.brightness_entity_id
+                and config.brightness_entity_id is not None
+            ):
+                brightness = int(
+                    float(complete_state[config.brightness_entity_id]["state"]),
+                )
                 if brightness >= 0 and brightness <= 100:
                     console.log(f"Setting default brightness from state {brightness=}")
                     config.brightness = brightness
@@ -1542,7 +1547,9 @@ async def _handle_key_press(
 ) -> None:
     if not config._is_on:
         turn_on(config, deck, complete_state)
-        if config.state_entity_id is not None and config.state_entity_id.startswith("input_boolean"):
+        if config.state_entity_id is not None and config.state_entity_id.startswith(
+            "input_boolean",
+        ):
             service_data = {}
             service_data["entity_id"] = config.state_entity_id
             await call_service(websocket, "input_boolean.turn_on", service_data)
@@ -1565,7 +1572,9 @@ async def _handle_key_press(
         return  # to skip the _detached_page reset below
     elif button.special_type == "turn-off":
         turn_off(config, deck)
-        if config.state_entity_id is not None and config.state_entity_id.startswith("input_boolean"):
+        if config.state_entity_id is not None and config.state_entity_id.startswith(
+            "input_boolean",
+        ):
             service_data = {}
             service_data["entity_id"] = config.state_entity_id
             await call_service(websocket, "input_boolean.turn_off", service_data)
@@ -1865,7 +1874,9 @@ async def run(
         complete_state = await get_states(websocket)
 
         if config.brightness_entity_id is not None:
-            brightness = int(float(complete_state[config.brightness_entity_id]["state"]))
+            brightness = int(
+                float(complete_state[config.brightness_entity_id]["state"]),
+            )
             if brightness >= 0 and brightness <= 100:
                 console.log(f"Setting default brightness from state {brightness=}")
                 config.brightness = brightness

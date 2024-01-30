@@ -576,6 +576,11 @@ class Config(BaseModel):
         default=100,
         description="The default brightness of the Stream Deck (0-100).",
     )
+    brightness_entity_id: str | None = Field(
+        default=None,
+        description="The entity ID to sync display brightness with (0-100). For"
+        " example `input_number.streamdeck_brightness`.",
+    )
     auto_reload: bool = Field(
         default=False,
         description="If True, the configuration YAML file will automatically"
@@ -1116,8 +1121,19 @@ def _update_state(
             eid = event_data["entity_id"]
             complete_state[eid] = event_data["new_state"]
 
+            # Handle brightness update
+            if eid == config.brightness_entity_id and config.brightness_entity_id is not None:
+                brightness = int(float(complete_state[config.brightness_entity_id]["state"]))
+                if brightness >= 0 and brightness <= 100:
+                    console.log(f"Setting default brightness from state {brightness=}")
+                    config.brightness = brightness
+                    if config._is_on:
+                        deck.set_brightness(config.brightness)
+                else:
+                    console.log(f"Invalid brightness state {brightness=}")
+
             # Handle the state entity (turning on/off display)
-            if eid == config.state_entity_id:
+            if eid == config.state_entity_id and config.state_entity_id is not None:
                 is_on = complete_state[config.state_entity_id]["state"] == "on"
                 if is_on:
                     turn_on(config, deck, complete_state)
@@ -1847,6 +1863,14 @@ async def run(
     deck = get_deck()
     async with setup_ws(host, token, protocol) as websocket:
         complete_state = await get_states(websocket)
+
+        if config.brightness_entity_id is not None:
+            brightness = int(float(complete_state[config.brightness_entity_id]["state"]))
+            if brightness >= 0 and brightness <= 100:
+                console.log(f"Setting default brightness from state {brightness=}")
+                config.brightness = brightness
+            else:
+                console.log(f"Invalid brightness state {brightness=}")
 
         deck.set_brightness(config.brightness)
 

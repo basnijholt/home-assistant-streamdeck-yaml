@@ -1847,6 +1847,13 @@ async def run(
     deck = get_deck()
     async with setup_ws(host, token, protocol) as websocket:
         complete_state = await get_states(websocket)
+
+        is_off = complete_state[config.state_entity_id]["state"] == "off"
+        if is_off:
+            turn_off(config, deck)
+        else:
+            deck.set_brightness(config.brightness)
+
         update_all_key_images(deck, config, complete_state)
         deck.set_key_callback_async(
             _on_press_callback(websocket, complete_state, config),

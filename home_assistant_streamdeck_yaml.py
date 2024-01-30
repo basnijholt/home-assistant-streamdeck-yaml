@@ -1282,7 +1282,6 @@ async def get_states(websocket: websockets.WebSocketClientProtocol) -> dict[str,
         if data["type"] == "result":
             # Extract the state data from the response
             state_dict = {state["entity_id"]: state for state in data["result"]}
-            console.log(state_dict)
             return state_dict
 
 

@@ -27,6 +27,7 @@ from typing import (
 import jinja2
 import requests
 import websockets
+import signal
 import yaml
 from lxml import etree
 from PIL import Image, ImageColor, ImageDraw, ImageFont, ImageOps
@@ -63,6 +64,7 @@ ICON_PIXELS = 72
 _ID_COUNTER = 0
 
 console = Console()
+usedDeck = None
 StateDict: TypeAlias = dict[str, dict[str, Any]]
 
 
@@ -1836,7 +1838,8 @@ async def run(
     config: Config,
 ) -> None:
     """Main entry point for the Stream Deck integration."""
-    deck = get_deck()
+    global usedDeck
+    usedDeck = deck = get_deck()
     async with setup_ws(host, token, protocol) as websocket:
         complete_state = await get_states(websocket)
         update_all_key_images(deck, config, complete_state)
@@ -1897,6 +1900,14 @@ def _help() -> str:
     except ModuleNotFoundError:
         return ""
 
+def handler(signum, frame):
+    console.log(f"Signal caught: {signum=}");
+    if usedDeck is not None:
+       usedDeck.reset()
+       usedDeck.close()
+       console.log(f"Closed deck connection {usedDeck=}")
+    exit(0)
+
 
 def main() -> None:
     """Start the Stream Deck integration."""
@@ -1929,6 +1940,10 @@ def main() -> None:
         f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}",
     )
     config = Config.load(args.config)
+
+    signal.signal(signal.SIGINT, handler)
+    signal.signal(signal.SIGTERM, handler)
+
     asyncio.run(
         run(
             host=args.host,

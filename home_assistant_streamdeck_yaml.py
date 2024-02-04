@@ -11,6 +11,7 @@ import json
 import math
 import re
 import signal
+import sys
 import time
 import warnings
 from contextlib import asynccontextmanager
@@ -40,6 +41,7 @@ from StreamDeck.ImageHelpers import PILHelper
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
+    from types import FrameType
 
     import pandas as pd
     from StreamDeck.Devices import StreamDeck
@@ -64,7 +66,6 @@ ICON_PIXELS = 72
 _ID_COUNTER = 0
 
 console = Console()
-usedDeck = None
 StateDict: TypeAlias = dict[str, dict[str, Any]]
 
 
@@ -1832,14 +1833,13 @@ def update_all_key_images(
 
 
 async def run(
+    deck: StreamDeck,
     host: str,
     token: str,
     protocol: Literal["wss", "ws"],
     config: Config,
 ) -> None:
     """Main entry point for the Stream Deck integration."""
-    global usedDeck
-    usedDeck = deck = get_deck()
     async with setup_ws(host, token, protocol) as websocket:
         complete_state = await get_states(websocket)
         update_all_key_images(deck, config, complete_state)
@@ -1901,13 +1901,15 @@ def _help() -> str:
         return ""
 
 
-def handler(signum, frame):
-    console.log(f"Signal caught: {signum=}")
-    if usedDeck is not None:
-        usedDeck.reset()
-        usedDeck.close()
-        console.log(f"Closed deck connection {usedDeck=}")
-    exit(0)
+def _get_signal_handler(deck: StreamDeck) -> Callable[[int, FrameType | None], Any]:
+    def handler(signum: int, frame: FrameType | None) -> None:  # noqa: ARG001
+        console.log(f"Signal caught: {signum=}")
+        deck.reset()
+        deck.close()
+        console.log(f"Closed deck connection {deck=}")
+        sys.exit(0)
+
+    return handler
 
 
 def main() -> None:
@@ -1942,11 +1944,14 @@ def main() -> None:
     )
     config = Config.load(args.config)
 
+    deck = get_deck()
+    handler = _get_signal_handler(deck)
     signal.signal(signal.SIGINT, handler)
     signal.signal(signal.SIGTERM, handler)
 
     asyncio.run(
         run(
+            deck=deck,
             host=args.host,
             token=args.token,
             protocol=args.protocol,

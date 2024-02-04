@@ -1899,7 +1899,7 @@ def _help() -> str:
         return ""
 
 
-def _get_signal_handler(deck: StreamDeck) -> Callable[[int, FrameType | None], Any]:
+def _get_signal_handler(deck: StreamDeck) -> Callable[[int, FrameType | None], None]:
     def handler(signum: int, frame: FrameType | None) -> None:  # noqa: ARG001
         console.log(f"Signal caught: {signum=}")
         deck.reset()

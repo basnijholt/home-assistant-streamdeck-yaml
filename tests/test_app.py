@@ -1,4 +1,5 @@
 """Test Home Assistant Stream Deck YAML."""
+
 from __future__ import annotations
 
 import asyncio

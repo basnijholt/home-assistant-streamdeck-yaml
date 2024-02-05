@@ -1,4 +1,5 @@
 """Test the yaml loading."""
+
 from io import StringIO
 from pathlib import Path
 

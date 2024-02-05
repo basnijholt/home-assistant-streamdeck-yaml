@@ -166,15 +166,18 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " If while counting the button is pressed again, the timer is cancelled."
         " Should be a float or template string that evaluates to a float.",
     )
-    special_type: Literal[
-        "next-page",
-        "previous-page",
-        "empty",
-        "go-to-page",
-        "turn-off",
-        "light-control",
-        "reload",
-    ] | None = Field(
+    special_type: (
+        Literal[
+            "next-page",
+            "previous-page",
+            "empty",
+            "go-to-page",
+            "turn-off",
+            "light-control",
+            "reload",
+        ]
+        | None
+    ) = Field(
         default=None,
         allow_template=False,
         description="Special type of button."
@@ -706,6 +709,7 @@ class AsyncDelayedCallback:
         The delay in seconds after which the callback will be called.
     callback
         The function or coroutine to be called after the delay.
+
     """
 
     def __init__(
@@ -904,6 +908,7 @@ def _generate_uniform_hex_colors(n_colors: int) -> tuple[str, ...]:
     --------
     >>> _generate_uniform_hex_colors(3)
     ['#0000ff', '#00ff00', '#ff0000']
+
     """
 
     def generate_hues(n_hues: int) -> list[float]:
@@ -1640,6 +1645,7 @@ def _url_to_filename(url: str, hash_len: int = 8) -> Path:
     -------
     Path
         The filename with the hash included, if specified.
+
     """
     domain, path = re.findall(r"(?<=://)([a-zA-Z\.]+).*?(/.*)", url)[0]
     h = hashlib.sha256(f"{domain}{path}".encode()).hexdigest()[:hash_len]
@@ -1663,6 +1669,7 @@ def _scale_hex_color(hex_color: str, scale: float) -> str:
     Returns
     -------
     A scaled HEX color in the format "#RRGGBB".
+
     """
     scale = max(0, min(1, scale))
     # Convert HEX color to RGB values
@@ -1715,6 +1722,7 @@ def _convert_svg_to_png(
         The name of the file to save the PNG content to.
     size
         The size of the resulting PNG image.
+
     """
     import cairosvg  # importing here because it requires a non Python dep
 

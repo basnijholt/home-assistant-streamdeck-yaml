@@ -35,6 +35,7 @@ from pydantic.fields import Undefined
 from rich.console import Console
 from rich.table import Table
 from StreamDeck.DeviceManager import DeviceManager
+from StreamDeck.Devices.StreamDeck import DialEventType, TouchscreenEventType
 from StreamDeck.ImageHelpers import PILHelper
 
 if TYPE_CHECKING:
@@ -64,6 +65,30 @@ _ID_COUNTER = 0
 
 console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
+
+class Dial(BaseModel):
+    entity_id: str | None = Field(
+        default=None,
+        allow_template=True,
+    )
+    service: str | None = Field(
+        default=None,
+        allow_template=True,
+    )  
+    service_data: dict[str,Any] | None = Field(
+        default=None,
+        allow_template=True,
+    )
+    target: dict[str,Any] | None = Field(
+        default=None,
+        allow_template=True,
+    )
+    dial_event_type: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="The event type of the dial that will trigger the service."
+        "Either DialEventType.TURN or DialEventType.PRESS"
+    )
 
 
 class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
@@ -544,6 +569,32 @@ class Page(BaseModel):
         description="A list of buttons on the page.",
     )
 
+    dials: list[Dial] = Field(
+        default_factory=list,
+        description="A list of dials on the page."
+    )
+    
+    #FIX - Somehow
+    _dials_sorted: list[Dial] = []
+    def sort_dials(self) -> list[(Dial,Dial | None)]:
+        last_num = -1
+        for i in range(0,len(self.dials)):
+            if i == last_num: continue
+            try:
+                if self.dials[i].dial_event_type != self.dials[i+1].dial_event_type:
+                    self._dials_sorted.append((self.dials[i], self.dials[i+1]))
+                    last_num = i+1
+                else:
+                    self._dials_sorted.append((self.dials[i], None))
+            except:
+                self._dials_sorted.append((self.dials[i], None))
+
+
+
+            
+
+            
+
     @classmethod
     def to_pandas_table(cls: type[Page]) -> pd.DataFrame:
         """Return a pandas DataFrame with the schema."""
@@ -610,6 +661,7 @@ class Config(BaseModel):
         # Set the private attributes we want to preserve
         if self._detached_page is not None:
             self._detached_page = self.to_page(self._detached_page.name)
+            self.current_page().sort_dials()
         if self._current_page_index >= len(self.pages):
             # In case pages were removed, reset to the first page
             self._current_page_index = 0
@@ -667,6 +719,19 @@ class Config(BaseModel):
         if self._detached_page is not None:
             return self._detached_page
         return self.pages[self._current_page_index]
+    
+    def dial(self, key: int) -> Dial | None:
+        dials = self.current_page().dials
+        if key < len(dials):
+            return dials[key]
+        return None
+    
+    def dial_sorted(self, key: int):
+        dials = self.current_page()._dials_sorted
+        if key < len(dials):
+            return dials[key]
+        return None
+
 
     def button(self, key: int) -> Button | None:
         """Return the button for a key."""
@@ -1316,6 +1381,8 @@ async def call_service(
     }
     if target is not None:
         subscribe_payload["target"] = target
+    #Debug Purposes - remove after testing
+    console.log(json.dumps(subscribe_payload))
     await websocket.send(json.dumps(subscribe_payload))
 
 
@@ -1519,6 +1586,55 @@ def turn_off(config: Config, deck: StreamDeck) -> None:
     deck.reset()
     deck.set_brightness(0)
 
+async def handle_dial_event(
+    websocket: websockets.WebSocketClientProtocol,
+    complete_state: StateDict,
+    config: Config,
+    dial: tuple[Dial, Dial | None],
+    deck: StreamDeck,
+    event_type: DialEventType,
+) -> None:
+    if not config._is_on:
+        turn_on(config,deck,complete_state)
+        return
+    
+    if DialEventType[dial[0].dial_event_type] is event_type:
+        selected_dial = dial[0]
+    else: selected_dial = dial[1]
+
+    assert selected_dial is not None
+    if selected_dial.service is not None:
+        if selected_dial.service_data is None:
+            service_data = {}
+            if selected_dial.entity_id is not None:
+                service_data["entity_id"] = dial.entity_id
+        else:
+            service_data = dial.service_data
+
+    assert selected_dial.service is not None
+    console.log(f"Calling service {selected_dial.service} with data {selected_dial.service_data}")
+    await call_service(websocket, selected_dial.service, service_data, selected_dial.target)
+
+def _on_dial_event_callback(
+    websocket: websockets.WebSocketClientProtocol,
+    complete_state: StateDict,
+    config: Config,       
+):
+    async def dial_event_callback(
+        deck: StreamDeck,
+        dial_num: int,
+        event_type: DialEventType,
+        value: int,
+    ):
+        console.log(f"Dial {dial_num} event {event_type} at value {value} has been called")
+        dial = config.dial_sorted(dial_num)
+        console.log(f"Parsed dial {dial}")
+
+        #To-Do: Check for tuple and event_type and call event depending on that
+        assert dial is not None
+        await handle_dial_event(websocket, complete_state, config, dial, deck, event_type)
+        
+    return dial_event_callback
 
 async def _handle_key_press(
     websocket: websockets.WebSocketClientProtocol,
@@ -1544,6 +1660,7 @@ async def _handle_key_press(
     elif button.special_type == "go-to-page":
         assert isinstance(button.special_type_data, (str, int))
         config.to_page(button.special_type_data)  # type: ignore[arg-type]
+        config.current_page().sort_dials()
         update_all()
         return  # to skip the _detached_page reset below
     elif button.special_type == "turn-off":
@@ -1849,6 +1966,10 @@ async def run(
         deck.set_key_callback_async(
             _on_press_callback(websocket, complete_state, config),
         )
+        if deck.dial_count() != 0:
+            deck.set_dial_callback_async(
+                _on_dial_event_callback(websocket, complete_state, config),
+            )
         deck.set_brightness(config.brightness)
         await subscribe_state_changes(websocket)
         await handle_changes(websocket, complete_state, deck, config)

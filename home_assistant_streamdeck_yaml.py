@@ -87,7 +87,7 @@ class Dial(BaseModel):
         default=None,
         allow_template=True,
         description="The event type of the dial that will trigger the service."
-        "Either DialEventType.TURN or DialEventType.PRESS"
+        "Either DialEventType.TURN or DialEventType.PUSH"
     )
 
 
@@ -574,7 +574,6 @@ class Page(BaseModel):
         description="A list of dials on the page."
     )
     
-    #FIX - Somehow
     _dials_sorted: list[Dial] = []
     def sort_dials(self) -> list[(Dial,Dial | None)]:
         last_num = -1
@@ -1597,19 +1596,20 @@ async def handle_dial_event(
     if not config._is_on:
         turn_on(config,deck,complete_state)
         return
-    
-    if DialEventType[dial[0].dial_event_type] is event_type:
-        selected_dial = dial[0]
-    else: selected_dial = dial[1]
 
+    if getattr(DialEventType, dial[0].dial_event_type) == event_type:
+        selected_dial = dial[0]
+    elif  getattr(DialEventType, dial[1].dial_event_type) == event_type:
+        selected_dial = dial[1]
+    
     assert selected_dial is not None
     if selected_dial.service is not None:
         if selected_dial.service_data is None:
             service_data = {}
             if selected_dial.entity_id is not None:
-                service_data["entity_id"] = dial.entity_id
+                service_data["entity_id"] = selected_dial.entity_id
         else:
-            service_data = dial.service_data
+            service_data = selected_dial.service_data
 
     assert selected_dial.service is not None
     console.log(f"Calling service {selected_dial.service} with data {selected_dial.service_data}")
@@ -1628,9 +1628,7 @@ def _on_dial_event_callback(
     ):
         console.log(f"Dial {dial_num} event {event_type} at value {value} has been called")
         dial = config.dial_sorted(dial_num)
-        console.log(f"Parsed dial {dial}")
 
-        #To-Do: Check for tuple and event_type and call event depending on that
         assert dial is not None
         await handle_dial_event(websocket, complete_state, config, dial, deck, event_type)
         

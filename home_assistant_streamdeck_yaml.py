@@ -90,6 +90,65 @@ class Dial(BaseModel):
         "Either DialEventType.TURN or DialEventType.PUSH"
     )
 
+    _last_input: float = PrivateAttr(0)
+    _min : float = PrivateAttr(0)
+    _max : float = PrivateAttr(100)
+    _step: float = PrivateAttr(1)
+    _state: float = PrivateAttr(0)
+
+    def update_attributes(self, data: dict[str, Any]) -> None:
+        """Updates all home assistant entity attributes"""
+        self._min = float(data["attributes"]["min"])
+        self._max = float(data["attributes"]["max"])
+        self._step = float(data["attributes"]["step"])
+        self._state = float(data["state"])
+
+    def get_attributes(self) -> dict[str, float]:
+        """Returns all home assistant entity attributes"""
+        return {
+            "min": self._min,
+            "max": self._max,
+            "step": self._step,
+            "state": self._state,
+        }
+        
+    def increment_state(self, value: float):
+        """Increments the value of the dial with checks for the minimal and maximal value"""
+        num: float = self._state + value * self._step
+        num = min(self._max, num)
+        num = max(self._min, num)
+        self._state = num
+    
+    def set_state(self, value: float):
+        """Sets the value of the dial without checks for the minimal and maximal value"""
+        self._state = value
+    
+    
+    @classmethod
+    def templatable(cls: type[Dial]) -> set[str]:
+        """Return if an attribute is templatable, which is if the type-annotation is str."""
+        schema = cls.schema()
+        properties = schema["properties"]
+        return {k for k, v in properties.items() if v["allow_template"]}
+    
+    def rendered_template_dial(
+        self,
+        complete_state: StateDict,
+    ) -> Button:
+        dct = self.dict(exclude_unset=True)
+        for key in self.templatable():
+            if key not in dct:
+                continue
+            val = dct[key]
+            if isinstance(val, dict):
+                for k, v in val.items():
+                    val[k] = _render_jinja(v, complete_state, self)
+            else:
+                dct[key] = _render_jinja(val, complete_state, self)
+        return Dial(**dct)
+
+        
+
 
 class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     """Button configuration."""
@@ -587,12 +646,6 @@ class Page(BaseModel):
                     self._dials_sorted.append((self.dials[i], None))
             except:
                 self._dials_sorted.append((self.dials[i], None))
-
-
-
-            
-
-            
 
     @classmethod
     def to_pandas_table(cls: type[Page]) -> pd.DataFrame:
@@ -1164,8 +1217,7 @@ async def handle_changes(
         watch_configuration_file(),
     )
 
-
-def _keys(entity_id: str, buttons: list[Button]) -> list[int]:
+def _keys(entity_id: str, buttons: list[Button] | list[Dial]) -> list[int]:
     """Get the key indices for an entity_id."""
     return [i for i, button in enumerate(buttons) if button.entity_id == entity_id]
 
@@ -1178,6 +1230,7 @@ def _update_state(
 ) -> None:
     """Update the state dictionary and update the keys."""
     buttons = config.current_page().buttons
+    dials = config.current_page().dials
     if data["type"] == "event":
         event_data = data["event"]
         if event_data["event_type"] == "state_changed":
@@ -1193,7 +1246,16 @@ def _update_state(
                 else:
                     turn_off(config, deck)
                 return
-
+            
+            keys_dials = _keys(eid, dials)
+            for key in keys_dials:
+                console.log(f"Updating dial {key} for {eid}")
+                update_dial(
+                    key=key,
+                    config=config,
+                    data=data
+                )
+            
             keys = _keys(eid, buttons)
             for key in keys:
                 console.log(f"Updating key {key} for {eid}")
@@ -1312,8 +1374,16 @@ def _max_filter(value: float, other_value: float) -> float:
     """
     return max(value, other_value)
 
+def _dial_value(
+    dial: Dial
+) -> int:
+    assert dial is not None
+    dial.increment_state(dial._last_input)
+    attributes = dial.get_attributes()
+    return attributes["state"]
 
-def _render_jinja(text: str, complete_state: StateDict) -> str:
+
+def _render_jinja(text: str, complete_state: StateDict, dial: Dial | None=None) -> str:
     """Render a Jinja template."""
     if not isinstance(text, str):
         return text
@@ -1334,6 +1404,7 @@ def _render_jinja(text: str, complete_state: StateDict) -> str:
             state_attr=ft.partial(_state_attr, complete_state=complete_state),
             states=ft.partial(_states, complete_state=complete_state),
             is_state=ft.partial(_is_state, complete_state=complete_state),
+            dial_value=ft.partial(_dial_value, dial=dial)
         ).strip()
     except jinja2.exceptions.TemplateError as err:
         console.print_exception(show_locals=True)
@@ -1518,6 +1589,32 @@ def _generate_failed_icon(
     )
     return icon
 
+def update_all_dials(
+    deck: StreamDeck,
+    config: Config,
+    complete_state: StateDict,
+):
+    for key in range(len(config.current_page().dials)):
+        current_dial = config.current_page().dials[key]
+        if current_dial.dial_event_type == "TURN":
+            update_dial(key, config, complete_state[current_dial.entity_id])
+    
+def update_dial(
+    key: int,
+    config: Config,
+    data: dict[str, Any]
+) -> None:
+    """Update the dial"""
+    dial = config.dial(key)
+    assert dial and data is not None
+    try:
+        event_data = data["event"]["data"]
+        new_state = event_data["new_state"]
+        if _is_float(new_state["state"]):
+            dial.update_attributes(new_state)
+    except:
+        if _is_float(data["state"]):
+            dial.update_attributes(data)
 
 def update_key_image(
     deck: StreamDeck,
@@ -1592,18 +1689,24 @@ async def handle_dial_event(
     dial: tuple[Dial, Dial | None],
     deck: StreamDeck,
     event_type: DialEventType,
+    value: int
 ) -> None:
     if not config._is_on:
         turn_on(config,deck,complete_state)
         return
-
-    if getattr(DialEventType, dial[0].dial_event_type) == event_type:
-        selected_dial = dial[0]
-    elif  getattr(DialEventType, dial[1].dial_event_type) == event_type:
-        selected_dial = dial[1]
+    
+    try:
+        if getattr(DialEventType, dial[0].dial_event_type) == event_type:
+            selected_dial = dial[0]
+        elif  getattr(DialEventType, dial[1].dial_event_type):
+            selected_dial = dial[1]
+    except:
+        console.log(f"Unable to get event type from Dial")
     
     assert selected_dial is not None
+    selected_dial._last_input = float(value)
     if selected_dial.service is not None:
+        selected_dial = selected_dial.rendered_template_dial(complete_state)
         if selected_dial.service_data is None:
             service_data = {}
             if selected_dial.entity_id is not None:
@@ -1630,7 +1733,7 @@ def _on_dial_event_callback(
         dial = config.dial_sorted(dial_num)
 
         assert dial is not None
-        await handle_dial_event(websocket, complete_state, config, dial, deck, event_type)
+        await handle_dial_event(websocket, complete_state, config, dial, deck, event_type, value)
         
     return dial_event_callback
 
@@ -1648,6 +1751,7 @@ async def _handle_key_press(
     def update_all() -> None:
         deck.reset()
         update_all_key_images(deck, config, complete_state)
+        update_all_dials(deck, config, complete_state)
 
     if button.special_type == "next-page":
         config.next_page()
@@ -1964,6 +2068,7 @@ async def run(
         deck.set_key_callback_async(
             _on_press_callback(websocket, complete_state, config),
         )
+        update_all_dials(deck, config, complete_state)
         if deck.dial_count() != 0:
             deck.set_dial_callback_async(
                 _on_dial_event_callback(websocket, complete_state, config),

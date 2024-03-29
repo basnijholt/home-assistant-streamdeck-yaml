@@ -1,0 +1,7 @@
+- special_type: go-to-page
+  special_type_data: room_1
+  text: |
+    room 
+    1
+  text_size: 16
+  

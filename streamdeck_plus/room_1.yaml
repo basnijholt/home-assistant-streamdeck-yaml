@@ -1,0 +1,30 @@
+- entity_id: input_number.streamdeck
+  service: input_number.set_value
+  service_data: 
+    value: 5
+  text: |
+    Set
+    5
+  text_size: 16
+- entity_id: input_number.streamdeck
+  service: input_number.set_value
+  service_data: 
+    value: 0
+  text: |
+    Set
+    0
+- entity_id: input_number.streamdeck
+  service: input_number.set_value
+  service_data: 
+    value: 2
+  icon: >
+    {%- set temp = states('input_number.streamdeck') -%}
+    {%- set min = 0 -%}
+    {%- set max = 100 -%}
+    {%- set pct = ((temp - min) / (max - min)) * 100 -%}
+    ring:{{ pct | round }}
+- entity_id: input_button.button
+  service: input_button.press
+  text: |
+    press
+    button

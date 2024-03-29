@@ -1,0 +1,9 @@
+brightness: 100
+auto_reload: true
+state_entity_id: input_boolean.streamdeck
+pages:
+  - name: home
+    buttons: !include includes/home.yaml
+  - name: room_1
+    dials: !include includes/room_1_dials.yaml
+    buttons: !include includes/room_1.yaml

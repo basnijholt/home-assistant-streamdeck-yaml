@@ -63,6 +63,14 @@ DEFAULT_MDI_ICONS = {
 ICON_PIXELS = 72
 _ID_COUNTER = 0
 
+#Resolution for Stream deck plus
+LCD_PIXELS_X = 800
+LCD_PIXELS_Y = 100
+
+#Default resolution for each icon on Stream deck plus
+LCD_ICON_SIZE_X = 200
+LCD_ICON_SIZE_Y = 100
+
 console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
 
@@ -88,6 +96,49 @@ class Dial(BaseModel):
         allow_template=True,
         description="The event type of the dial that will trigger the service."
         "Either DialEventType.TURN or DialEventType.PUSH"
+    )
+    text: str = Field(
+        default="",
+        allow_template=True
+    )
+    text_color: str | None = Field(
+        default=None,
+        allow_template=True,
+    )
+    text_size: int = Field(
+        default=16,
+        allow_template=False,
+    )
+    text_offset: int = Field(
+        default=0,
+        allow_template=False,
+    )
+    icon: str | None = Field(
+        default=None,
+        allow_template=True,
+    )
+    icon_mdi: str | None = Field(
+        default=None,
+        allow_template=True,
+    )
+    icon_background_color: str = Field(
+        default="#000000",
+        allow_template=True,
+    )
+    icon_mdi_color: str | None = Field(
+        default=None,
+        allow_template=True,
+    )
+    #Possibly obsolete
+    icon_gray_when_off: bool = Field(
+        default=False,
+        allow_template=False,
+    )
+    delay: float | str = Field(
+        default=1.0,
+        allow_template=True,
+        description="The delay in seconds before the service is called."
+        " Dial changes are added to decrease traffic "
     )
 
     _last_input: float = PrivateAttr(0)
@@ -134,7 +185,7 @@ class Dial(BaseModel):
     def rendered_template_dial(
         self,
         complete_state: StateDict,
-    ) -> Button:
+    ) -> Dial:
         dct = self.dict(exclude_unset=True)
         for key in self.templatable():
             if key not in dct:
@@ -146,6 +197,75 @@ class Dial(BaseModel):
             else:
                 dct[key] = _render_jinja(val, complete_state, self)
         return Dial(**dct)
+    
+    #LCD/Touchscreen management
+    def render_lcd_image(
+        self,
+        complete_state: StateDict,
+        key: int, #Key needs to be from sorted dials
+        size: tuple[int,int],
+        icon_mdi_margin: int = 0,
+        font_filename: str = DEFAULT_FONT,
+    ) -> Image.Image:
+        try:
+            image = None
+            dial = self.rendered_template_dial(complete_state)
+            
+            if isinstance(dial.icon, str) and ":" in dial.icon:
+                which, id_ = dial.icon.split(":",1)
+                if which == "spotify":
+                    filename = _to_filename(dial.icon, ".jpeg")
+                    image = _download_spotify_image(id_,filename).copy()
+                if which == "url":
+                    filename = _url_to_filename(id_)
+                    image = _download_image(id_, filename, size).copy()
+                if which == "ring":
+                    pct = _maybe_number(id_)
+                    assert isinstance(pct, (int, float)), f"Invalid ring percentage: {id_}"
+                    image = _draw_percentage_ring(
+                        percentage=pct, 
+                        size=size, 
+                        radius = 40,
+                    )
+            
+            text = dial.text
+            text_color = dial.text_color or "white"
+            
+            if image is None:
+                image = _init_icon(
+                    icon_background_color = dial.icon_background_color,
+                    icon_filename = dial.icon,
+                    icon_mdi = dial.icon_mdi,
+                    icon_mdi_margin=icon_mdi_margin,
+                    icon_mdi_color=_named_to_hex(dial.icon_mdi_color or text_color),
+                    size=size
+                ).copy()
+            
+            _add_text(
+                image=image,
+                font_filename=font_filename,
+                text_size=self.text_size,
+                text=text,
+                text_color=text_color,
+                text_offset=self.text_offset,
+            )
+            return image
+        
+        except Exception as e:
+            console.log(e)
+            warnings.warn(
+                f"Failed to render icon for dial {key}",
+                IconWarning,
+                stacklevel=2,
+            )
+            return _generate_failed_icon(
+                size=size
+            )
+    
+    _timer: AsyncDelayedCallback | None = PrivateAttr(None)
+    #NOTE - For delay implementation
+    
+    
 
         
 
@@ -644,8 +764,14 @@ class Page(BaseModel):
                     last_num = i+1
                 else:
                     self._dials_sorted.append((self.dials[i], None))
-            except:
+            except IndexError as e:
                 self._dials_sorted.append((self.dials[i], None))
+                
+    def get_sorted_key(self, dial: Dial) -> int:
+        dial_list = self._dials_sorted
+        for i in range(len(dial_list)):
+            if dial in dial_list[i]:
+                return i
 
     @classmethod
     def to_pandas_table(cls: type[Page]) -> pd.DataFrame:
@@ -1205,6 +1331,7 @@ async def handle_changes(
                     config.reload()
                     deck.reset()
                     update_all_key_images(deck, config, complete_state)
+                    update_all_dials(deck, config, complete_state)
                 except Exception as e:  # noqa: BLE001
                     console.log(f"Error reloading configuration: {e}")
 
@@ -1251,9 +1378,11 @@ def _update_state(
             for key in keys_dials:
                 console.log(f"Updating dial {key} for {eid}")
                 update_dial(
+                    deck=deck,
                     key=key,
                     config=config,
-                    data=data
+                    complete_state=complete_state,
+                    data=data,
                 )
             
             keys = _keys(eid, buttons)
@@ -1382,6 +1511,18 @@ def _dial_value(
     attributes = dial.get_attributes()
     return attributes["state"]
 
+def _dial_attr(
+    attr: str,
+    dial: Dial,
+) -> float:
+    try: 
+        assert attr is not None
+        dial_attributes = dial.get_attributes()
+        return dial_attributes[attr]
+    except ValueError as e:
+        console.log(f"Error while trying to get attribute {attr} from dial with error code {e}")      
+    
+    
 
 def _render_jinja(text: str, complete_state: StateDict, dial: Dial | None=None) -> str:
     """Render a Jinja template."""
@@ -1404,7 +1545,8 @@ def _render_jinja(text: str, complete_state: StateDict, dial: Dial | None=None) 
             state_attr=ft.partial(_state_attr, complete_state=complete_state),
             states=ft.partial(_states, complete_state=complete_state),
             is_state=ft.partial(_is_state, complete_state=complete_state),
-            dial_value=ft.partial(_dial_value, dial=dial)
+            dial_value=ft.partial(_dial_value, dial=dial),
+            dial_attr=ft.partial(_dial_attr, dial=dial),
         ).strip()
     except jinja2.exceptions.TemplateError as err:
         console.print_exception(show_locals=True)
@@ -1454,6 +1596,7 @@ async def call_service(
     #Debug Purposes - remove after testing
     console.log(json.dumps(subscribe_payload))
     await websocket.send(json.dumps(subscribe_payload))
+    
 
 
 def _rgb_to_hex(rgb: tuple[int, int, int]) -> str:
@@ -1597,16 +1740,22 @@ def update_all_dials(
     for key in range(len(config.current_page().dials)):
         current_dial = config.current_page().dials[key]
         if current_dial.dial_event_type == "TURN":
-            update_dial(key, config, complete_state[current_dial.entity_id])
+            update_dial(deck, key, config, complete_state, complete_state[current_dial.entity_id])
     
 def update_dial(
+    deck: StreamDeck,
     key: int,
     config: Config,
-    data: dict[str, Any]
+    complete_state: StateDict,
+    data: dict[str, Any],
 ) -> None:
     """Update the dial"""
     dial = config.dial(key)
     assert dial and data is not None
+    
+    if dial.dial_event_type == "PUSH": 
+        return
+    
     try:
         event_data = data["event"]["data"]
         new_state = event_data["new_state"]
@@ -1615,6 +1764,25 @@ def update_dial(
     except:
         if _is_float(data["state"]):
             dial.update_attributes(data)
+            
+    size_lcd = deck.touchscreen_image_format()["size"]
+    size_per_dial = (size_lcd[0] // deck.dial_count(), size_lcd[1])
+    dial_offset = config.current_page().get_sorted_key(dial) * size_per_dial[0]
+    image = dial.render_lcd_image(
+        complete_state=complete_state,
+        size=(size_per_dial),
+        key=config.current_page().get_sorted_key(dial)
+    )
+    img_bytes = io.BytesIO()
+    image.save(img_bytes, format="JPEG")
+    lcd_image_bytes = img_bytes.getvalue()
+    deck.set_touchscreen_image(
+        lcd_image_bytes, 
+        dial_offset,
+        0,
+        size_per_dial[0],
+        size_per_dial[1],
+    )
 
 def update_key_image(
     deck: StreamDeck,
@@ -1713,6 +1881,7 @@ async def handle_dial_event(
                 service_data["entity_id"] = selected_dial.entity_id
         else:
             service_data = selected_dial.service_data
+            service_data["entity_id"] = selected_dial.entity_id
 
     assert selected_dial.service is not None
     console.log(f"Calling service {selected_dial.service} with data {selected_dial.service_data}")
@@ -2027,7 +2196,9 @@ def _download_image(
 ) -> Image.Image:
     """Download an image for a given url."""
     if filename is not None and filename.exists():
-        return Image.open(filename)
+        image = Image.open(filename)
+        #To correctly size after getting from file
+        return image.resize(size)
     image_content = _download(url)
     image = Image.open(io.BytesIO(image_content))
     if image.mode != "RGB":

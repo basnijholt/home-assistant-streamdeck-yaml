@@ -35,7 +35,7 @@ from pydantic.fields import Undefined
 from rich.console import Console
 from rich.table import Table
 from StreamDeck.DeviceManager import DeviceManager
-from StreamDeck.Devices.StreamDeck import DialEventType, TouchscreenEventType
+from StreamDeck.Devices.StreamDeck import DialEventType
 from StreamDeck.ImageHelpers import PILHelper
 
 if TYPE_CHECKING:
@@ -135,7 +135,7 @@ class Dial(BaseModel):
         allow_template=False,
     )
     delay: float | str = Field(
-        default=1.0,
+        default=0.0,
         allow_template=True,
         description="The delay in seconds before the service is called."
         " Dial changes are added to decrease traffic "
@@ -766,6 +766,7 @@ class Page(BaseModel):
                     self._dials_sorted.append((self.dials[i], None))
             except IndexError as e:
                 self._dials_sorted.append((self.dials[i], None))
+        return self._dials_sorted
                 
     def get_sorted_key(self, dial: Dial) -> int:
         dial_list = self._dials_sorted
@@ -1857,19 +1858,19 @@ async def handle_dial_event(
     dial: tuple[Dial, Dial | None],
     deck: StreamDeck,
     event_type: DialEventType,
-    value: int
+    value: int,
 ) -> None:
     if not config._is_on:
         turn_on(config,deck,complete_state)
         return
     
-    try:
-        if getattr(DialEventType, dial[0].dial_event_type) == event_type:
-            selected_dial = dial[0]
-        elif  getattr(DialEventType, dial[1].dial_event_type):
-            selected_dial = dial[1]
-    except:
-        console.log(f"Unable to get event type from Dial")
+    if dial[0].dial_event_type == event_type.name:
+        selected_dial = dial[0]
+    elif  dial[1].dial_event_type == event_type.name:
+        selected_dial = dial[1]
+    else:
+        console.log("Could not resolve event type for dial")
+        return
     
     assert selected_dial is not None
     selected_dial._last_input = float(value)

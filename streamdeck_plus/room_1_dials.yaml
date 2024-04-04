@@ -12,14 +12,15 @@
     value: '{{ dial_value() }}'
   dial_event_type: TURN
   icon: >
-    {%- set state = dial_attr("state") -%}
+    {%- set state = dial_value() -%}
     {%- set min = dial_attr("min") -%}
     {%- set max = dial_attr("max") -%}
     {%- set pct = ((state - min) / (max - min)) * 100 -%}
     ring:{{ pct | round }}
   text: >
-    {%- set state = states('input_number.streamdeck') -%}
+    {%- set state = dial_value() -%}
     '{{state}}'
+  delay: 0.5
 - entity_id: input_number.streamdeck
   service: input_number.set_value
   service_data: 
@@ -31,3 +32,18 @@
     value: '{{ (10 / 2) * 5 }}'
   dial_event_type: TURN
   icon_mdi: "home"
+- entity_id: input_number.test
+  service: input_number.set_value
+  service_data: 
+    value: '{{ dial_value() }}'
+  dial_event_type: TURN
+  icon: >
+    {%- set state = dial_attr("state") -%}
+    {%- set min = dial_attr("min") -%}
+    {%- set max = dial_attr("max") -%}
+    {%- set pct = ((state - min) / (max - min)) * 100 -%}
+    ring:{{ pct | round }}
+  text: >
+    {%- set state = states('input_number.test') -%}
+    '{{state}}'
+  delay: 0.5

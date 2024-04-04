@@ -137,11 +137,10 @@ class Dial(BaseModel):
     delay: float | str = Field(
         default=0.0,
         allow_template=True,
-        description="The delay in seconds before the service is called."
+        description="The delay inbetween events for the service to be called"
         " Dial changes are added to decrease traffic "
     )
 
-    _last_input: float = PrivateAttr(0)
     _min : float = PrivateAttr(0)
     _max : float = PrivateAttr(100)
     _step: float = PrivateAttr(1)
@@ -263,8 +262,25 @@ class Dial(BaseModel):
             )
     
     _timer: AsyncDelayedCallback | None = PrivateAttr(None)
-    #NOTE - For delay implementation
     
+    def start_or_restart_timer(
+        self,
+        callback: Callable[[], None | Coroutine] | None = None    
+    ) -> bool:
+        if self.delay:
+            if self._timer is None:
+                assert isinstance(
+                    self.delay,
+                    (int, float),
+                ), f"Invalid delay: {self.delay}"
+                self._timer = AsyncDelayedCallback(delay=self.delay, callback=callback)
+            if self._timer.is_running():
+                self._timer.cancel()
+                self._timer.start()
+            else:
+                self._timer.start()
+            return True
+        return False
     
 
         
@@ -1508,7 +1524,6 @@ def _dial_value(
     dial: Dial
 ) -> int:
     assert dial is not None
-    dial.increment_state(dial._last_input)
     attributes = dial.get_attributes()
     return attributes["state"]
 
@@ -1743,28 +1758,30 @@ def update_all_dials(
         if current_dial.dial_event_type == "TURN":
             update_dial(deck, key, config, complete_state, complete_state[current_dial.entity_id])
     
+    
 def update_dial(
     deck: StreamDeck,
     key: int,
     config: Config,
     complete_state: StateDict,
-    data: dict[str, Any],
+    data: dict[str, Any] | None = None,
 ) -> None:
     """Update the dial"""
     dial = config.dial(key)
-    assert dial and data is not None
+    assert dial is not None
     
     if dial.dial_event_type == "PUSH": 
         return
     
-    try:
-        event_data = data["event"]["data"]
-        new_state = event_data["new_state"]
-        if _is_float(new_state["state"]):
-            dial.update_attributes(new_state)
-    except:
-        if _is_float(data["state"]):
-            dial.update_attributes(data)
+    if data is not None:
+        try:
+            event_data = data["event"]["data"]
+            new_state = event_data["new_state"]
+            if _is_float(new_state["state"]):
+                dial.update_attributes(new_state)
+        except:
+            if _is_float(data["state"]):
+                dial.update_attributes(data)
             
     size_lcd = deck.touchscreen_image_format()["size"]
     size_per_dial = (size_lcd[0] // deck.dial_count(), size_lcd[1])
@@ -1859,6 +1876,7 @@ async def handle_dial_event(
     deck: StreamDeck,
     event_type: DialEventType,
     value: int,
+    local_update: bool = False,
 ) -> None:
     if not config._is_on:
         turn_on(config,deck,complete_state)
@@ -1871,20 +1889,22 @@ async def handle_dial_event(
     else:
         console.log("Could not resolve event type for dial")
         return
+    dial_num_sorted = config.current_page().get_sorted_key(selected_dial)
     
     assert selected_dial is not None
-    selected_dial._last_input = float(value)
+    selected_dial.increment_state(value)
     if selected_dial.service is not None:
         selected_dial = selected_dial.rendered_template_dial(complete_state)
         if selected_dial.service_data is None:
             service_data = {}
-            if selected_dial.entity_id is not None:
-                service_data["entity_id"] = selected_dial.entity_id
         else:
             service_data = selected_dial.service_data
-            service_data["entity_id"] = selected_dial.entity_id
+        service_data["entity_id"] = selected_dial.entity_id
 
     assert selected_dial.service is not None
+    if local_update:
+        update_dial(deck, dial_num_sorted, config, complete_state)
+        return
     console.log(f"Calling service {selected_dial.service} with data {selected_dial.service_data}")
     await call_service(websocket, selected_dial.service, service_data, selected_dial.target)
 
@@ -1901,8 +1921,17 @@ def _on_dial_event_callback(
     ):
         console.log(f"Dial {dial_num} event {event_type} at value {value} has been called")
         dial = config.dial_sorted(dial_num)
-
         assert dial is not None
+        
+        async def callback() -> None:
+            await handle_dial_event(websocket, complete_state, config, dial, deck, event_type, 0)
+            
+        
+        if event_type == DialEventType.TURN and config.dial(dial_num).start_or_restart_timer(callback):
+            await handle_dial_event(websocket, complete_state, config, dial, deck, event_type, value, True)
+            return
+            
+            
         await handle_dial_event(websocket, complete_state, config, dial, deck, event_type, value)
         
     return dial_event_callback

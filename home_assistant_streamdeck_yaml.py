@@ -840,6 +840,7 @@ class Config(BaseModel):
             config = cls(**data)  # type: ignore[arg-type]
             config._configuration_file = fname
             config._include_files = include_files
+            config.current_page().sort_dials()
             return config
 
     def reload(self) -> None:
@@ -1946,7 +1947,6 @@ async def _handle_key_press(
     def update_all() -> None:
         deck.reset()
         config.current_page().sort_dials()
-        console.log(config.current_page()._dials_sorted)
         update_all_key_images(deck, config, complete_state)
         update_all_dials(deck, config, complete_state)
 

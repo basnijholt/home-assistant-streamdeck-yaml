@@ -7,3 +7,11 @@ pages:
   - name: room_1
     dials: !include includes/room_1_dials.yaml
     buttons: !include includes/room_1.yaml
+  - name: room_2
+    buttons: !include includes/room_2.yaml
+    dials: !include includes/room_2_dials.yaml
+
+anonymous_pages:
+  - name: room_anonymous
+    buttons: !include includes/room_anonymous.yaml
+    dials: !include includes/room_anonymous_dials.yaml

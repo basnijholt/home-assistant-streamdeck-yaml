@@ -28,3 +28,9 @@
   text: |
     press
     button
+- special_type: go-to-page
+  special_type_data: home
+  text: |
+    home
+  icon_mdi: "home"
+  text_size: 16

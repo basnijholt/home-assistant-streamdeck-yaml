@@ -129,11 +129,6 @@ class Dial(BaseModel):
         default=None,
         allow_template=True,
     )
-    #Possibly obsolete
-    icon_gray_when_off: bool = Field(
-        default=False,
-        allow_template=False,
-    )
     delay: float | str = Field(
         default=0.0,
         allow_template=True,
@@ -769,8 +764,9 @@ class Page(BaseModel):
         description="A list of dials on the page."
     )
     
-    _dials_sorted: list[Dial] = []
+    _dials_sorted: list[Dial] = PrivateAttr([])
     def sort_dials(self) -> list[(Dial,Dial | None)]:
+        self._dials_sorted = []
         last_num = -1
         for i in range(0,len(self.dials)):
             if i == last_num: continue
@@ -1949,6 +1945,8 @@ async def _handle_key_press(
 
     def update_all() -> None:
         deck.reset()
+        config.current_page().sort_dials()
+        console.log(config.current_page()._dials_sorted)
         update_all_key_images(deck, config, complete_state)
         update_all_dials(deck, config, complete_state)
 
@@ -1961,7 +1959,6 @@ async def _handle_key_press(
     elif button.special_type == "go-to-page":
         assert isinstance(button.special_type_data, (str, int))
         config.to_page(button.special_type_data)  # type: ignore[arg-type]
-        config.current_page().sort_dials()
         update_all()
         return  # to skip the _detached_page reset below
     elif button.special_type == "turn-off":

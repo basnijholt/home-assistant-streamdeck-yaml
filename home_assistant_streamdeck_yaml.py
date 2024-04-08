@@ -780,11 +780,13 @@ class Page(BaseModel):
                 self._dials_sorted.append((self.dials[i], None))
         return self._dials_sorted
                 
-    def get_sorted_key(self, dial: Dial) -> int:
+    def get_sorted_key(self, dial: Dial) -> int | None:
+        """Returns the integer key for a dial"""
         dial_list = self._dials_sorted
         for i in range(len(dial_list)):
             if dial in dial_list[i]:
                 return i
+        return None
 
     @classmethod
     def to_pandas_table(cls: type[Page]) -> pd.DataFrame:
@@ -1782,7 +1784,9 @@ def update_dial(
             
     size_lcd = deck.touchscreen_image_format()["size"]
     size_per_dial = (size_lcd[0] // deck.dial_count(), size_lcd[1])
-    dial_offset = config.current_page().get_sorted_key(dial) * size_per_dial[0]
+    dial_key = config.current_page().get_sorted_key(dial)
+    assert dial_key is not None
+    dial_offset = dial_key * size_per_dial[0]
     image = dial.render_lcd_image(
         complete_state=complete_state,
         size=(size_per_dial),

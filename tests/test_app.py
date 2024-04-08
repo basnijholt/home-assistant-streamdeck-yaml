@@ -1324,6 +1324,7 @@ async def test_streamdeck_plus(
     assert config.to_page("page_1") == page_1
     assert config.current_page() == page_1
     
+    
     dial = config.dial(0)
     dial = dial.rendered_template_dial(state)
     assert dial.entity_id == "input_number.streamdeck"
@@ -1334,6 +1335,7 @@ async def test_streamdeck_plus(
     dial_state = dial_val["state"]
     assert dial_state is not None
     #Fires dial event and increments state by 1
+    config.current_page().sort_dials()
     dial_event = _on_dial_event_callback(websocket_mock, state, config)
     await dial_event(mock_deck_plus, 0, DialEventType.TURN, 1)
     #Test update state 

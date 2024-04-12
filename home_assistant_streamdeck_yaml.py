@@ -823,6 +823,11 @@ class Config(BaseModel):
         default=100,
         description="The default brightness of the Stream Deck (0-100).",
     )
+    brightness_entity_id: str | None = Field(
+        default=None,
+        description="The entity ID to sync display brightness with (0-100). For"
+        " example `input_number.streamdeck_brightness`.",
+    )
     auto_reload: bool = Field(
         default=False,
         description="If True, the configuration YAML file will automatically"
@@ -1381,8 +1386,24 @@ def _update_state(
             eid = event_data["entity_id"]
             complete_state[eid] = event_data["new_state"]
 
+            # Handle brightness update
+            if (
+                eid == config.brightness_entity_id
+                and config.brightness_entity_id is not None
+            ):
+                brightness = int(
+                    float(complete_state[config.brightness_entity_id]["state"]),
+                )
+                if brightness >= 0 and brightness <= 100:
+                    console.log(f"Setting default brightness from state {brightness=}")
+                    config.brightness = brightness
+                    if config._is_on:
+                        deck.set_brightness(config.brightness)
+                else:
+                    console.log(f"Invalid brightness state {brightness=}")
+
             # Handle the state entity (turning on/off display)
-            if eid == config.state_entity_id:
+            if eid == config.state_entity_id and config.state_entity_id is not None:
                 is_on = complete_state[config.state_entity_id]["state"] == "on"
                 if is_on:
                     turn_on(config, deck, complete_state)
@@ -1946,6 +1967,12 @@ async def _handle_key_press(
 ) -> None:
     if not config._is_on:
         turn_on(config, deck, complete_state)
+        if config.state_entity_id is not None and config.state_entity_id.startswith(
+            "input_boolean",
+        ):
+            service_data = {}
+            service_data["entity_id"] = config.state_entity_id
+            await call_service(websocket, "input_boolean.turn_on", service_data)
         return
 
     def update_all() -> None:
@@ -1967,6 +1994,12 @@ async def _handle_key_press(
         return  # to skip the _detached_page reset below
     elif button.special_type == "turn-off":
         turn_off(config, deck)
+        if config.state_entity_id is not None and config.state_entity_id.startswith(
+            "input_boolean",
+        ):
+            service_data = {}
+            service_data["entity_id"] = config.state_entity_id
+            await call_service(websocket, "input_boolean.turn_off", service_data)
     elif button.special_type == "light-control":
         assert isinstance(button.special_type_data, dict)
         page = _light_page(
@@ -2266,6 +2299,24 @@ async def run(
     deck = get_deck()
     async with setup_ws(host, token, protocol) as websocket:
         complete_state = await get_states(websocket)
+
+        if config.brightness_entity_id is not None:
+            brightness = int(
+                float(complete_state[config.brightness_entity_id]["state"]),
+            )
+            if brightness >= 0 and brightness <= 100:
+                console.log(f"Setting default brightness from state {brightness=}")
+                config.brightness = brightness
+            else:
+                console.log(f"Invalid brightness state {brightness=}")
+
+        deck.set_brightness(config.brightness)
+
+        if config.state_entity_id is not None:
+            is_off = complete_state[config.state_entity_id]["state"] == "off"
+            if is_off:
+                turn_off(config, deck)
+
         update_all_key_images(deck, config, complete_state)
         deck.set_key_callback_async(
             _on_press_callback(websocket, complete_state, config),

@@ -1773,8 +1773,10 @@ def update_all_dials(
     config: Config,
     complete_state: StateDict,
 ):
+    console.log("Called update_all_dials")
     for key in range(len(config.current_page().dials)):
         current_dial = config.current_page().dials[key]
+        assert current_dial is not None
         if current_dial.dial_event_type == "TURN":
             update_dial(deck, key, config, complete_state, complete_state[current_dial.entity_id])
     
@@ -1875,6 +1877,7 @@ def turn_on(config: Config, deck: StreamDeck, complete_state: StateDict) -> None
         return
     config._is_on = True
     update_all_key_images(deck, config, complete_state)
+    update_all_dials(deck, config, complete_state)
     deck.set_brightness(config.brightness)
 
 

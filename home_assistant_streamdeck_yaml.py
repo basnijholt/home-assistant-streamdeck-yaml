@@ -1629,8 +1629,6 @@ async def call_service(
     }
     if target is not None:
         subscribe_payload["target"] = target
-    #Debug Purposes - remove after testing
-    console.log(json.dumps(subscribe_payload))
     await websocket.send(json.dumps(subscribe_payload))
     
 
@@ -1777,8 +1775,9 @@ def update_all_dials(
     for key in range(len(config.current_page().dials)):
         current_dial = config.current_page().dials[key]
         assert current_dial is not None
-        if current_dial.dial_event_type == "TURN":
-            update_dial(deck, key, config, complete_state, complete_state[current_dial.entity_id])
+        if current_dial.entity_id is None:
+            return
+        update_dial(deck, key, config, complete_state, complete_state[current_dial.entity_id])
     
     
 def update_dial(

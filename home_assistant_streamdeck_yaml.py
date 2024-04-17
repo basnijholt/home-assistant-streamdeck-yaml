@@ -1904,6 +1904,8 @@ async def handle_dial_event(
 ) -> None:
     if not config._is_on:
         turn_on(config,deck,complete_state)
+        #Update state boolean on HA
+        await call_service(websocket, "input_boolean.turn_on", {"entity_id" : config.state_entity_id}, None)
         return
     
     if dial[0].dial_event_type == event_type.name:
@@ -2318,6 +2320,8 @@ async def run(
             is_off = complete_state[config.state_entity_id]["state"] == "off"
             if is_off:
                 turn_off(config, deck)
+                 #Update state boolean on HA
+                await call_service(websocket, "input_boolean.turn_off", {"entity_id" : config.state_entity_id}, None)
 
         update_all_key_images(deck, config, complete_state)
         deck.set_key_callback_async(

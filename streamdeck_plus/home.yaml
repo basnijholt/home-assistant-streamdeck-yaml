@@ -16,3 +16,9 @@
     room 
     anonymous
   text_size: 16
+- special_type: turn-off
+  text: |
+    Turn
+    Off
+  text_size: 16
+  

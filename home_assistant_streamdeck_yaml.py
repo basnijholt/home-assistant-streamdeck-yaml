@@ -2302,39 +2302,36 @@ async def run(
     """Main entry point for the Stream Deck integration."""
     deck = get_deck()
     async with setup_ws(host, token, protocol) as websocket:
-        complete_state = await get_states(websocket)
+        try:
+            complete_state = await get_states(websocket)
 
-        if config.brightness_entity_id is not None:
-            brightness = int(
-                float(complete_state[config.brightness_entity_id]["state"]),
+            if config.brightness_entity_id is not None:
+                brightness = int(
+                    float(complete_state[config.brightness_entity_id]["state"]),
+                )
+                if brightness >= 0 and brightness <= 100:
+                    console.log(f"Setting default brightness from state {brightness=}")
+                    config.brightness = brightness
+                else:
+                    console.log(f"Invalid brightness state {brightness=}")
+
+            deck.set_brightness(config.brightness)
+            #Turn on state entity boolean on home assistant
+            await call_service(websocket, "input_boolean.turn_on", {"entity_id" : config.state_entity_id}, None)
+            update_all_key_images(deck, config, complete_state)
+            deck.set_key_callback_async(
+                _on_press_callback(websocket, complete_state, config),
             )
-            if brightness >= 0 and brightness <= 100:
-                console.log(f"Setting default brightness from state {brightness=}")
-                config.brightness = brightness
-            else:
-                console.log(f"Invalid brightness state {brightness=}")
-
-        deck.set_brightness(config.brightness)
-
-        if config.state_entity_id is not None:
-            is_off = complete_state[config.state_entity_id]["state"] == "off"
-            if is_off:
-                turn_off(config, deck)
-                 #Update state boolean on HA
-                await call_service(websocket, "input_boolean.turn_off", {"entity_id" : config.state_entity_id}, None)
-
-        update_all_key_images(deck, config, complete_state)
-        deck.set_key_callback_async(
-            _on_press_callback(websocket, complete_state, config),
-        )
-        update_all_dials(deck, config, complete_state)
-        if deck.dial_count() != 0:
-            deck.set_dial_callback_async(
-                _on_dial_event_callback(websocket, complete_state, config),
-            )
-        deck.set_brightness(config.brightness)
-        await subscribe_state_changes(websocket)
-        await handle_changes(websocket, complete_state, deck, config)
+            update_all_dials(deck, config, complete_state)
+            if deck.dial_count() != 0:
+                deck.set_dial_callback_async(
+                    _on_dial_event_callback(websocket, complete_state, config),
+                )
+            deck.set_brightness(config.brightness)
+            await subscribe_state_changes(websocket)
+            await handle_changes(websocket, complete_state, deck, config)
+        finally:
+            await call_service(websocket, "input_boolean.turn_off", {"entity_id" : config.state_entity_id}, None)
 
 
 def _rich_table_str(df: pd.DataFrame) -> str:

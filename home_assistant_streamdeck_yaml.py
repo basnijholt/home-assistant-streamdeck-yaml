@@ -129,24 +129,54 @@ class Dial(BaseModel):
         default=None,
         allow_template=True,
     )
+    icon_gray_when_off: bool = Field(
+        default=False,
+        allow_template=False,
+        description="When specifying `icon` and `entity_id`, if the state is `off`, the icon will be converted to grayscale.",
+    )
     delay: float | str = Field(
         default=0.0,
         allow_template=True,
         description="The delay inbetween events for the service to be called"
-        " Dial changes are added to decrease traffic "
+        " Dial changes are added to decrease traffic ",
+    )
+    state_attribute: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="The attribute of the entity which gets used for the dial state"
+    )
+    attributes: dict[str, Any] | None = Field(
+        default=None,
+        allow_template=True,
+        description="Sets the attributes of the dial"
+        "min: The minimal value of the dial"
+        "max: The maximal value of the dial"
+        "step: the step size by which the value of the dial is increased by on an event",
     )
 
     _min : float = PrivateAttr(0)
     _max : float = PrivateAttr(100)
     _step: float = PrivateAttr(1)
     _state: float = PrivateAttr(0)
-
+    
     def update_attributes(self, data: dict[str, Any]) -> None:
         """Updates all home assistant entity attributes"""
-        self._min = float(data["attributes"]["min"])
-        self._max = float(data["attributes"]["max"])
-        self._step = float(data["attributes"]["step"])
-        self._state = float(data["state"])
+        if self.attributes is None:
+            self._min = float(data["attributes"]["min"])
+            self._max = float(data["attributes"]["max"])
+            self._step = float(data["attributes"]["step"])
+        else:
+            try:
+                self._min = float(self.attributes["min"])
+                self._max = float(self.attributes["max"])
+                self._step = float(self.attributes["step"])
+            except ValueError as e:
+                console.log(f"ValueError raised when trying to set update_attributes")
+        
+        if self.state_attribute is None:
+            self._state = float(data["state"])
+        else:
+            self._state = float(data["attributes"][self.state_attribute])
 
     def get_attributes(self) -> dict[str, float]:
         """Returns all home assistant entity attributes"""
@@ -222,8 +252,13 @@ class Dial(BaseModel):
                         radius = 40,
                     )
             
+            icon_convert_to_grayscale = False
             text = dial.text
             text_color = dial.text_color or "white"
+            
+            if complete_state[dial.entity_id]["state"] == "off" and dial.icon_gray_when_off == True:
+                icon_convert_to_grayscale = True
+                
             
             if image is None:
                 image = _init_icon(
@@ -234,6 +269,9 @@ class Dial(BaseModel):
                     icon_mdi_color=_named_to_hex(dial.icon_mdi_color or text_color),
                     size=size
                 ).copy()
+            
+            if icon_convert_to_grayscale:
+                image = _convert_to_grayscale(image)
             
             _add_text(
                 image=image,
@@ -2332,6 +2370,7 @@ async def run(
             await handle_changes(websocket, complete_state, deck, config)
         finally:
             await call_service(websocket, "input_boolean.turn_off", {"entity_id" : config.state_entity_id}, None)
+            deck.reset()
 
 
 def _rich_table_str(df: pd.DataFrame) -> str:

@@ -1529,6 +1529,8 @@ async def _handle_key_press(
 ) -> None:
     if not config._is_on:
         turn_on(config, deck, complete_state)
+        if (config.state_entity_id is not None) and (config.state_entity_id.split(".")[0] == "input_boolean"):
+            call_service(websocket, "input_boolean.turn_on", {}, {"entity_id": config.state_entity_id})
         return
 
     def update_all() -> None:
@@ -1548,6 +1550,8 @@ async def _handle_key_press(
         return  # to skip the _detached_page reset below
     elif button.special_type == "turn-off":
         turn_off(config, deck)
+        if (config.state_entity_id is not None) and (config.state_entity_id.split(".")[0] == "input_boolean"):
+            call_service(websocket, "input_boolean.turn_off", {}, {"entity_id": config.state_entity_id})
     elif button.special_type == "light-control":
         assert isinstance(button.special_type_data, dict)
         page = _light_page(

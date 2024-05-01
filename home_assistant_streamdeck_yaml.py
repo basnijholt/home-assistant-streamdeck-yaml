@@ -35,7 +35,7 @@ from pydantic.fields import Undefined
 from rich.console import Console
 from rich.table import Table
 from StreamDeck.DeviceManager import DeviceManager
-from StreamDeck.Devices.StreamDeck import DialEventType
+from StreamDeck.Devices.StreamDeck import DialEventType, TouchscreenEventType
 from StreamDeck.ImageHelpers import PILHelper
 
 if TYPE_CHECKING:
@@ -78,6 +78,11 @@ class Dial(BaseModel):
     entity_id: str | None = Field(
         default=None,
         allow_template=True,
+    )
+    linked_entity: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="A secondary entity_id that is used for updating images and states"
     )
     service: str | None = Field(
         default=None,
@@ -162,23 +167,32 @@ class Dial(BaseModel):
     def update_attributes(self, data: dict[str, Any]) -> None:
         """Updates all home assistant entity attributes"""
         if self.attributes is None:
-            self._min = float(data["attributes"]["min"])
-            self._max = float(data["attributes"]["max"])
-            self._step = float(data["attributes"]["step"])
+            try:
+                self._min = float(data["attributes"]["min"])
+                self._max = float(data["attributes"]["max"])
+                self._step = float(data["attributes"]["step"])
+            except KeyError as e:
+                console.log(f"KeyError raised when trying to  set attributes {e}")
         else:
             try:
                 self._min = float(self.attributes["min"])
                 self._max = float(self.attributes["max"])
                 self._step = float(self.attributes["step"])
-            except ValueError as e:
+            except KeyError as e:
                 console.log(f"ValueError raised when trying to set update_attributes")
         
         if self.state_attribute is None:
             self._state = float(data["state"])
         else:
-            self._state = float(data["attributes"][self.state_attribute])
+            try:
+                if data["attributes"][self.state_attribute] is None:
+                    self._state = 0
+                else:
+                    self._state = float(data["attributes"][self.state_attribute])
+            except KeyError as e:
+                console.log(f"Could not find attribute {self.state_attribute}")
 
-    def get_attributes(self) -> dict[str, float]:
+    def get_attributes(self) -> dict[str, int]:
         """Returns all home assistant entity attributes"""
         return {
             "min": self._min,
@@ -328,6 +342,11 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         description="The `entity_id` that this button controls."
         " This entitity will be passed to the `service` when the button is pressed."
         " The button is re-rendered whenever the state of this entity changes.",
+    )
+    linked_entity: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="A secondary entity_id that is used for updating images and states"
     )
     service: str | None = Field(
         default=None,
@@ -1405,7 +1424,8 @@ async def handle_changes(
 
 def _keys(entity_id: str, buttons: list[Button] | list[Dial]) -> list[int]:
     """Get the key indices for an entity_id."""
-    return [i for i, button in enumerate(buttons) if button.entity_id == entity_id]
+    
+    return [i for i, button in enumerate(buttons) if button.entity_id == entity_id or button.linked_entity == entity_id ]
 
 
 def _update_state(
@@ -1578,12 +1598,21 @@ def _max_filter(value: float, other_value: float) -> float:
     """
     return max(value, other_value)
 
+def _round(num, digits):
+    """Returns rounded value with number of digits"""
+    res = round(num, digits)
+    return res
+
+def _int(num) -> int:
+    #This is outdated, just use jinja casting
+    return int(num)
+
 def _dial_value(
     dial: Dial
-) -> int:
+) -> float:
     assert dial is not None
     attributes = dial.get_attributes()
-    return attributes["state"]
+    return float(attributes["state"])
 
 def _dial_attr(
     attr: str,
@@ -1619,6 +1648,8 @@ def _render_jinja(text: str, complete_state: StateDict, dial: Dial | None=None) 
             state_attr=ft.partial(_state_attr, complete_state=complete_state),
             states=ft.partial(_states, complete_state=complete_state),
             is_state=ft.partial(_is_state, complete_state=complete_state),
+            round=_round,
+            int=_int,
             dial_value=ft.partial(_dial_value, dial=dial),
             dial_attr=ft.partial(_dial_attr, dial=dial),
         ).strip()
@@ -1836,11 +1867,9 @@ def update_dial(
         try:
             event_data = data["event"]["data"]
             new_state = event_data["new_state"]
-            if _is_float(new_state["state"]):
-                dial.update_attributes(new_state)
-        except:
-            if _is_float(data["state"]):
-                dial.update_attributes(data)
+            dial.update_attributes(new_state)
+        except KeyError as e:
+            dial.update_attributes(data)
             
     size_lcd = deck.touchscreen_image_format()["size"]
     size_per_dial = (size_lcd[0] // deck.dial_count(), size_lcd[1])
@@ -1930,6 +1959,59 @@ def turn_off(config: Config, deck: StreamDeck) -> None:
     deck.reset()
     deck.set_brightness(0)
 
+def _on_touchscreen_event_callback(
+    websocket: websockets.WebSocketClientProtocol,
+    complete_state: StateDict,
+    config: Config,
+):
+    async def touchscreen_event_callback(
+        deck: StreamDeck,
+        event_type: TouchscreenEventType,
+        value # NOTE - also add datatype
+    ):
+        console.log(f"Touchscreen event {event_type} called at value {value}")
+
+        if event_type == TouchscreenEventType.DRAG:
+            # go to next or previous page
+            if value["x"] > value["x_out"]:
+                console.log(f"Going to page {config.next_page_index}")
+                config.to_page(config.next_page_index)
+                
+            else:
+                console.log(f"Going to page {config.next_page_index}")
+                config.to_page(config.previous_page_index)
+            deck.reset()
+            config.current_page().sort_dials()
+            update_all_key_images(deck, config, complete_state)
+            update_all_dials(deck, config, complete_state)
+        elif event_type == TouchscreenEventType.SHORT:
+            # sets value of dial to maximum value
+            lcd_icon_size = deck.touchscreen_image_format()["size"][0] / deck.dial_count()
+            icon_pos = value["x"] // lcd_icon_size
+            dials = config.dial_sorted(int(icon_pos))
+
+            if (dials[0].dial_event_type == DialEventType.TURN.name):
+                selected_dial = dials[0]
+            else:
+                selected_dial = dials[1]
+            selected_dial.set_state(selected_dial.get_attributes()["min"])
+            await handle_dial_event(websocket, complete_state, config, dials, deck, DialEventType.TURN, 0, False)
+            
+        else:
+            # sets value of dial to minimal vlaue
+            lcd_icon_size = deck.touchscreen_image_format()["size"][0] / deck.dial_count()
+            icon_pos = value["x"] // lcd_icon_size
+            dials = config.dial_sorted(int(icon_pos))
+
+            if (dials[0].dial_event_type == DialEventType.TURN.name):
+                selected_dial = dials[0]
+            else:
+                selected_dial = dials[1]
+            selected_dial.set_state(selected_dial.get_attributes()["max"])
+            await handle_dial_event(websocket, complete_state, config, dials, deck, DialEventType.TURN, 0, False)
+
+    return touchscreen_event_callback
+
 async def handle_dial_event(
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
@@ -1961,9 +2043,9 @@ async def handle_dial_event(
         selected_dial = selected_dial.rendered_template_dial(complete_state)
         if selected_dial.service_data is None:
             service_data = {}
+            service_data["entity_id"] = selected_dial.entity_id
         else:
             service_data = selected_dial.service_data
-        service_data["entity_id"] = selected_dial.entity_id
 
     assert selected_dial.service is not None
     if local_update:
@@ -2364,6 +2446,10 @@ async def run(
             if deck.dial_count() != 0:
                 deck.set_dial_callback_async(
                     _on_dial_event_callback(websocket, complete_state, config),
+                )
+            if deck.is_visual():
+                deck.set_touchscreen_callback_async(
+                    _on_touchscreen_event_callback(websocket, complete_state, config)
                 )
             deck.set_brightness(config.brightness)
             await subscribe_state_changes(websocket)

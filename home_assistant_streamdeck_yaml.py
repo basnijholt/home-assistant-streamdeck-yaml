@@ -179,7 +179,7 @@ class Dial(BaseModel):
                 self._max = float(self.attributes["max"])
                 self._step = float(self.attributes["step"])
             except KeyError as e:
-                console.log(f"ValueError raised when trying to set update_attributes")
+                console.log(f"KeyError raised when trying to set update_attributes")
         
         if self.state_attribute is None:
             self._state = float(data["state"])
@@ -191,6 +191,7 @@ class Dial(BaseModel):
                     self._state = float(data["attributes"][self.state_attribute])
             except KeyError as e:
                 console.log(f"Could not find attribute {self.state_attribute}")
+                self._state = 0
 
     def get_attributes(self) -> dict[str, int]:
         """Returns all home assistant entity attributes"""
@@ -2486,9 +2487,28 @@ def safe_load_yaml(
 
     def _include(loader: IncludeLoader, node: yaml.nodes.Node) -> Any:
         """Include file referenced at node."""
-        filepath = loader._root / str(loader.construct_scalar(node))  # type: ignore[arg-type]
-        included_files.append(filepath)
-        return yaml.load(filepath.read_text(), IncludeLoader)  # noqa: S506
+        if isinstance(node.value, str):
+            filepath = loader._root / str(loader.construct_scalar(node))  # type: ignore[arg-type]
+            included_files.append(filepath)
+            return yaml.load(filepath.read_text(), IncludeLoader)  # noqa: S506
+        else:
+            for item in node.value:
+                if item[0].value == "file":
+                    filepath = loader._root / str(loader.construct_scalar(item[1]))
+                    included_files.append(filepath)
+                    data = yaml.load(filepath.read_text(), IncludeLoader)
+                elif item[0].value == "vars":
+                    variable_dict = {}
+                    variable_dict.update({var[0].value: var[1].value for var in item[1].value})
+                
+            assert data is not None and variable_dict is not None
+            updated_data = [{}]
+            for attribute in data[0]:
+                replaced_data = data[0][attribute]
+                for variable in variable_dict:
+                    replaced_data = replaced_data.replace("${" + variable + "}", variable_dict[variable])
+                    updated_data[0].update({attribute: replaced_data})
+            return updated_data   
 
     IncludeLoader.add_constructor("!include", _include)
     loaded_data = yaml.load(f, IncludeLoader)  # noqa: S506

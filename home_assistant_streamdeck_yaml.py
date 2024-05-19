@@ -158,6 +158,11 @@ class Dial(BaseModel):
         "max: The maximal value of the dial"
         "step: the step size by which the value of the dial is increased by on an event",
     )
+    allow_touchscreen_events: bool = Field(
+        default=False,
+        allow_template=True,
+        description="Whether events from the touchscreen such as setting minimal value on short and setting maximal value on LONG"
+    )
 
     _min : float = PrivateAttr(0)
     _max : float = PrivateAttr(100)
@@ -1968,10 +1973,9 @@ def _on_touchscreen_event_callback(
     async def touchscreen_event_callback(
         deck: StreamDeck,
         event_type: TouchscreenEventType,
-        value # NOTE - also add datatype
+        value: dict[str, int]
     ):
         console.log(f"Touchscreen event {event_type} called at value {value}")
-
         if event_type == TouchscreenEventType.DRAG:
             # go to next or previous page
             if value["x"] > value["x_out"]:
@@ -1985,7 +1989,7 @@ def _on_touchscreen_event_callback(
             config.current_page().sort_dials()
             update_all_key_images(deck, config, complete_state)
             update_all_dials(deck, config, complete_state)
-        elif event_type == TouchscreenEventType.SHORT:
+        else:
             # sets value of dial to maximum value
             lcd_icon_size = deck.touchscreen_image_format()["size"][0] / deck.dial_count()
             icon_pos = value["x"] // lcd_icon_size
@@ -1995,22 +1999,14 @@ def _on_touchscreen_event_callback(
                 selected_dial = dials[0]
             else:
                 selected_dial = dials[1]
-            selected_dial.set_state(selected_dial.get_attributes()["min"])
-            await handle_dial_event(websocket, complete_state, config, dials, deck, DialEventType.TURN, 0, False)
+            if selected_dial.allow_touchscreen_events:
+                if event_type == TouchscreenEventType.SHORT:
+                    selected_dial.set_state(selected_dial.get_attributes()["min"])
+                    await handle_dial_event(websocket, complete_state, config, dials, deck, DialEventType.TURN, 0, False)
+                elif event_type == TouchscreenEventType.LONG:
+                    selected_dial.set_state(selected_dial.get_attributes()["max"])
+                    await handle_dial_event(websocket, complete_state, config, dials, deck, DialEventType.TURN, 0, False)
             
-        else:
-            # sets value of dial to minimal vlaue
-            lcd_icon_size = deck.touchscreen_image_format()["size"][0] / deck.dial_count()
-            icon_pos = value["x"] // lcd_icon_size
-            dials = config.dial_sorted(int(icon_pos))
-
-            if (dials[0].dial_event_type == DialEventType.TURN.name):
-                selected_dial = dials[0]
-            else:
-                selected_dial = dials[1]
-            selected_dial.set_state(selected_dial.get_attributes()["max"])
-            await handle_dial_event(websocket, complete_state, config, dials, deck, DialEventType.TURN, 0, False)
-
     return touchscreen_event_callback
 
 async def handle_dial_event(

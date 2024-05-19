@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Home Assistant Stream Deck integration."""
+
 from __future__ import annotations
 
 import asyncio
@@ -1965,6 +1966,23 @@ def turn_off(config: Config, deck: StreamDeck) -> None:
     deck.reset()
     deck.set_brightness(0)
 
+
+async def _sync_input_boolean(
+    state_entity_id: str | None,
+    websocket: websockets.WebSocketClientProtocol,
+    state: Literal["on", "off"],
+) -> None:
+    """Sync the input boolean state with the Stream Deck."""
+    if (state_entity_id is not None) and (
+        state_entity_id.split(".")[0] == "input_boolean"
+    ):
+        await call_service(
+            websocket,
+            f"input_boolean.turn_{state}",
+            {},
+            {"entity_id": state_entity_id},
+        )
+
 def _on_touchscreen_event_callback(
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
@@ -2021,9 +2039,7 @@ async def handle_dial_event(
 ) -> None:
     if not config._is_on:
         turn_on(config,deck,complete_state)
-        #Update state boolean on HA
-        await call_service(websocket, "input_boolean.turn_on", {"entity_id" : config.state_entity_id}, None)
-        return
+        await _sync_input_boolean(config.state_entity_id, websocket, "on")
     
     if dial[0].dial_event_type == event_type.name:
         selected_dial = dial[0]
@@ -2088,13 +2104,7 @@ async def _handle_key_press(
 ) -> None:
     if not config._is_on:
         turn_on(config, deck, complete_state)
-        if config.state_entity_id is not None and config.state_entity_id.startswith(
-            "input_boolean",
-        ):
-            service_data = {}
-            service_data["entity_id"] = config.state_entity_id
-            await call_service(websocket, "input_boolean.turn_on", service_data)
-        return
+        await _sync_input_boolean(config.state_entity_id, websocket, "on")
 
     def update_all() -> None:
         deck.reset()
@@ -2115,12 +2125,7 @@ async def _handle_key_press(
         return  # to skip the _detached_page reset below
     elif button.special_type == "turn-off":
         turn_off(config, deck)
-        if config.state_entity_id is not None and config.state_entity_id.startswith(
-            "input_boolean",
-        ):
-            service_data = {}
-            service_data["entity_id"] = config.state_entity_id
-            await call_service(websocket, "input_boolean.turn_off", service_data)
+        await _sync_input_boolean(config.state_entity_id, websocket, "off")
     elif button.special_type == "light-control":
         assert isinstance(button.special_type_data, dict)
         page = _light_page(
@@ -2434,7 +2439,7 @@ async def run(
 
             deck.set_brightness(config.brightness)
             #Turn on state entity boolean on home assistant
-            await call_service(websocket, "input_boolean.turn_on", {"entity_id" : config.state_entity_id}, None)
+            await _sync_input_boolean(config.state_entity_id, websocket, "on")
             update_all_key_images(deck, config, complete_state)
             deck.set_key_callback_async(
                 _on_press_callback(websocket, complete_state, config),
@@ -2452,7 +2457,7 @@ async def run(
             await subscribe_state_changes(websocket)
             await handle_changes(websocket, complete_state, deck, config)
         finally:
-            await call_service(websocket, "input_boolean.turn_off", {"entity_id" : config.state_entity_id}, None)
+            await _sync_input_boolean(config.state_entity_id, websocket, "off")
             deck.reset()
 
 

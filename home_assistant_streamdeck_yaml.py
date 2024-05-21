@@ -2493,23 +2493,23 @@ def safe_load_yaml(
             included_files.append(filepath)
             return yaml.load(filepath.read_text(), IncludeLoader)  # noqa: S506
         else:
-            for item in node.value:
-                if item[0].value == "file":
-                    filepath = loader._root / str(loader.construct_scalar(item[1]))
-                    included_files.append(filepath)
-                    data = yaml.load(filepath.read_text(), IncludeLoader)
-                elif item[0].value == "vars":
-                    variable_dict = {}
-                    variable_dict.update({var[0].value: var[1].value for var in item[1].value})
-                
-            assert data is not None and variable_dict is not None
+            mapping = loader.construct_mapping(node, deep=True)
+            assert mapping is not None
+            filepath = loader._root / str(mapping["file"])
+            included_files.append(filepath)
+            vars = mapping["vars"]
+
+            loaded_data = yaml.load(filepath.read_text(), IncludeLoader)
+            assert loaded_data and vars is not None
             updated_data = [{}]
-            for attribute in data[0]:
-                replaced_data = data[0][attribute]
-                for variable in variable_dict:
-                    replaced_data = replaced_data.replace("${" + variable + "}", variable_dict[variable])
-                    updated_data[0].update({attribute: replaced_data})
-            return updated_data   
+            for entity in loaded_data:
+                for attribute, value in entity.items():
+                    for var, var_value in vars.items():
+                        if attribute not in updated_data[loaded_data.index(entity)]:
+                            updated_data[loaded_data.index(entity)][attribute] = value
+                        format = rf'\$\{{{var}\}}'
+                        updated_data[loaded_data.index(entity)][attribute] = re.sub(format, var_value, updated_data[loaded_data.index(entity)][attribute])
+            return updated_data
 
     IncludeLoader.add_constructor("!include", _include)
     loaded_data = yaml.load(f, IncludeLoader)  # noqa: S506

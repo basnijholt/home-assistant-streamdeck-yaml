@@ -151,7 +151,7 @@ class Dial(BaseModel):
         allow_template=True,
         description="The attribute of the entity which gets used for the dial state"
     )
-    attributes: dict[str, Any] | None = Field(
+    attributes: dict[str, float] | None = Field(
         default=None,
         allow_template=True,
         description="Sets the attributes of the dial"
@@ -165,59 +165,45 @@ class Dial(BaseModel):
         description="Whether events from the touchscreen such as setting minimal value on short and setting maximal value on LONG"
     )
 
-    _min : float = PrivateAttr(0)
-    _max : float = PrivateAttr(100)
-    _step: float = PrivateAttr(1)
-    _state: float = PrivateAttr(0)
+    # vars for timer
+    _timer: AsyncDelayedCallback | None = PrivateAttr(None)
     
+    # Internal attributes for Dial
+    _attributes: dict[str, float] = PrivateAttr({})
+
     def update_attributes(self, data: dict[str, Any]) -> None:
         """Updates all home assistant entity attributes"""
         if self.attributes is None:
-            try:
-                self._min = float(data["attributes"]["min"])
-                self._max = float(data["attributes"]["max"])
-                self._step = float(data["attributes"]["step"])
-            except KeyError as e:
-                console.log(f"KeyError raised when trying to  set attributes {e}")
+            self._attributes = data["attributes"]
         else:
-            try:
-                self._min = float(self.attributes["min"])
-                self._max = float(self.attributes["max"])
-                self._step = float(self.attributes["step"])
-            except KeyError as e:
-                console.log(f"KeyError raised when trying to set update_attributes")
+            self._attributes = self.attributes
         
         if self.state_attribute is None:
-            self._state = float(data["state"])
+            self._attributes["state"] = float(data["state"])
         else:
             try:
                 if data["attributes"][self.state_attribute] is None:
-                    self._state = 0
+                    self._attributes["state"]
                 else:
-                    self._state = float(data["attributes"][self.state_attribute])
+                    self._attributes["state"] = float(data["attributes"][self.state_attribute])
             except KeyError as e:
                 console.log(f"Could not find attribute {self.state_attribute}")
-                self._state = 0
+                self._attributes["state"] = 0
 
-    def get_attributes(self) -> dict[str, int]:
+    def get_attributes(self) -> dict[str, float]:
         """Returns all home assistant entity attributes"""
-        return {
-            "min": self._min,
-            "max": self._max,
-            "step": self._step,
-            "state": self._state,
-        }
+        return self._attributes
         
-    def increment_state(self, value: float):
+    def increment_state(self, value: float) -> None:
         """Increments the value of the dial with checks for the minimal and maximal value"""
-        num: float = self._state + value * self._step
-        num = min(self._max, num)
-        num = max(self._min, num)
-        self._state = num
+        num: float = self._attributes["state"] + value * self._attributes["step"]
+        num = min(self._attributes["max"], num)
+        num = max(self._attributes["min"], num)
+        self._attributes["state"] = num
     
-    def set_state(self, value: float):
+    def set_state(self, value: float) -> None:
         """Sets the value of the dial without checks for the minimal and maximal value"""
-        self._state = value
+        self._attributes["state"] = value
     
     
     @classmethod
@@ -261,10 +247,10 @@ class Dial(BaseModel):
                 if which == "spotify":
                     filename = _to_filename(dial.icon, ".jpeg")
                     image = _download_spotify_image(id_,filename).copy()
-                if which == "url":
+                elif which == "url":
                     filename = _url_to_filename(id_)
                     image = _download_image(id_, filename, size).copy()
-                if which == "ring":
+                elif which == "ring":
                     pct = _maybe_number(id_)
                     assert isinstance(pct, (int, float)), f"Invalid ring percentage: {id_}"
                     image = _draw_percentage_ring(
@@ -315,31 +301,20 @@ class Dial(BaseModel):
                 size=size
             )
     
-    _timer: AsyncDelayedCallback | None = PrivateAttr(None)
-    
     def start_or_restart_timer(
         self,
         callback: Callable[[], None | Coroutine] | None = None    
     ) -> bool:
-        if self.delay:
-            if self._timer is None:
-                assert isinstance(
-                    self.delay,
-                    (int, float),
-                ), f"Invalid delay: {self.delay}"
-                self._timer = AsyncDelayedCallback(delay=self.delay, callback=callback)
-            if self._timer.is_running():
-                self._timer.cancel()
-                self._timer.start()
-            else:
-                self._timer.start()
-            return True
-        return False
-    
-
-        
-
-
+        if not self.delay:
+            return False
+        if self._timer is None:
+            assert isinstance(
+                self.delay,
+                (int, float),
+            ), f"Invalid delay: {self.delay}"
+            self._timer = AsyncDelayedCallback(delay=self.delay, callback=callback)
+        self._timer.start()
+        return True
 class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     """Button configuration."""
 
@@ -829,18 +804,18 @@ class Page(BaseModel):
     )
     
     _dials_sorted: list[Dial] = PrivateAttr([])
-    def sort_dials(self) -> list[(Dial,Dial | None)]:
+    def sort_dials(self) -> list[tuple[Dial,Dial | None]]:
         self._dials_sorted = []
         last_num = -1
         for i in range(0,len(self.dials)):
             if i == last_num: continue
-            try:
+            if i >= len(self.dials):
                 if self.dials[i].dial_event_type != self.dials[i+1].dial_event_type:
                     self._dials_sorted.append((self.dials[i], self.dials[i+1]))
                     last_num = i+1
                 else:
                     self._dials_sorted.append((self.dials[i], None))
-            except IndexError as e:
+            else:
                 self._dials_sorted.append((self.dials[i], None))
         return self._dials_sorted
                 
@@ -1605,14 +1580,10 @@ def _max_filter(value: float, other_value: float) -> float:
     """
     return max(value, other_value)
 
-def _round(num, digits):
+def _round(num: float, digits: int) -> int | float:
     """Returns rounded value with number of digits"""
     res = round(num, digits)
     return res
-
-def _int(num) -> int:
-    #This is outdated, just use jinja casting
-    return int(num)
 
 def _dial_value(
     dial: Dial
@@ -1656,7 +1627,6 @@ def _render_jinja(text: str, complete_state: StateDict, dial: Dial | None=None) 
             states=ft.partial(_states, complete_state=complete_state),
             is_state=ft.partial(_is_state, complete_state=complete_state),
             round=_round,
-            int=_int,
             dial_value=ft.partial(_dial_value, dial=dial),
             dial_attr=ft.partial(_dial_attr, dial=dial),
         ).strip()
@@ -1846,10 +1816,9 @@ def update_all_dials(
     deck: StreamDeck,
     config: Config,
     complete_state: StateDict,
-):
+) -> None:
     console.log("Called update_all_dials")
-    for key in range(len(config.current_page().dials)):
-        current_dial = config.current_page().dials[key]
+    for key, current_dial in enumerate(config.current_page().dials):
         assert current_dial is not None
         if current_dial.entity_id is None:
             return
@@ -1875,7 +1844,7 @@ def update_dial(
             event_data = data["event"]["data"]
             new_state = event_data["new_state"]
             dial.update_attributes(new_state)
-        except KeyError as e:
+        except KeyError:
             dial.update_attributes(data)
             
     size_lcd = deck.touchscreen_image_format()["size"]
@@ -1987,12 +1956,12 @@ def _on_touchscreen_event_callback(
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
     config: Config,
-):
+) -> Callable[[StreamDeck, TouchscreenEventType, dict[str,int]], Coroutine[StreamDeck, TouchscreenEventType, dict[str,int]]]:
     async def touchscreen_event_callback(
         deck: StreamDeck,
         event_type: TouchscreenEventType,
         value: dict[str, int]
-    ):
+    ) -> None:
         console.log(f"Touchscreen event {event_type} called at value {value}")
         if event_type == TouchscreenEventType.DRAG:
             # go to next or previous page
@@ -2019,11 +1988,11 @@ def _on_touchscreen_event_callback(
                 selected_dial = dials[1]
             if selected_dial.allow_touchscreen_events:
                 if event_type == TouchscreenEventType.SHORT:
-                    selected_dial.set_state(selected_dial.get_attributes()["min"])
-                    await handle_dial_event(websocket, complete_state, config, dials, deck, DialEventType.TURN, 0, False)
+                    type = "min"
                 elif event_type == TouchscreenEventType.LONG:
-                    selected_dial.set_state(selected_dial.get_attributes()["max"])
-                    await handle_dial_event(websocket, complete_state, config, dials, deck, DialEventType.TURN, 0, False)
+                    type = "max"          
+                selected_dial.set_state(selected_dial.get_attributes()[type])
+                await handle_dial_event(websocket, complete_state, config, dials, deck, DialEventType.TURN, 0, False)
             
     return touchscreen_event_callback
 
@@ -2055,8 +2024,7 @@ async def handle_dial_event(
     if selected_dial.service is not None:
         selected_dial = selected_dial.rendered_template_dial(complete_state)
         if selected_dial.service_data is None:
-            service_data = {}
-            service_data["entity_id"] = selected_dial.entity_id
+            service_data = {"entity_id": selected_dial.entity_id}
         else:
             service_data = selected_dial.service_data
 
@@ -2071,13 +2039,13 @@ def _on_dial_event_callback(
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
     config: Config,       
-):
+) -> Callable[[StreamDeck, int, DialEventType, int], Coroutine[StreamDeck, int, DialEventType, int]]:
     async def dial_event_callback(
         deck: StreamDeck,
         dial_num: int,
         event_type: DialEventType,
         value: int,
-    ):
+    ) -> None:
         console.log(f"Dial {dial_num} event {event_type} at value {value} has been called")
         dial = config.dial_sorted(dial_num)
         assert dial is not None
@@ -2476,6 +2444,22 @@ def safe_load_yaml(
     """Load a YAML file."""
     included_files = []
 
+    def _traverse_yaml(node: dict[str,Any], vars: dict[str, str]) -> None:
+        if isinstance(node, dict):
+            for key,value in node.items():
+                if not isinstance(value,dict):
+                    for var, var_value in vars.items():
+                        if not isinstance(value, str):
+                            continue
+                        
+                        format = rf'\$\{{{var}\}}'
+                        node[key] = re.sub(format, str(var_value), node[key])
+                else:
+                    _traverse_yaml(value, vars)
+        elif isinstance(node, list):
+            for item in node:
+                _traverse_yaml(item, vars)
+
     class IncludeLoader(yaml.SafeLoader):
         """YAML Loader with `!include` constructor."""
 
@@ -2501,15 +2485,8 @@ def safe_load_yaml(
 
             loaded_data = yaml.load(filepath.read_text(), IncludeLoader)
             assert loaded_data and vars is not None
-            updated_data = [{}]
-            for entity in loaded_data:
-                for attribute, value in entity.items():
-                    for var, var_value in vars.items():
-                        if attribute not in updated_data[loaded_data.index(entity)]:
-                            updated_data[loaded_data.index(entity)][attribute] = value
-                        format = rf'\$\{{{var}\}}'
-                        updated_data[loaded_data.index(entity)][attribute] = re.sub(format, var_value, updated_data[loaded_data.index(entity)][attribute])
-            return updated_data
+            _traverse_yaml(loaded_data, vars)
+            return loaded_data
 
     IncludeLoader.add_constructor("!include", _include)
     loaded_data = yaml.load(f, IncludeLoader)  # noqa: S506

@@ -1982,7 +1982,7 @@ async def _sync_input_boolean(
             {},
             {"entity_id": state_entity_id},
         )
-
+        
 def _on_touchscreen_event_callback(
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,

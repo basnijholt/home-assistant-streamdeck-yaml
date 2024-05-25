@@ -169,7 +169,7 @@ class Dial(BaseModel):
     _timer: AsyncDelayedCallback | None = PrivateAttr(None)
     
     # Internal attributes for Dial
-    _attributes: dict[str, float] = PrivateAttr({})
+    _attributes: dict[str, float] = PrivateAttr({"state": 0, "min": 0, "max": 100, "step": 1})
 
     def update_attributes(self, data: dict[str, Any]) -> None:
         """Updates all home assistant entity attributes"""
@@ -179,14 +179,14 @@ class Dial(BaseModel):
             self._attributes = self.attributes
         
         if self.state_attribute is None:
-            self._attributes["state"] = float(data["state"])
+            self._attributes.update({"state": float(data["state"])})
         else:
             try:
                 if data["attributes"][self.state_attribute] is None:
-                    self._attributes["state"]
+                    self._attributes["state"] = 0
                 else:
                     self._attributes["state"] = float(data["attributes"][self.state_attribute])
-            except KeyError as e:
+            except KeyError:
                 console.log(f"Could not find attribute {self.state_attribute}")
                 self._attributes["state"] = 0
 
@@ -290,7 +290,7 @@ class Dial(BaseModel):
             )
             return image
         
-        except Exception as e:
+        except ValueError as e:
             console.log(e)
             warnings.warn(
                 f"Failed to render icon for dial {key}",
@@ -806,19 +806,23 @@ class Page(BaseModel):
     _dials_sorted: list[Dial] = PrivateAttr([])
     def sort_dials(self) -> list[tuple[Dial,Dial | None]]:
         self._dials_sorted = []
-        last_num = -1
-        for i in range(0,len(self.dials)):
-            if i == last_num: continue
-            if i >= len(self.dials):
-                if self.dials[i].dial_event_type != self.dials[i+1].dial_event_type:
-                    self._dials_sorted.append((self.dials[i], self.dials[i+1]))
-                    last_num = i+1
-                else:
-                    self._dials_sorted.append((self.dials[i], None))
-            else:
-                self._dials_sorted.append((self.dials[i], None))
+        skip = False
+        for index, dial in enumerate(self.dials):
+            if index + 1 < len(self.dials):
+                if skip:
+                    skip = False
+                    continue
+
+                next_dial = self.dials[index+1]
+                if dial.dial_event_type != next_dial.dial_event_type:
+                    self._dials_sorted.append((dial, next_dial))
+                    skip = True
+                else: 
+                    self._dials_sorted.append((dial, None))
+            else: 
+                self._dials_sorted.append((dial, None))
         return self._dials_sorted
-                
+
     def get_sorted_key(self, dial: Dial) -> int | None:
         """Returns the integer key for a dial"""
         dial_list = self._dials_sorted
@@ -1443,7 +1447,7 @@ def _update_state(
                     console.log(f"Invalid brightness state {brightness=}")
 
             # Handle the state entity (turning on/off display)
-            if eid == config.state_entity_id and config.state_entity_id is not None:
+            if eid == config.state_entity_id:
                 is_on = complete_state[config.state_entity_id]["state"] == "on"
                 if is_on:
                     turn_on(config, deck, complete_state)
@@ -1588,9 +1592,12 @@ def _round(num: float, digits: int) -> int | float:
 def _dial_value(
     dial: Dial
 ) -> float:
-    assert dial is not None
-    attributes = dial.get_attributes()
-    return float(attributes["state"])
+    try:
+        assert dial is not None
+        attributes = dial.get_attributes()
+        return float(attributes["state"])
+    except KeyError:
+        return 0
 
 def _dial_attr(
     attr: str,
@@ -1840,11 +1847,11 @@ def update_dial(
         return
     
     if data is not None:
-        try:
+        if "event" in data and "data" in data["event"]:
             event_data = data["event"]["data"]
             new_state = event_data["new_state"]
             dial.update_attributes(new_state)
-        except KeyError:
+        else:
             dial.update_attributes(data)
             
     size_lcd = deck.touchscreen_image_format()["size"]
@@ -2018,9 +2025,11 @@ async def handle_dial_event(
         console.log("Could not resolve event type for dial")
         return
     dial_num_sorted = config.current_page().get_sorted_key(selected_dial)
-    
     assert selected_dial is not None
-    selected_dial.increment_state(value)
+
+    if event_type == DialEventType.TURN:
+        selected_dial.increment_state(value)
+
     if selected_dial.service is not None:
         selected_dial = selected_dial.rendered_template_dial(complete_state)
         if selected_dial.service_data is None:

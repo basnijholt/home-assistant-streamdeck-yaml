@@ -2001,7 +2001,8 @@ def _on_touchscreen_event_callback(
             update_all_key_images(deck, config, complete_state)
             update_all_dials(deck, config, complete_state)
         else:
-            # sets value of dial to maximum value
+            # Short touch: Sets dial value to minimal value
+            # Long touch: Sets dial to maximal value
             lcd_icon_size = (
                 deck.touchscreen_image_format()["size"][0] / deck.dial_count()
             )

@@ -1,3 +1,5 @@
+"""Test App Home_assistant_streamdeck_yaml for Streamdeck plus."""
+
 from __future__ import annotations
 
 import json
@@ -16,7 +18,9 @@ from home_assistant_streamdeck_yaml import (
     Config,
     Dial,
     Page,
+    TouchscreenEventType,
     _on_dial_event_callback,
+    _on_touchscreen_event_callback,
     _update_state,
     update_dial,
 )
@@ -41,7 +45,7 @@ def state() -> dict[str, dict[str, Any]]:
 
 @pytest.fixture()
 def mock_deck_plus() -> Mock:
-    """Mocks a StreamDeck Plus"""
+    """Mocks a StreamDeck Plus."""
     deck_mock = Mock(spec=StreamDeckPlus)
 
     deck_mock.KEY_PIXEL_WIDTH = StreamDeckPlus.KEY_PIXEL_WIDTH
@@ -81,6 +85,7 @@ def mock_deck_plus() -> Mock:
 
 @pytest.fixture()
 def dial_dict() -> dict[str, dict[str, Any]]:
+    """Returns Config dictionary for streamdeck plus."""
     return {
         "number_value": {
             "entity_id": "input_number.streamdeck",
@@ -89,6 +94,7 @@ def dial_dict() -> dict[str, dict[str, Any]]:
             "icon_mdi": "television",
             "dial_event_type": "TURN",
             "attributes": {"min": 0, "max": 100, "step": 1},
+            "allow_touchscreen_events": True,
         },
         "input_number": {
             "entity_id": "input_number.streamdeck",
@@ -116,6 +122,7 @@ def dial_dict() -> dict[str, dict[str, Any]]:
 
 @pytest.fixture()
 def state_change_msg() -> dict[str, Any]:
+    """Message for state change."""
     return {
         "type": "event",
         "event": {
@@ -159,6 +166,7 @@ def state_change_msg() -> dict[str, Any]:
 
 @pytest.fixture()
 def dials(dial_dict: dict[str, dict[str, Any]]) -> list[Dial]:
+    """Order of dials for page."""
     dial_order = [
         "number_value",
         "input_number",
@@ -170,41 +178,51 @@ def dials(dial_dict: dict[str, dict[str, Any]]) -> list[Dial]:
 
 
 def test_dials(dials: list[Dial], state: dict[str, dict[str, Any]]) -> None:
+    """Tests setup of pages with dials and rendering of image."""
     page = Page(name="Home", dials=dials)
     config = Config(pages=[page])
     first_page = config.to_page(0)
-    rendered_dials = [dial.rendered_template_dial(state) for dial in first_page.dials]
 
     # test dial sorting
-    sorted = first_page.sort_dials()
-    assert sorted is not None
-    for i in range(len(sorted)):
-        assert sorted[i] == config.dial_sorted(i)
+    sorted_dials = first_page.sort_dials()
+    assert sorted_dials is not None
+    for i in range(len(sorted_dials)):
+        assert sorted_dials[i] == config.dial_sorted(i)
 
     # change number value TURN event
-    d = rendered_dials[0]
+    d = first_page.dials[0]
     # check domain type
     assert d.entity_id is not None
     # check image rendering
-    icon = d.render_lcd_image(state, first_page.get_sorted_key(d), (200, 100))
+    sorted_key = first_page.get_sorted_key(d)
+    print(d)
+    assert isinstance(sorted_key, int)
+    d = d.rendered_template_dial(state)
+    icon = d.render_lcd_image(state, sorted_key, (200, 100))
     assert isinstance(icon, Image.Image)
     # check dial_value() jinja rendering
     assert d.service_data is not None
     assert isinstance(float(d.service_data["value"]), float)
 
-    d = rendered_dials[1]
+    d = first_page.dials[1]
     assert d.service_data is not None
     assert d.dial_event_type == "PUSH"
 
-    d = rendered_dials[2]
+    d = first_page.dials[2]
     # check icon rendering for mdi icons
-    icon = d.render_lcd_image(state, first_page.get_sorted_key(d), (200, 100))
+    sorted_key = first_page.get_sorted_key(d)
+    assert isinstance(sorted_key, int)
+    d = d.rendered_template_dial(state)
+    icon = d.render_lcd_image(state, sorted_key, (200, 100))
     assert isinstance(icon, Image.Image)
     assert d.text is not None
     assert d.dial_event_type == "TURN"
 
-    d = rendered_dials[3]
-    icon = d.render_lcd_image(state, first_page.get_sorted_key(d), (200, 100))
+    d = first_page.dials[3]
+    sorted_key = first_page.get_sorted_key(d)
+    assert isinstance(sorted_key, int)
+    d = d.rendered_template_dial(state)
+    icon = d.render_lcd_image(state, sorted_key, (200, 100))
     assert isinstance(icon, Image.Image)
     assert d.dial_event_type == "TURN"
 
@@ -216,7 +234,7 @@ async def test_streamdeck_plus(
     dials: list[Dial],
     state_change_msg: dict[str, dict[str, Any]],
 ) -> None:
-    """Tests dials, buttons and pages on streamdeck plus"""
+    """Tests dials, buttons and pages on streamdeck plus with state change."""
     home = Page(
         name="home",
         buttons=[
@@ -238,6 +256,7 @@ async def test_streamdeck_plus(
 
     config.current_page().sort_dials()
     dial = config.dial(0)
+    assert dial is not None
     dial = dial.rendered_template_dial(state)
     assert dial.entity_id == "input_number.streamdeck"
     assert dial.service == "input_number.set_value"
@@ -261,6 +280,93 @@ async def test_streamdeck_plus(
     # test update attributes
     dial.update_attributes(state_change_msg["event"]["data"]["new_state"])
     updated_attributes = dial.get_attributes()
-    assert updated_attributes["max"] == 100
+    assert updated_attributes["max"] == 100  # noqa: PLR2004
     assert updated_attributes["step"] == 1
     assert updated_attributes["min"] == 0
+
+
+async def test_touchscreen(
+    mock_deck_plus: Mock,
+    websocket_mock: Mock,
+    state: dict[str, dict[str, Any]],
+    dials: list[Dial],
+) -> None:
+    """Test touchscreen events for dial."""
+    home = Page(
+        name="home",
+        buttons=[
+            Button(special_type="go-to-page", special_type_data="page_1"),
+            Button(special_type="go-to-page", special_type_data="page_anon"),
+        ],
+    )
+
+    page_1 = Page(
+        name="page_1",
+        dials=dials,
+    )
+
+    page_anon = Page(name="page_anon", dials=dials)
+    config = Config(pages=[home, page_1], anonymous_pages=[page_anon])
+    assert config._current_page_index == 0
+    assert config.current_page() == home
+
+    # Check if you can change page using Touchscreen.
+    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
+    await touch_event(
+        mock_deck_plus,
+        TouchscreenEventType.DRAG,
+        {
+            "x": 0,
+            "y": 0,
+            "x_out": 100,
+            "y_out": 0,
+        },
+    )
+
+    assert config.current_page() == page_1
+    # Check if you can set max using touchscreen.
+    config.current_page().sort_dials()
+    dial = config.dial(0)
+    assert dial is not None
+
+    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
+    await touch_event(
+        mock_deck_plus,
+        TouchscreenEventType.LONG,
+        {
+            "x": 100,
+            "y": 50,
+        },
+    )
+    attributes = dial.get_attributes()
+    assert attributes["state"] == attributes["max"]
+
+    # Check if you can set min using touchscreen.
+    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
+    await touch_event(
+        mock_deck_plus,
+        TouchscreenEventType.SHORT,
+        {
+            "x": 100,
+            "y": 50,
+        },
+    )
+    attributes = dial.get_attributes()
+    assert attributes["state"] == attributes["min"]
+
+    # Check if disabling touchscreen events works
+    dial = config.dial(3)
+    assert dial is not None
+    assert dial.allow_touchscreen_events is not True
+
+    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
+    await touch_event(
+        mock_deck_plus,
+        TouchscreenEventType.SHORT,
+        {
+            "x": 300,
+            "y": 50,
+        },
+    )
+    attributes = dial.get_attributes()
+    assert attributes["state"] is not attributes["min"]

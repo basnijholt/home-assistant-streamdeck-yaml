@@ -10,7 +10,7 @@
     value: 0
     entity_id: input_number.test
   text: |
-    Set 
+    Set
     0
 - entity_id: input_number.test
   service: input_number.set_value
@@ -18,5 +18,5 @@
     value: 100
     entity_id: input_number.test
   text: |
-    Set 
+    Set
     100

@@ -1,6 +1,6 @@
 - entity_id: input_number.streamdeck
   service: input_number.set_value
-  service_data: 
+  service_data:
     value: 5
   text: |
     Set
@@ -8,14 +8,14 @@
   text_size: 16
 - entity_id: input_number.streamdeck
   service: input_number.set_value
-  service_data: 
+  service_data:
     value: 0
   text: |
     Set
     0
 - entity_id: input_number.streamdeck
   service: input_number.set_value
-  service_data: 
+  service_data:
     value: 2
   icon: >
     {%- set temp = states('input_number.streamdeck') -%}

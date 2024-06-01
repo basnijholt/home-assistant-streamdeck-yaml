@@ -1,6 +1,6 @@
 - entity_id: input_number.test
   service: input_number.set_value
-  service_data: 
+  service_data:
     value: '{{ dial_value() }}'
   dial_event_type: TURN
   icon: >
@@ -15,6 +15,6 @@
   delay: 0.5
 - entity_id: input_number.test
   service: input_number.set_value
-  service_data: 
+  service_data:
     value: 0
   dial_event_type: PUSH

@@ -1,6 +1,6 @@
 - entity_id: input_number.streamdeck
   service: input_number.set_value
-  service_data: 
+  service_data:
     value: 0
   dial_event_type: TURN
   text: |
@@ -8,7 +8,7 @@
     World
 - entity_id: input_number.streamdeck
   service: input_number.set_value
-  service_data: 
+  service_data:
     value: '{{ dial_value() }}'
   dial_event_type: TURN
   icon: >
@@ -23,12 +23,12 @@
   delay: 0.5
 - entity_id: input_number.streamdeck
   service: input_number.set_value
-  service_data: 
+  service_data:
     value: 0
   dial_event_type: PUSH
 - entity_id: input_number.streamdeck
   service: input_number.set_value
-  service_data: 
+  service_data:
     value: '{{ (10 / 2) * 5 }}'
   dial_event_type: TURN
   icon_mdi: "home"

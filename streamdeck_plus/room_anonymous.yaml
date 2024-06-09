@@ -1,0 +1,8 @@
+- entity_id: input_number.test
+  service: input_number.set_value
+  service_data:
+    value: 0
+    entity_id: input_number.test
+  text: |
+    Set
+    0

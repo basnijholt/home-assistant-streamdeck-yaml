@@ -1,0 +1,20 @@
+- entity_id: input_number.test
+  service: input_number.set_value
+  service_data:
+    value: '{{ dial_value() }}'
+  dial_event_type: TURN
+  icon: >
+    {%- set state = dial_attr("state") -%}
+    {%- set min = dial_attr("min") -%}
+    {%- set max = dial_attr("max") -%}
+    {%- set pct = ((state - min) / (max - min)) * 100 -%}
+    ring:{{ pct | round }}
+  text: >
+    {%- set state = dial_value() -%}
+    '{{state}}'
+  delay: 0.5
+- entity_id: input_number.test
+  service: input_number.set_value
+  service_data:
+    value: 0
+  dial_event_type: PUSH

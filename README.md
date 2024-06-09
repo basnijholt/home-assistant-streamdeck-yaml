@@ -18,6 +18,7 @@ With this Python script, you can control your Home Assistant instance via a Stre
 - 🏠 Runs from same machine as Home Assistant
 - 🚀 Template support for advanced customization
 - 💤 Automatically sync state of `entity_id` to turn display on/off
+- 🎛️ (NEW!) Stream Deck Plus with dial support
 
 [[ToC](#books-table-of-contents)]
 

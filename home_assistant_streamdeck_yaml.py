@@ -2051,6 +2051,7 @@ async def handle_dial_event(
     if not config._is_on:
         turn_on(config, deck, complete_state)
         await _sync_input_boolean(config.state_entity_id, websocket, "on")
+        return
 
     if dial[0].dial_event_type == event_type.name:
         selected_dial = dial[0]

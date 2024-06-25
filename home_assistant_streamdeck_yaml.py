@@ -2162,6 +2162,7 @@ async def _handle_key_press(
     if not config._is_on:
         turn_on(config, deck, complete_state)
         await _sync_input_boolean(config.state_entity_id, websocket, "on")
+        return
 
     def update_all() -> None:
         deck.reset()

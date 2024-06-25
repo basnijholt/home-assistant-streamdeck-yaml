@@ -20,11 +20,11 @@ With this Python script, you can control your Home Assistant instance via a Stre
 - 💤 Automatically sync state of `entity_id` to turn display on/off
 - 🎛️ (NEW!) Stream Deck Plus with dial support
 
-[[ToC](#books-table-of-contents)]
+\[[ToC](#books-table-of-contents)\]
 
 **Why choose our solution over others?**
 
-You might have seen a similar project ([`cgiesche/streamdeck-homeassistant`](https://github.com/cgiesche/streamdeck-homeassistant)) on Github before [[†](https://github.com/cgiesche/streamdeck-homeassistant)].
+You might have seen a similar project ([`cgiesche/streamdeck-homeassistant`](https://github.com/cgiesche/streamdeck-homeassistant)) on Github before \[[†](https://github.com/cgiesche/streamdeck-homeassistant)\].
 However, our solution is more versatile and allows you to connect a Stream Deck to the same Linux machine where Home Assistant is running.
 The native Stream Deck software doesn't support Linux, but we've got you covered with the help of the [`python-elgato-streamdeck`](https://github.com/abcminiuser/python-elgato-streamdeck) library.
 If you are looking for some inspiration, check out the [>20 Button Configurations ideas](#bulb-more-than-30-button-configurations-ideas) section below.
@@ -36,22 +36,23 @@ https://user-images.githubusercontent.com/6897215/226788119-6c198ea6-2950-4f95-9
 ## :books: Table of Contents
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
+
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-  - [🌟 Share Your Success](#-share-your-success)
-  - [:rocket: Getting Started](#rocket-getting-started)
-    - [:house_with_garden: Installation as Home Assistant Add-on](#house_with_garden-installation-as-home-assistant-add-on)
-    - [:whale: Installation with Docker](#whale-installation-with-docker)
-    - [:computer: Installation without Docker](#computer-installation-without-docker)
-      - [:penguin: Linux](#penguin-linux)
-      - [:apple: MacOS](#apple-macos)
-      - [:desktop_computer: Windows](#desktop_computer-windows)
-  - [:gear: Configuration](#gear-configuration)
-    - [:page_facing_up: `configuration.yaml`](#page_facing_up-configurationyaml)
-    - [:link: Using `!include` for Modular Configuration](#link-using-include-for-modular-configuration)
-    - [:clipboard: Config YAML configuration](#clipboard-config-yaml-configuration)
-    - [:bookmark_tabs: Page YAML configuration](#bookmark_tabs-page-yaml-configuration)
-    - [:white_square_button: Button YAML configuration](#white_square_button-button-yaml-configuration)
+- [🌟 Share Your Success](#-share-your-success)
+- [:rocket: Getting Started](#rocket-getting-started)
+  - [:house_with_garden: Installation as Home Assistant Add-on](#house_with_garden-installation-as-home-assistant-add-on)
+  - [:whale: Installation with Docker](#whale-installation-with-docker)
+  - [:computer: Installation without Docker](#computer-installation-without-docker)
+    - [:penguin: Linux](#penguin-linux)
+    - [:apple: MacOS](#apple-macos)
+    - [:desktop_computer: Windows](#desktop_computer-windows)
+- [:gear: Configuration](#gear-configuration)
+  - [:page_facing_up: `configuration.yaml`](#page_facing_up-configurationyaml)
+  - [:link: Using `!include` for Modular Configuration](#link-using-include-for-modular-configuration)
+  - [:clipboard: Config YAML configuration](#clipboard-config-yaml-configuration)
+  - [:bookmark_tabs: Page YAML configuration](#bookmark_tabs-page-yaml-configuration)
+  - [:white_square_button: Button YAML configuration](#white_square_button-button-yaml-configuration)
 - [:bulb: More than 30 Button Configurations ideas](#bulb-more-than-30-button-configurations-ideas)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -74,11 +75,11 @@ Follow the steps below to get up and running with Home Assistant on Stream Deck.
 <summary>Click to expand.</summary>
 
 1. In your Home Assistant instance, navigate to **Supervisor** > **Add-on Store**.
-2. Click the menu icon (three vertical dots) in the top right corner and select **Repositories**.
-3. Add the following repository URL: `https://github.com/basnijholt/home-assistant-streamdeck-yaml-addon`.
-4. The add-on should now appear in the **Add-on Store**. Click on "Home Assistant Stream Deck YAML" and then click "Install".
-5. After the installation is complete, configure the add-on using either the `.env` file or the individual configuration options (see the [add-on configuration documentation](https://github.com/basnijholt/home-assistant-streamdeck-yaml-addon#add-on-configuration-gear) for more information).
-6. Start the add-on and check the logs for any errors.
+1. Click the menu icon (three vertical dots) in the top right corner and select **Repositories**.
+1. Add the following repository URL: `https://github.com/basnijholt/home-assistant-streamdeck-yaml-addon`.
+1. The add-on should now appear in the **Add-on Store**. Click on "Home Assistant Stream Deck YAML" and then click "Install".
+1. After the installation is complete, configure the add-on using either the `.env` file or the individual configuration options (see the [add-on configuration documentation](https://github.com/basnijholt/home-assistant-streamdeck-yaml-addon#add-on-configuration-gear) for more information).
+1. Start the add-on and check the logs for any errors.
 
 </details>
 
@@ -88,9 +89,9 @@ Follow the steps below to get up and running with Home Assistant on Stream Deck.
 <summary>Click to expand.</summary>
 
 1. Edit the [`.env.example`](.env.example) file and rename it to `.env`.
-2. Setup a [`configuration.yaml` file (see below)](#configuration).
-3. Install Docker, see [this](https://docs.docker.com/get-docker/) page for instructions
-4. Use the [`basnijholt/home-assistant-streamdeck-yaml:latest`](https://hub.docker.com/r/basnijholt/home-assistant-streamdeck-yaml) Docker image with:
+1. Setup a [`configuration.yaml` file (see below)](#configuration).
+1. Install Docker, see [this](https://docs.docker.com/get-docker/) page for instructions
+1. Use the [`basnijholt/home-assistant-streamdeck-yaml:latest`](https://hub.docker.com/r/basnijholt/home-assistant-streamdeck-yaml) Docker image with:
 
 ```bash
 docker run --rm -it --privileged --env-file=$(pwd)/.env -v $(pwd)/:/app/ basnijholt/home-assistant-streamdeck-yaml:latest
@@ -112,9 +113,9 @@ docker build -t basnijholt/home-assistant-streamdeck-yaml:latest .
 <summary>Click to expand common steps for Linux :penguin:, :apple: MacOS, and :desktop_computer: Windows.</summary>
 
 1. Run `pip install -e .` in the repo folder to install the required dependencies.
-2. Edit the [`.env.example`](.env.example) file and rename it to `.env`.
-3. Setup a [`configuration.yaml` file (see below)](#configuration).
-4. Follow the platform-specific steps for [Linux](#linux), [MacOS](#macos), or [Windows](#windows).
+1. Edit the [`.env.example`](.env.example) file and rename it to `.env`.
+1. Setup a [`configuration.yaml` file (see below)](#configuration).
+1. Follow the platform-specific steps for [Linux](#linux), [MacOS](#macos), or [Windows](#windows).
 
 </details>
 
@@ -163,9 +164,10 @@ For **Windows**, see [this](https://python-elgato-streamdeck.readthedocs.io/en/s
 ## :gear: Configuration
 
 1. Create a `configuration.yaml` file in the same directory.
-2. Choose one of the two usage options:
-  - Option 1: With environment variables. (See [`.env.example`](.env.example) for details)
-  - Option 2: With command-line arguments. (Run `home-assistant-streamdeck-yaml -h` to see the available options)
+1. Choose one of the two usage options:
+
+- Option 1: With environment variables. (See [`.env.example`](.env.example) for details)
+- Option 2: With command-line arguments. (Run `home-assistant-streamdeck-yaml -h` to see the available options)
 
 You're all set! 🎉
 
@@ -282,11 +284,17 @@ By using `!include`, you can keep your configuration clean and easily reusable.
 Each YAML config can take the following configuration
 
 <!-- CODE:START -->
+
 <!-- from home_assistant_streamdeck_yaml import Config -->
+
 <!-- print(Config.to_markdown_table()) -->
+
 <!-- CODE:END -->
+
 <!-- OUTPUT:START -->
+
 <!-- ⚠️ This content is auto-generated by `markdown-code-runner`. -->
+
 | Variable name     | Description                                                                                                                                                                                                                                                                               | Default   | Type            |
 |:------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------|:----------------|
 | `pages`           | A list of `Page`s in the configuration.                                                                                                                                                                                                                                                   |           | `List[Page]`    |
@@ -302,11 +310,17 @@ Each YAML config can take the following configuration
 Each button can take the following configuration
 
 <!-- CODE:START -->
+
 <!-- from home_assistant_streamdeck_yaml import Page -->
+
 <!-- print(Page.to_markdown_table()) -->
+
 <!-- CODE:END -->
+
 <!-- OUTPUT:START -->
+
 <!-- ⚠️ This content is auto-generated by `markdown-code-runner`. -->
+
 | Variable name   | Description                    | Default   | Type           |
 |:----------------|:-------------------------------|:----------|:---------------|
 | `name`          | The name of the page.          |           | `str`          |
@@ -320,11 +334,17 @@ Each button can take the following configuration
 Each button can take the following configuration
 
 <!-- CODE:START -->
+
 <!-- from home_assistant_streamdeck_yaml import Button -->
+
 <!-- print(Button.to_markdown_table()) -->
+
 <!-- CODE:END -->
+
 <!-- OUTPUT:START -->
+
 <!-- ⚠️ This content is auto-generated by `markdown-code-runner`. -->
+
 | Variable name           | Allow template   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Default   | Type                                                                                                            |
 |:------------------------|:-----------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------|:----------------------------------------------------------------------------------------------------------------|
 | `entity_id`             | ✅                | The `entity_id` that this button controls. This entitity will be passed to the `service` when the button is pressed. The button is re-rendered whenever the state of this entity changes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |           | `Optional[str]`                                                                                                 |
@@ -352,14 +372,20 @@ Each button can take the following configuration
 Here are >30 interesting uses for the Stream Deck with Home Assistant (click on text to expand):
 
 <!-- CODE:START -->
-<!-- import os, sys -->
-<!-- sys.path.append(os.path.abspath(".")) -->
-<!-- from tests.test_examples import generate_readme_entry -->
-<!-- print(generate_readme_entry()) -->
-<!-- CODE:END -->
-<!-- OUTPUT:START -->
-<!-- ⚠️ This content is auto-generated by `markdown-code-runner`. -->
 
+<!-- import os, sys -->
+
+<!-- sys.path.append(os.path.abspath(".")) -->
+
+<!-- from tests.test_examples import generate_readme_entry -->
+
+<!-- print(generate_readme_entry()) -->
+
+<!-- CODE:END -->
+
+<!-- OUTPUT:START -->
+
+<!-- ⚠️ This content is auto-generated by `markdown-code-runner`. -->
 
 <details>
 <summary>1. 🎭 Activate a scene:</summary>
@@ -587,7 +613,6 @@ Arm the alarm system in 30 seconds if it's disarmed, disarm it immediately if it
   text: Send Notification
 ```
 
-
 Which uses this script (which needs to be defined in Home Assistant):
 
 ```yaml
@@ -598,7 +623,6 @@ send_mobile_notification:
       data:
         message: "Your custom notification message."
 ```
-
 
 </details>
 
@@ -651,7 +675,6 @@ send_mobile_notification:
   text: Doorbell Announcement
 ```
 
-
 Which uses this script (which needs to be defined in Home Assistant):
 
 ```yaml
@@ -663,7 +686,6 @@ trigger_doorbell_announcement:
         entity_id: media_player.<your_media_player>
         message: "Someone is at the door."
 ```
-
 
 </details>
 
@@ -716,7 +738,6 @@ trigger_doorbell_announcement:
   text: Voice Assistant
 ```
 
-
 Which uses this script (which needs to be defined in Home Assistant):
 
 ```yaml
@@ -730,7 +751,6 @@ activate_voice_assistant:
         media_content_id: "http://<your_url>/<filename>.mp3"
         media_content_type: "music"
 ```
-
 
 </details>
 
@@ -757,7 +777,6 @@ activate_voice_assistant:
   text: Toggle Camera Recording
 ```
 
-
 Which uses this script (which needs to be defined in Home Assistant):
 
 ```yaml
@@ -772,7 +791,6 @@ toggle_security_camera_recording:
         lookback: 2
         filename: "/config/www/recordings/camera_{{ now().strftime('%Y%m%d_%H%M%S') }}.mp4"
 ```
-
 
 </details>
 
@@ -912,5 +930,108 @@ When pressed, the `configuration.yaml` is reloaded.
 
 </details>
 
+## Support for Streamdeck plus
+
+### Configuration.yaml
+
+The configuration.yaml for the Streamdeck plus is very similar to the configuration for the normal streamdeck, you only have to add the dials for each page if oyu want to use them, you can of course also leave if if you dont want to use dials for a specific page. An example would look like this.
+
+```yaml
+brightness: 100
+auto_reload: true
+state_entity_id: input_boolean.streamdeck
+pages:
+  - name: home
+    buttons: !include includes/home.yaml
+  - name: room_1
+    dials: !include includes/room_1_dials.yaml
+    buttons: !include includes/room_1.yaml
+```
+
+### Configuring the Dials
+
+The dials also work very similarly to the buttons, you only have to specify a event type such as push if you would like to push the button or turn if you would like to make a turn event. Here is an example for a turn event dial that controls a light.
+
+```yaml
+- entity_id: light.testing
+  service: light.turn_on
+  service_data: 
+    brightness: '{{ dial_value | int}}'
+  icon: >
+    {%- set state = dial_value() -%}
+    {%- set min = dial_attr("min") -%}
+    {%- set max = dial_attr("max") -%}
+    {%- set pct = ((state - min) / (max - min)) * 100 -%}
+    ring:{{ pct | round }}
+  text: >
+    {%- set state = dial_value()  -%}
+    {%- set ha_state = states('light.testing') -%}
+    {%- if ha_state == "off" and dial_value() == 0 -%}
+        {{"off"}}
+    {%- else -%}
+        {{state | int}}
+    {%- endif -%}
+  state_attribute: brightness
+  allow_touchscreen: true
+  delay: 0.5
+  dial_event_type: TURN
+  attributes:
+    min: 0
+    max: 100
+    step: 1
+```
+
+### Types of Dial specific attributes
+
+| Variable name   | Description                    | Default   | Type           |
+|:----------------|:-------------------------------|:----------|:---------------|
+| `dial_event_type`          | The type of event that the dial should trigger. |   None        | PUSH or TURN |
+| `allow_touchscreen`          | Sets whether events from the touchscreen should be allowed |   False        | bool |
+| `attributes`          | A dictionary of attributes that are specific to the dial |   None        | dict |
+| `attributes.min`          | The minimum value that the dial can have |   None        | int |
+| `attributes.max`          | The maximum value that the dial can have |   None        | int |
+| `attributes.step`          | The step size that the dial should have |   None        | int |
+| `state_attribute`          | An attribute of an HA entity that the dial should control e.g brightness for a light |   None        | str |
+| `delay`          | The delay (in seconds) before the `service` is called. This is useful if you want to wait before calling the `service`. Counts down from the time the button is pressed. If while counting the button is pressed again, the timer is cancelled. Should be a float or template string that evaluates to a float. |   None        | float |
+
+### Jinja variables
+
+- dial_value: The current local value of the dial (might be different from the states value if a delay is set)
+
+- dial_attr: A function that takes a string as an argument and returns the value of the attribute with that name
+
+- states: The current state of the entity in home assistant
+
+### Touchscreen events
+
+- If your streamdeck has a touchscreen like the streamdeck plus has you can also swipe on the touchscreen to get to the next or previous page.
+
+- If you set the 'allow_touchscreen' attribute you can also use the touchscreen to set the value of a dial to the max or min value of that dial by tapping or holding the area of the dial.
+
+## Include variables
+
+You can also pass variables with the include tag to the included file. This can be useful for creating templates and reusing them for multiple entities. Here is an example of how you can use include variables in your configuration:
+
+Anything defined within
+
+#### page.yaml
+
+```yaml
+- !include {file: includes/button.yaml, vars: {entity_id: light.living_room, icon_mdi:lightbulb, text: Living Room Lights}}
+- !include {file: includes/button.yaml, vars: {entity_id: light.bed, icon_mdi:lightbulb, text: Bed Room Lights}}
+# Other files you might want to include...
+```
+
+#### includes/button.yaml
+
+```yaml
+- entity_id: ${entity_id}
+  service: light.toggle
+  icon_mdi: ${icon_mdi}
+  text: ${text}
+```
+
+In this case ${entity_id}, ${icon_mdi}, and ${text} will will be replaced with the values given in the !include tag.
+NOTE: The variables are not jinja templates and are replaced at the time of loading the yaml file.
 
 <!-- OUTPUT:END -->

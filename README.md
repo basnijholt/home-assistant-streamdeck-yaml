@@ -934,7 +934,7 @@ When pressed, the `configuration.yaml` is reloaded.
 
 ### Configuration.yaml
 
-The configuration.yaml for the Streamdeck plus is very similar to the configuration for the normal streamdeck, you only have to add the dials for each page if oyu want to use them, you can of course also leave if if you dont want to use dials for a specific page. An example would look like this.
+The configuration.yaml for the Streamdeck plus is very similar to the configuration for the normal streamdeck, you only have to add the dials for each page if you want to use them, you can of course also leave it if you dont want to use dials for a specific page. An example of a configuration.yaml with dials would look like this.
 
 ```yaml
 brightness: 100
@@ -950,12 +950,12 @@ pages:
 
 ### Configuring the Dials
 
-The dials also work very similarly to the buttons, you only have to specify a event type such as push if you would like to push the button or turn if you would like to make a turn event. Here is an example for a turn event dial that controls a light.
+The dials also work very similarly to the buttons, you only have to specify an event type such as push if you would like to push the button or turn if you would like to make a turn event. Here is an example for a turn event dial that controls a light. And shows a ring indicator and the numerical value of the brightness.
 
 ```yaml
 - entity_id: light.testing
   service: light.turn_on
-  service_data: 
+  service_data:
     brightness: '{{ dial_value | int}}'
   icon: >
     {%- set state = dial_value() -%}
@@ -1004,15 +1004,15 @@ The dials also work very similarly to the buttons, you only have to specify a ev
 
 ### Touchscreen events
 
-- If your streamdeck has a touchscreen like the streamdeck plus has you can also swipe on the touchscreen to get to the next or previous page.
+- If your streamdeck has a touchscreen you can switch pages by swiping left or right on the screen.
 
 - If you set the 'allow_touchscreen' attribute you can also use the touchscreen to set the value of a dial to the max or min value of that dial by tapping or holding the area of the dial.
 
 ## Include variables
 
-You can also pass variables with the include tag to the included file. This can be useful for creating templates and reusing them for multiple entities. Here is an example of how you can use include variables in your configuration:
+### NOTE: Include variables work independent from the Streamdeck plus feature and can be used in every supported streamdeck version.
 
-Anything defined within
+You can also pass variables with the include tag to the included file. This can be useful for creating templates and reusing them for multiple entities. Here is an example of how you can use include variables in your configuration:
 
 #### page.yaml
 
@@ -1021,6 +1021,8 @@ Anything defined within
 - !include {file: includes/button.yaml, vars: {entity_id: light.bed, icon_mdi:lightbulb, text: Bed Room Lights}}
 # Other files you might want to include...
 ```
+
+Anything that is within the vars dictionary and in the `${variable_name}`  format will be replaced upon loading the yaml file when starting the application. Other text in the same format but not in the vars dictionary will not be replaced.
 
 #### includes/button.yaml
 
@@ -1031,7 +1033,6 @@ Anything defined within
   text: ${text}
 ```
 
-In this case ${entity_id}, ${icon_mdi}, and ${text} will will be replaced with the values given in the !include tag.
-NOTE: The variables are not jinja templates and are replaced at the time of loading the yaml file.
+In this case ${entity_id}, ${icon_mdi}, and ${text} will will be replaced with the values given in the !include tag.<F11>
 
 <!-- OUTPUT:END -->

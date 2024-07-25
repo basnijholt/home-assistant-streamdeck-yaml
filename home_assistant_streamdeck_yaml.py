@@ -2066,6 +2066,8 @@ async def handle_dial_event(
 
     if event_type == DialEventType.TURN:
         selected_dial.increment_state(value)
+    elif value:
+        return
 
     if selected_dial.service is not None:
         selected_dial = selected_dial.rendered_template_dial(complete_state)
@@ -2074,6 +2076,10 @@ async def handle_dial_event(
             if selected_dial.service_data is None
             else selected_dial.service_data
         )
+
+    # Ensures the entity id is given to the service even if service_data is set
+    if "entity_id" not in service_data:
+        service_data["entity_id"] = selected_dial.entity_id
 
     assert selected_dial.service is not None
     if local_update:

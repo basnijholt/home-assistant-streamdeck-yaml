@@ -992,7 +992,7 @@ The dials also work very similarly to the buttons, you only have to specify an e
 | `attributes.max`          | The maximum value that the dial can have |   None        | int |
 | `attributes.step`          | The step size that the dial should have |   None        | int |
 | `state_attribute`          | An attribute of an HA entity that the dial should control e.g brightness for a light |   None        | str |
-| `delay`          | The delay (in seconds) before the `service` is called. This is useful if you want to wait before calling the `service`. Counts down from the time the button is pressed. If while counting the button is pressed again, the timer is cancelled. Should be a float or template string that evaluates to a float. |   None        | float |
+| `delay`          | The delay (in seconds) before the `service` is called. This counts down from the specified time and collects the called turn events and sends the bundled value to home_assistant after the dial hasnt been turned for the specified time in delay  |   None        | float |
 
 ### Jinja variables
 

@@ -916,6 +916,8 @@ When pressed, the `configuration.yaml` is reloaded.
 
 </details>
 
+<!-- OUTPUT:END -->
+
 ## Support for Streamdeck plus
 
 ### Configuration.yaml
@@ -1020,5 +1022,3 @@ Anything that is within the vars dictionary and in the `${variable_name}`  forma
 ```
 
 In this case ${entity_id}, ${icon_mdi}, and ${text} will will be replaced with the values given in the !include tag.<F11>
-
-<!-- OUTPUT:END -->

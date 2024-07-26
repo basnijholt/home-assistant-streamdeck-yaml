@@ -697,19 +697,22 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         return True
 
 
-# Update the Dial's descriptions
-for _k, _v in Dial.__fields__.items():
-    _v.field_info.description = (
-        _v.field_info.description.replace("on the button", "above the dial")
-        .replace("button", "dial")
-        .replace("pressed", "rotated")
-    )
-    if _k == "delay":
+def _update_dial_descriptions() -> None:
+    for _k, _v in Dial.__fields__.items():
         _v.field_info.description = (
-            "The delay (in seconds) before the `service` is called."
-            " This counts down from the specified time and collects the called turn events and"
-            " sends the bundled value to Home Assistant after the dial hasn't been turned for the specified time in delay."
+            _v.field_info.description.replace("on the button", "above the dial")
+            .replace("button", "dial")
+            .replace("pressed", "rotated")
         )
+        if _k == "delay":
+            _v.field_info.description = (
+                "The delay (in seconds) before the `service` is called."
+                " This counts down from the specified time and collects the called turn events and"
+                " sends the bundled value to Home Assistant after the dial hasn't been turned for the specified time in delay."
+            )
+
+
+_update_dial_descriptions()
 
 
 def _to_filename(id_: str, suffix: str = "") -> Path:

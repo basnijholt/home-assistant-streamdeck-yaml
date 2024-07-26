@@ -60,7 +60,6 @@ https://user-images.githubusercontent.com/6897215/226788119-6c198ea6-2950-4f95-9
     - [Jinja variables](#jinja-variables)
     - [Touchscreen events](#touchscreen-events)
   - [Include variables](#include-variables)
-    - [NOTE: Include variables work independent from the Streamdeck plus feature and can be used in every supported streamdeck version.](#note-include-variables-work-independent-from-the-streamdeck-plus-feature-and-can-be-used-in-every-supported-streamdeck-version)
       - [page.yaml](#pageyaml)
       - [includes/button.yaml](#includesbuttonyaml)
 

@@ -53,13 +53,14 @@ https://user-images.githubusercontent.com/6897215/226788119-6c198ea6-2950-4f95-9
     - [:bookmark_tabs: Page YAML configuration](#bookmark_tabs-page-yaml-configuration)
     - [:white_square_button: Button YAML configuration](#white_square_button-button-yaml-configuration)
 - [:bulb: More than 30 Button Configurations ideas](#bulb-more-than-30-button-configurations-ideas)
-  - [Support for Streamdeck plus](#support-for-streamdeck-plus)
-    - [Configuration.yaml](#configurationyaml)
-    - [Configuring the Dials](#configuring-the-dials)
-    - [Types of Dial specific attributes](#types-of-dial-specific-attributes)
+  - [Additional documentation](#additional-documentation)
+    - [Support for Streamdeck Plus :plus:](#support-for-streamdeck-plus-plus)
+      - [Configuration.yaml](#configurationyaml)
+      - [Configuring the Dials](#configuring-the-dials)
+      - [Types of Dial specific attributes](#types-of-dial-specific-attributes)
     - [Jinja variables](#jinja-variables)
     - [Touchscreen events](#touchscreen-events)
-  - [Include variables](#include-variables)
+    - [Include variables](#include-variables)
       - [page.yaml](#pageyaml)
       - [includes/button.yaml](#includesbuttonyaml)
 
@@ -925,11 +926,14 @@ When pressed, the `configuration.yaml` is reloaded.
 
 <!-- OUTPUT:END -->
 
-## Support for Streamdeck plus
+## Additional documentation
 
-### Configuration.yaml
+### Support for Streamdeck Plus :plus:
 
-The configuration.yaml for the Streamdeck plus is very similar to the configuration for the normal streamdeck, you only have to add the dials for each page if you want to use them, you can of course also leave it if you dont want to use dials for a specific page. An example of a configuration.yaml with dials would look like this.
+#### Configuration.yaml
+
+The `configuration.yaml` for the Streamdeck plus is very similar to the configuration for the regular streamdeck, you only have to add the dials for each page if you want to use them, you can of course also leave it if you don't want to use dials for a specific page.
+An example of a `configuration.yaml` with dials would look like this.
 
 ```yaml
 brightness: 100
@@ -943,9 +947,11 @@ pages:
     buttons: !include includes/room_1.yaml
 ```
 
-### Configuring the Dials
+#### Configuring the Dials
 
-The dials also work very similarly to the buttons, you only have to specify an event type such as push if you would like to push the button or turn if you would like to make a turn event. Here is an example for a turn event dial that controls a light. And shows a ring indicator and the numerical value of the brightness.
+The dials also work very similarly to the buttons, you only have to specify an event type such as push if you would like to push the button or turn if you would like to make a turn event.
+Here is an example for a turn event dial that controls a light.
+And shows a ring indicator and the numerical value of the brightness.
 
 ```yaml
 - entity_id: light.testing
@@ -976,39 +982,38 @@ The dials also work very similarly to the buttons, you only have to specify an e
     step: 1
 ```
 
-### Types of Dial specific attributes
+#### Types of Dial specific attributes
 
-| Variable name   | Description                    | Default   | Type           |
-|:----------------|:-------------------------------|:----------|:---------------|
-| `dial_event_type`          | The type of event that the dial should trigger. |   None        | PUSH or TURN |
-| `allow_touchscreen`          | Sets whether events from the touchscreen should be allowed |   False        | bool |
-| `attributes`          | A dictionary of attributes that are specific to the dial |   None        | dict |
-| `attributes.min`          | The minimum value that the dial can have |   None        | int |
-| `attributes.max`          | The maximum value that the dial can have |   None        | int |
-| `attributes.step`          | The step size that the dial should have |   None        | int |
-| `state_attribute`          | An attribute of an HA entity that the dial should control e.g brightness for a light |   None        | str |
-| `delay`          | The delay (in seconds) before the `service` is called. This counts down from the specified time and collects the called turn events and sends the bundled value to home_assistant after the dial hasnt been turned for the specified time in delay  |   None        | float |
+| Variable name       | Description                                                                                                                                                                                                                                        | Default | Type         |
+| :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :----------- |
+| `dial_event_type`   | The type of event that the dial should trigger.                                                                                                                                                                                                    | None    | PUSH or TURN |
+| `allow_touchscreen` | Sets whether events from the touchscreen should be allowed                                                                                                                                                                                         | False   | bool         |
+| `attributes`        | A dictionary of attributes that are specific to the dial                                                                                                                                                                                           | None    | dict         |
+| `attributes.min`    | The minimum value that the dial can have                                                                                                                                                                                                           | None    | int          |
+| `attributes.max`    | The maximum value that the dial can have                                                                                                                                                                                                           | None    | int          |
+| `attributes.step`   | The step size that the dial should have                                                                                                                                                                                                            | None    | int          |
+| `state_attribute`   | An attribute of an HA entity that the dial should control e.g brightness for a light                                                                                                                                                               | None    | str          |
+| `delay`             | The delay (in seconds) before the `service` is called. This counts down from the specified time and collects the called turn events and sends the bundled value to home_assistant after the dial hasnt been turned for the specified time in delay | None    | float        |
 
 ### Jinja variables
 
-- dial_value: The current local value of the dial (might be different from the states value if a delay is set)
-
-- dial_attr: A function that takes a string as an argument and returns the value of the attribute with that name
-
-- states: The current state of the entity in home assistant
+- `dial_value`: The current local value of the dial (might be different from the states value if a delay is set)
+- `dial_attr`: A function that takes a string as an argument and returns the value of the attribute with that name
+- `states`: The current state of the entity in home assistant
 
 ### Touchscreen events
 
 - If your streamdeck has a touchscreen you can switch pages by swiping left or right on the screen.
+- If you set the `allow_touchscreen` attribute you can also use the touchscreen to set the value of a dial to the max or min value of that dial by tapping or holding the area of the dial.
 
-- If you set the 'allow_touchscreen' attribute you can also use the touchscreen to set the value of a dial to the max or min value of that dial by tapping or holding the area of the dial.
-
-## Include variables
+### Include variables
 
 >[!NOTE]
 > Include variables work independent from the Streamdeck plus feature and can be used in every supported streamdeck version.
 
-You can also pass variables with the include tag to the included file. This can be useful for creating templates and reusing them for multiple entities. Here is an example of how you can use include variables in your configuration:
+You can also pass variables with the include tag to the included file.
+This can be useful for creating templates and reusing them for multiple entities.
+Here is an example of how you can use include variables in your configuration:
 
 #### page.yaml
 
@@ -1018,7 +1023,8 @@ You can also pass variables with the include tag to the included file. This can 
 # Other files you might want to include...
 ```
 
-Anything that is within the vars dictionary and in the `${variable_name}`  format will be replaced upon loading the yaml file when starting the application. Other text in the same format but not in the vars dictionary will not be replaced.
+Anything that is within the vars dictionary and in the `${variable_name}` format will be replaced upon loading the YAML file when starting the application.
+Other text in the same format but not in the vars dictionary will not be replaced.
 
 #### includes/button.yaml
 
@@ -1029,4 +1035,4 @@ Anything that is within the vars dictionary and in the `${variable_name}`  forma
   text: ${text}
 ```
 
-In this case ${entity_id}, ${icon_mdi}, and ${text} will will be replaced with the values given in the !include tag.<F11>
+In this case `${entity_id}`, `${icon_mdi}`, and `${text}` will be replaced with the values given in the `!include` tag.<F11>

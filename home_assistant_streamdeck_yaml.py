@@ -524,15 +524,17 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
     state_attribute: str | None = Field(
         default=None,
         allow_template=True,
-        description="The attribute of the entity which gets used for the dial state",
+        description="The attribute of the entity which gets used for the dial state.",
+        # TODO: use this?
+        # An attribute of an HA entity that the dial should control e.g., brightness for a light.
     )
     attributes: dict[str, float] | None = Field(
         default=None,
         allow_template=True,
-        description="Sets the attributes of the dial"
-        "min: The minimal value of the dial"
-        "max: The maximal value of the dial"
-        "step: the step size by which the value of the dial is increased by on an event",
+        description="Sets the attributes of the dial."
+        " `min`: The minimal value of the dial."
+        " `max`: The maximal value of the dial."
+        " `step`: the step size by which the value of the dial is increased by on an event.",
     )
     allow_touchscreen_events: bool = Field(
         default=False,
@@ -703,7 +705,11 @@ for _k, _v in Dial.__fields__.items():
         .replace("pressed", "rotated")
     )
     if _k == "delay":
-        _v.field_info.description = "The delay in between events for the service to be called. Dial changes are added to decrease traffic."
+        _v.field_info.description = (
+            "The delay (in seconds) before the `service` is called."
+            " This counts down from the specified time and collects the called turn events and"
+            " sends the bundled value to Home Assistant after the dial hasn't been turned for the specified time in delay."
+        )
 
 
 def _to_filename(id_: str, suffix: str = "") -> Path:

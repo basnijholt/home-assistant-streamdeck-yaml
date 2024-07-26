@@ -984,14 +984,7 @@ And shows a ring indicator and the numerical value of the brightness.
 
 #### Types of Dial specific attributes
 
-| Variable name       | Description                                                                                                                                                                                                                                        | Default | Type         |
-| :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------ | :----------- |
-| `dial_event_type`   | The type of event that the dial should trigger.                                                                                                                                                                                                    | None    | PUSH or TURN |
-| `allow_touchscreen_events` | Sets whether events from the touchscreen should be allowed                                                                                                                                                                                         | False   | bool         |
-| `attributes`        | A dictionary of attributes that are specific to the dial                                                                                                                                                                                           | None    | dict         |
-| `attributes.min`    | The minimum value that the dial can have                                                                                                                                                                                                           | None    | int          |
-| `attributes.max`    | The maximum value that the dial can have                                                                                                                                                                                                           | None    | int          |
-| `attributes.step`   | The step size that the dial should have                                                                                                                                                                                                            | None    | int          |
+The attributes until `delay` are the same as for the buttons, but there are some additional attributes that are specific to the dials.
 
 <!-- CODE:START -->
 <!-- from home_assistant_streamdeck_yaml import Dial -->

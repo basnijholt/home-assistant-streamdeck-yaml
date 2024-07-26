@@ -76,265 +76,14 @@ console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
 
 
-class Dial(BaseModel, extra="forbid"):  # type: ignore[call-arg]
-    """Dial configuration."""
-
-    entity_id: str | None = Field(
-        default=None,
-        allow_template=True,
-    )
-    linked_entity: str | None = Field(
-        default=None,
-        allow_template=True,
-        description="A secondary entity_id that is used for updating images and states",
-    )
-    service: str | None = Field(
-        default=None,
-        allow_template=True,
-    )
-    service_data: dict[str, Any] | None = Field(
-        default=None,
-        allow_template=True,
-    )
-    target: dict[str, Any] | None = Field(
-        default=None,
-        allow_template=True,
-    )
-    dial_event_type: str | None = Field(
-        default=None,
-        allow_template=True,
-        description="The event type of the dial that will trigger the service."
-        "Either DialEventType.TURN or DialEventType.PUSH",
-    )
-    text: str = Field(default="", allow_template=True)
-    text_color: str | None = Field(
-        default=None,
-        allow_template=True,
-    )
-    text_size: int = Field(
-        default=16,
-        allow_template=False,
-    )
-    text_offset: int = Field(
-        default=0,
-        allow_template=False,
-    )
-    icon: str | None = Field(
-        default=None,
-        allow_template=True,
-    )
-    icon_mdi: str | None = Field(
-        default=None,
-        allow_template=True,
-    )
-    icon_background_color: str = Field(
-        default="#000000",
-        allow_template=True,
-    )
-    icon_mdi_color: str | None = Field(
-        default=None,
-        allow_template=True,
-    )
-    icon_gray_when_off: bool = Field(
-        default=False,
-        allow_template=False,
-        description="When specifying `icon` and `entity_id`, if the state is `off`, the icon will be converted to grayscale.",
-    )
-    delay: float | str = Field(
-        default=0.0,
-        allow_template=True,
-        description="The delay inbetween events for the service to be called"
-        " Dial changes are added to decrease traffic ",
-    )
-    state_attribute: str | None = Field(
-        default=None,
-        allow_template=True,
-        description="The attribute of the entity which gets used for the dial state",
-    )
-    attributes: dict[str, float] | None = Field(
-        default=None,
-        allow_template=True,
-        description="Sets the attributes of the dial"
-        "min: The minimal value of the dial"
-        "max: The maximal value of the dial"
-        "step: the step size by which the value of the dial is increased by on an event",
-    )
-    allow_touchscreen_events: bool = Field(
-        default=False,
-        allow_template=True,
-        description="Whether events from the touchscreen such as setting minimal value on short and setting maximal value on LONG are allowed",
-    )
-
-    # vars for timer
-    _timer: AsyncDelayedCallback | None = PrivateAttr(None)
-
-    # Internal attributes for Dial
-    _attributes: dict[str, float] = PrivateAttr(
-        {"state": 0, "min": 0, "max": 100, "step": 1},
-    )
-
-    def update_attributes(self, data: dict[str, Any]) -> None:
-        """Updates all home assistant entity attributes."""
-        if self.attributes is None:
-            self._attributes = data["attributes"]
-        else:
-            self._attributes = self.attributes
-
-        if self.state_attribute is None:
-            self._attributes.update({"state": float(data["state"])})
-        else:
-            try:
-                if data["attributes"][self.state_attribute] is None:
-                    self._attributes["state"] = 0
-                else:
-                    self._attributes["state"] = float(
-                        data["attributes"][self.state_attribute],
-                    )
-            except KeyError:
-                console.log(f"Could not find attribute {self.state_attribute}")
-                self._attributes["state"] = 0
-
-    def get_attributes(self) -> dict[str, float]:
-        """Returns all home assistant entity attributes."""
-        return self._attributes
-
-    def increment_state(self, value: float) -> None:
-        """Increments the value of the dial with checks for the minimal and maximal value."""
-        num: float = self._attributes["state"] + value * self._attributes["step"]
-        num = min(self._attributes["max"], num)
-        num = max(self._attributes["min"], num)
-        self._attributes["state"] = num
-
-    def set_state(self, value: float) -> None:
-        """Sets the value of the dial without checks for the minimal and maximal value."""
-        self._attributes["state"] = value
-
-    @classmethod
-    def templatable(cls: type[Dial]) -> set[str]:
-        """Return if an attribute is templatable, which is if the type-annotation is str."""
-        schema = cls.schema()
-        properties = schema["properties"]
-        return {k for k, v in properties.items() if v["allow_template"]}
-
-    def rendered_template_dial(
-        self,
-        complete_state: StateDict,
-    ) -> Dial:
-        """Return a dial with the rendered text."""
-        dct = self.dict(exclude_unset=True)
-        for key in self.templatable():
-            if key not in dct:
-                continue
-            val = dct[key]
-            if isinstance(val, dict):
-                for k, v in val.items():
-                    val[k] = _render_jinja(v, complete_state, self)
-            else:
-                dct[key] = _render_jinja(val, complete_state, self)
-        return Dial(**dct)
-
-    # LCD/Touchscreen management
-    def render_lcd_image(
-        self,
-        complete_state: StateDict,
-        key: int,  # Key needs to be from sorted dials
-        size: tuple[int, int],
-        icon_mdi_margin: int = 0,
-        font_filename: str = DEFAULT_FONT,
-    ) -> Image.Image:
-        """Render the image for the LCD."""
-        try:
-            image = None
-            dial = self.rendered_template_dial(complete_state)
-
-            if isinstance(dial.icon, str) and ":" in dial.icon:
-                which, id_ = dial.icon.split(":", 1)
-                if which == "spotify":
-                    filename = _to_filename(dial.icon, ".jpeg")
-                    image = _download_spotify_image(id_, filename).copy()
-                elif which == "url":
-                    filename = _url_to_filename(id_)
-                    image = _download_image(id_, filename, size).copy()
-                elif which == "ring":
-                    pct = _maybe_number(id_)
-                    assert isinstance(
-                        pct,
-                        (int, float),
-                    ), f"Invalid ring percentage: {id_}"
-                    image = _draw_percentage_ring(
-                        percentage=pct,
-                        size=size,
-                        radius=40,
-                    )
-
-            icon_convert_to_grayscale = False
-            text = dial.text
-            text_color = dial.text_color or "white"
-
-            assert dial.entity_id is not None
-            if (
-                complete_state[dial.entity_id]["state"] == "off"
-                and dial.icon_gray_when_off
-            ):
-                icon_convert_to_grayscale = True
-
-            if image is None:
-                image = _init_icon(
-                    icon_background_color=dial.icon_background_color,
-                    icon_filename=dial.icon,
-                    icon_mdi=dial.icon_mdi,
-                    icon_mdi_margin=icon_mdi_margin,
-                    icon_mdi_color=_named_to_hex(dial.icon_mdi_color or text_color),
-                    size=size,
-                ).copy()
-
-            if icon_convert_to_grayscale:
-                image = _convert_to_grayscale(image)
-
-            _add_text(
-                image=image,
-                font_filename=font_filename,
-                text_size=self.text_size,
-                text=text,
-                text_color=text_color,
-                text_offset=self.text_offset,
-            )
-            return image  # noqa: TRY300
-
-        except ValueError as e:
-            console.log(e)
-            warnings.warn(
-                f"Failed to render icon for dial {key}",
-                IconWarning,
-                stacklevel=2,
-            )
-            return _generate_failed_icon(size=size)
-
-    def start_or_restart_timer(
-        self,
-        callback: Callable[[], None | Coroutine] | None = None,
-    ) -> bool:
-        """Starts or restarts AsyncDelayedCallback timer."""
-        if not self.delay:
-            return False
-        if self._timer is None:
-            assert isinstance(
-                self.delay,
-                (int, float),
-            ), f"Invalid delay: {self.delay}"
-            self._timer = AsyncDelayedCallback(delay=self.delay, callback=callback)
-        self._timer.start()
-        return True
-
-
-class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
-    """Button configuration."""
+class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
+    """Parent of Button and Dial."""
 
     entity_id: str | None = Field(
         default=None,
         allow_template=True,
         description="The `entity_id` that this button controls."
-        " This entitity will be passed to the `service` when the button is pressed."
+        " This entity will be passed to the `service` when the button is pressed."
         " The button is re-rendered whenever the state of this entity changes.",
     )
     linked_entity: str | None = Field(
@@ -432,6 +181,49 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " If while counting the button is pressed again, the timer is cancelled."
         " Should be a float or template string that evaluates to a float.",
     )
+
+    _timer: AsyncDelayedCallback | None = PrivateAttr(None)
+
+    @classmethod
+    def templatable(cls: type[Button]) -> set[str]:
+        """Return if an attribute is templatable, which is if the type-annotation is str."""
+        schema = cls.schema()
+        properties = schema["properties"]
+        return {k for k, v in properties.items() if v["allow_template"]}
+
+    @classmethod
+    def to_pandas_table(cls: type[Button]) -> pd.DataFrame:
+        """Return a pandas table with the schema."""
+        import pandas as pd
+
+        rows = []
+        for k, field in cls.__fields__.items():
+            info = field.field_info
+            if info.description is None:
+                continue
+
+            def code(text: str) -> str:
+                return f"`{text}`"
+
+            row = {
+                "Variable name": code(k),
+                "Allow template": "✅" if info.extra["allow_template"] else "❌",
+                "Description": info.description,
+                "Default": code(info.default) if info.default else "",
+                "Type": code(field._type_display()),
+            }
+            rows.append(row)
+        return pd.DataFrame(rows)
+
+    @classmethod
+    def to_markdown_table(cls: type[Button]) -> str:
+        """Return a markdown table with the schema."""
+        return cls.to_pandas_table().to_markdown(index=False)
+
+
+class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
+    """Button configuration."""
+
     special_type: (
         Literal[
             "next-page",
@@ -472,42 +264,11 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",
     )
 
-    _timer: AsyncDelayedCallback | None = PrivateAttr(None)
-
     @classmethod
     def from_yaml(cls: type[Button], yaml_str: str) -> Button:
         """Set the attributes from a YAML string."""
         data = safe_load_yaml(yaml_str)
         return cls(**data[0])
-
-    @classmethod
-    def to_pandas_table(cls: type[Button]) -> pd.DataFrame:
-        """Return a pandas table with the schema."""
-        import pandas as pd
-
-        rows = []
-        for k, field in cls.__fields__.items():
-            info = field.field_info
-            if info.description is None:
-                continue
-
-            def code(text: str) -> str:
-                return f"`{text}`"
-
-            row = {
-                "Variable name": code(k),
-                "Allow template": "✅" if info.extra["allow_template"] else "❌",
-                "Description": info.description,
-                "Default": code(info.default) if info.default else "",
-                "Type": code(field._type_display()),
-            }
-            rows.append(row)
-        return pd.DataFrame(rows)
-
-    @classmethod
-    def to_markdown_table(cls: type[Button]) -> str:
-        """Return a markdown table with the schema."""
-        return cls.to_pandas_table().to_markdown(index=False)
 
     @property
     def domain(self) -> str | None:
@@ -515,13 +276,6 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         if self.service is None:
             return None
         return self.service.split(".", 1)[0]
-
-    @classmethod
-    def templatable(cls: type[Button]) -> set[str]:
-        """Return if an attribute is templatable, which is if the type-annotation is str."""
-        schema = cls.schema()
-        properties = schema["properties"]
-        return {k for k, v in properties.items() if v["allow_template"]}
 
     def rendered_template_button(
         self,
@@ -755,6 +509,207 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             text_color="white",
         )
         return button, image
+
+
+class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
+    """Dial configuration."""
+
+    dial_event_type: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="The event type of the dial that will trigger the service."
+        " Either `DialEventType.TURN` or `DialEventType.PUSH`.",
+    )
+
+    state_attribute: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="The attribute of the entity which gets used for the dial state.",
+        # TODO: use this?
+        # An attribute of an HA entity that the dial should control e.g., brightness for a light.
+    )
+    attributes: dict[str, float] | None = Field(
+        default=None,
+        allow_template=True,
+        description="Sets the attributes of the dial."
+        " `min`: The minimal value of the dial."
+        " `max`: The maximal value of the dial."
+        " `step`: the step size by which the value of the dial is increased by on an event.",
+    )
+    allow_touchscreen_events: bool = Field(
+        default=False,
+        allow_template=True,
+        description="Whether events from the touchscreen such as setting minimal value on short and setting maximal value on LONG are allowed",
+    )
+
+    # vars for timer
+    _timer: AsyncDelayedCallback | None = PrivateAttr(None)
+
+    # Internal attributes for Dial
+    _attributes: dict[str, float] = PrivateAttr(
+        {"state": 0, "min": 0, "max": 100, "step": 1},
+    )
+
+    def update_attributes(self, data: dict[str, Any]) -> None:
+        """Updates all home assistant entity attributes."""
+        if self.attributes is None:
+            self._attributes = data["attributes"]
+        else:
+            self._attributes = self.attributes
+
+        if self.state_attribute is None:
+            self._attributes.update({"state": float(data["state"])})
+        else:
+            try:
+                if data["attributes"][self.state_attribute] is None:
+                    self._attributes["state"] = 0
+                else:
+                    self._attributes["state"] = float(
+                        data["attributes"][self.state_attribute],
+                    )
+            except KeyError:
+                console.log(f"Could not find attribute {self.state_attribute}")
+                self._attributes["state"] = 0
+
+    def get_attributes(self) -> dict[str, float]:
+        """Returns all home assistant entity attributes."""
+        return self._attributes
+
+    def increment_state(self, value: float) -> None:
+        """Increments the value of the dial with checks for the minimal and maximal value."""
+        num: float = self._attributes["state"] + value * self._attributes["step"]
+        num = min(self._attributes["max"], num)
+        num = max(self._attributes["min"], num)
+        self._attributes["state"] = num
+
+    def set_state(self, value: float) -> None:
+        """Sets the value of the dial without checks for the minimal and maximal value."""
+        self._attributes["state"] = value
+
+    def rendered_template_dial(
+        self,
+        complete_state: StateDict,
+    ) -> Dial:
+        """Return a dial with the rendered text."""
+        dct = self.dict(exclude_unset=True)
+        for key in self.templatable():
+            if key not in dct:
+                continue
+            val = dct[key]
+            if isinstance(val, dict):
+                for k, v in val.items():
+                    val[k] = _render_jinja(v, complete_state, self)
+            else:
+                dct[key] = _render_jinja(val, complete_state, self)
+        return Dial(**dct)
+
+    # LCD/Touchscreen management
+    def render_lcd_image(
+        self,
+        complete_state: StateDict,
+        key: int,  # Key needs to be from sorted dials
+        size: tuple[int, int],
+        icon_mdi_margin: int = 0,
+        font_filename: str = DEFAULT_FONT,
+    ) -> Image.Image:
+        """Render the image for the LCD."""
+        try:
+            image = None
+            dial = self.rendered_template_dial(complete_state)
+
+            if isinstance(dial.icon, str) and ":" in dial.icon:
+                which, id_ = dial.icon.split(":", 1)
+                if which == "spotify":
+                    filename = _to_filename(dial.icon, ".jpeg")
+                    image = _download_spotify_image(id_, filename).copy()
+                elif which == "url":
+                    filename = _url_to_filename(id_)
+                    image = _download_image(id_, filename, size).copy()
+                elif which == "ring":
+                    pct = _maybe_number(id_)
+                    assert isinstance(
+                        pct,
+                        (int, float),
+                    ), f"Invalid ring percentage: {id_}"
+                    image = _draw_percentage_ring(
+                        percentage=pct,
+                        size=size,
+                        radius=40,
+                    )
+
+            icon_convert_to_grayscale = False
+            text = dial.text
+            text_color = dial.text_color or "white"
+
+            assert dial.entity_id is not None
+            if (
+                complete_state[dial.entity_id]["state"] == "off"
+                and dial.icon_gray_when_off
+            ):
+                icon_convert_to_grayscale = True
+
+            if image is None:
+                image = _init_icon(
+                    icon_background_color=dial.icon_background_color,
+                    icon_filename=dial.icon,
+                    icon_mdi=dial.icon_mdi,
+                    icon_mdi_margin=icon_mdi_margin,
+                    icon_mdi_color=_named_to_hex(dial.icon_mdi_color or text_color),
+                    size=size,
+                ).copy()
+
+            if icon_convert_to_grayscale:
+                image = _convert_to_grayscale(image)
+
+            _add_text(
+                image=image,
+                font_filename=font_filename,
+                text_size=self.text_size,
+                text=text,
+                text_color=text_color,
+                text_offset=self.text_offset,
+            )
+            return image  # noqa: TRY300
+
+        except ValueError as e:
+            console.log(e)
+            warnings.warn(
+                f"Failed to render icon for dial {key}",
+                IconWarning,
+                stacklevel=2,
+            )
+            return _generate_failed_icon(size=size)
+
+    def start_or_restart_timer(
+        self,
+        callback: Callable[[], None | Coroutine] | None = None,
+    ) -> bool:
+        """Starts or restarts AsyncDelayedCallback timer."""
+        if not self.delay:
+            return False
+        if self._timer is None:
+            assert isinstance(
+                self.delay,
+                (int, float),
+            ), f"Invalid delay: {self.delay}"
+            self._timer = AsyncDelayedCallback(delay=self.delay, callback=callback)
+        self._timer.start()
+        return True
+
+
+# Update the Dial's descriptions
+for _k, _v in Dial.__fields__.items():
+    _v.field_info.description = (
+        _v.field_info.description.replace("on the button", "above the dial")
+        .replace("button", "dial")
+        .replace("pressed", "rotated")
+    )
+    if _k == "delay":
+        _v.field_info.description = (
+            "The delay (in seconds) before the `service` is called."
+            " This counts down from the specified time and collects the called turn events and"
+            " sends the bundled value to Home Assistant after the dial hasn't been turned for the specified time in delay."
+        )
 
 
 def _to_filename(id_: str, suffix: str = "") -> Path:

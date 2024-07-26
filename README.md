@@ -990,8 +990,8 @@ The dials also work very similarly to the buttons, you only have to specify an e
 | `delay`          | The delay (in seconds) before the `service` is called. This counts down from the specified time and collects the called turn events and sends the bundled value to home_assistant after the dial hasnt been turned for the specified time in delay  |   None        | float |
 
 <!-- CODE:START -->
-<!-- from home_assistant_streamdeck_yaml import Dail -->
-<!-- print(Dail.to_markdown_table()) -->
+<!-- from home_assistant_streamdeck_yaml import Dial -->
+<!-- print(Dial.to_markdown_table()) -->
 <!-- CODE:END -->
 <!-- OUTPUT:START -->
 <!-- OUTPUT:END -->

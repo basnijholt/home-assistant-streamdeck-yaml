@@ -698,8 +698,8 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
 # Update the Dial's descriptions
 for _k, _v in Dial.__fields__.items():
     _v.field_info.description = (
-        _v.field_info.description.replace("on the button", "above the dail")
-        .replace("button", "dail")
+        _v.field_info.description.replace("on the button", "above the dial")
+        .replace("button", "dial")
         .replace("pressed", "rotated")
     )
     if _k == "delay":

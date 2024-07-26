@@ -518,7 +518,7 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         default=None,
         allow_template=True,
         description="The event type of the dial that will trigger the service."
-        "Either DialEventType.TURN or DialEventType.PUSH",
+        " Either `DialEventType.TURN` or `DialEventType.PUSH`.",
     )
 
     state_attribute: str | None = Field(

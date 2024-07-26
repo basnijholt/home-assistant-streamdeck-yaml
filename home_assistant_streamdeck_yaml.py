@@ -76,8 +76,8 @@ console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
 
 
-class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
-    """Button configuration."""
+class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
+    """Parent of Button and Dial."""
 
     entity_id: str | None = Field(
         default=None,
@@ -181,6 +181,49 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " If while counting the button is pressed again, the timer is cancelled."
         " Should be a float or template string that evaluates to a float.",
     )
+
+    _timer: AsyncDelayedCallback | None = PrivateAttr(None)
+
+    @classmethod
+    def templatable(cls: type[Button]) -> set[str]:
+        """Return if an attribute is templatable, which is if the type-annotation is str."""
+        schema = cls.schema()
+        properties = schema["properties"]
+        return {k for k, v in properties.items() if v["allow_template"]}
+
+    @classmethod
+    def to_pandas_table(cls: type[Button]) -> pd.DataFrame:
+        """Return a pandas table with the schema."""
+        import pandas as pd
+
+        rows = []
+        for k, field in cls.__fields__.items():
+            info = field.field_info
+            if info.description is None:
+                continue
+
+            def code(text: str) -> str:
+                return f"`{text}`"
+
+            row = {
+                "Variable name": code(k),
+                "Allow template": "✅" if info.extra["allow_template"] else "❌",
+                "Description": info.description,
+                "Default": code(info.default) if info.default else "",
+                "Type": code(field._type_display()),
+            }
+            rows.append(row)
+        return pd.DataFrame(rows)
+
+    @classmethod
+    def to_markdown_table(cls: type[Button]) -> str:
+        """Return a markdown table with the schema."""
+        return cls.to_pandas_table().to_markdown(index=False)
+
+
+class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
+    """Button configuration."""
+
     special_type: (
         Literal[
             "next-page",
@@ -221,42 +264,11 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",
     )
 
-    _timer: AsyncDelayedCallback | None = PrivateAttr(None)
-
     @classmethod
     def from_yaml(cls: type[Button], yaml_str: str) -> Button:
         """Set the attributes from a YAML string."""
         data = safe_load_yaml(yaml_str)
         return cls(**data[0])
-
-    @classmethod
-    def to_pandas_table(cls: type[Button]) -> pd.DataFrame:
-        """Return a pandas table with the schema."""
-        import pandas as pd
-
-        rows = []
-        for k, field in cls.__fields__.items():
-            info = field.field_info
-            if info.description is None:
-                continue
-
-            def code(text: str) -> str:
-                return f"`{text}`"
-
-            row = {
-                "Variable name": code(k),
-                "Allow template": "✅" if info.extra["allow_template"] else "❌",
-                "Description": info.description,
-                "Default": code(info.default) if info.default else "",
-                "Type": code(field._type_display()),
-            }
-            rows.append(row)
-        return pd.DataFrame(rows)
-
-    @classmethod
-    def to_markdown_table(cls: type[Button]) -> str:
-        """Return a markdown table with the schema."""
-        return cls.to_pandas_table().to_markdown(index=False)
 
     @property
     def domain(self) -> str | None:
@@ -264,13 +276,6 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         if self.service is None:
             return None
         return self.service.split(".", 1)[0]
-
-    @classmethod
-    def templatable(cls: type[Button]) -> set[str]:
-        """Return if an attribute is templatable, which is if the type-annotation is str."""
-        schema = cls.schema()
-        properties = schema["properties"]
-        return {k for k, v in properties.items() if v["allow_template"]}
 
     def rendered_template_button(
         self,
@@ -506,98 +511,16 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         return button, image
 
 
-_DESCRIPTIONS = {
-    k: v.field_info.description.replace("on the button", "above the dail")
-    .replace("button", "dail")
-    .replace("pressed", "rotated")
-    for k, v in Button.__fields__.items()
-}
-
-
-class Dial(BaseModel, extra="forbid"):  # type: ignore[call-arg]
+class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
     """Dial configuration."""
 
-    entity_id: str | None = Field(
-        default=None,
-        allow_template=True,
-        description=_DESCRIPTIONS["entity_id"],
-    )
-    linked_entity: str | None = Field(
-        default=None,
-        allow_template=True,
-        description=_DESCRIPTIONS["linked_entity"],
-    )
-    service: str | None = Field(
-        default=None,
-        allow_template=True,
-        description=_DESCRIPTIONS["service"],
-    )
-    service_data: dict[str, Any] | None = Field(
-        default=None,
-        allow_template=True,
-        description=_DESCRIPTIONS["service_data"],
-    )
-    target: dict[str, Any] | None = Field(
-        default=None,
-        allow_template=True,
-        description=_DESCRIPTIONS["target"],
-    )
     dial_event_type: str | None = Field(
         default=None,
         allow_template=True,
         description="The event type of the dial that will trigger the service."
         "Either DialEventType.TURN or DialEventType.PUSH",
     )
-    text: str = Field(
-        default="",
-        allow_template=True,
-        description=_DESCRIPTIONS["text"],
-    )
-    text_color: str | None = Field(
-        default=None,
-        allow_template=True,
-        description=_DESCRIPTIONS["text_color"],
-    )
-    text_size: int = Field(
-        default=16,
-        allow_template=False,
-        description=_DESCRIPTIONS["text_size"],
-    )
-    text_offset: int = Field(
-        default=0,
-        allow_template=False,
-        description=_DESCRIPTIONS["text_offset"],
-    )
-    icon: str | None = Field(
-        default=None,
-        allow_template=True,
-        description=_DESCRIPTIONS["icon"],
-    )
-    icon_mdi: str | None = Field(
-        default=None,
-        allow_template=True,
-        description=_DESCRIPTIONS["icon_mdi"],
-    )
-    icon_background_color: str = Field(
-        default="#000000",
-        allow_template=True,
-        description=_DESCRIPTIONS["icon_background_color"],
-    )
-    icon_mdi_color: str | None = Field(
-        default=None,
-        allow_template=True,
-        description=_DESCRIPTIONS["icon_mdi_color"],
-    )
-    icon_gray_when_off: bool = Field(
-        default=False,
-        allow_template=False,
-        description=_DESCRIPTIONS["icon_gray_when_off"],
-    )
-    delay: float | str = Field(
-        default=0.0,
-        allow_template=True,
-        description="The delay inbetween events for the service to be called. Dial changes are added to decrease traffic.",
-    )
+
     state_attribute: str | None = Field(
         default=None,
         allow_template=True,
@@ -660,13 +583,6 @@ class Dial(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     def set_state(self, value: float) -> None:
         """Sets the value of the dial without checks for the minimal and maximal value."""
         self._attributes["state"] = value
-
-    @classmethod
-    def templatable(cls: type[Dial]) -> set[str]:
-        """Return if an attribute is templatable, which is if the type-annotation is str."""
-        schema = cls.schema()
-        properties = schema["properties"]
-        return {k for k, v in properties.items() if v["allow_template"]}
 
     def rendered_template_dial(
         self,
@@ -777,6 +693,17 @@ class Dial(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             self._timer = AsyncDelayedCallback(delay=self.delay, callback=callback)
         self._timer.start()
         return True
+
+
+# Update the Dial's descriptions
+for _k, _v in Dial.__fields__.items():
+    _v.field_info.description = (
+        _v.field_info.description.replace("on the button", "above the dail")
+        .replace("button", "dail")
+        .replace("pressed", "rotated")
+    )
+    if _k == "delay":
+        _v.field_info.description = "The delay in between events for the service to be called. Dial changes are added to decrease traffic."
 
 
 def _to_filename(id_: str, suffix: str = "") -> Path:

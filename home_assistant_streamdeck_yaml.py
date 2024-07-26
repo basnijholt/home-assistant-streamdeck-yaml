@@ -506,6 +506,12 @@ class Button(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         return button, image
 
 
+_DESCRIPTIONS = {
+    k: v.field_info.description.replace("on the button", "above the dail")
+    .replace("button", "dail")
+    .replace("pressed", "rotated")
+    for k, v in Button.__fields__.items()
+}
 
 
 class Dial(BaseModel, extra="forbid"):  # type: ignore[call-arg]
@@ -514,23 +520,27 @@ class Dial(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     entity_id: str | None = Field(
         default=None,
         allow_template=True,
+        description=_DESCRIPTIONS["entity_id"],
     )
     linked_entity: str | None = Field(
         default=None,
         allow_template=True,
-        description="A secondary entity_id that is used for updating images and states",
+        description=_DESCRIPTIONS["linked_entity"],
     )
     service: str | None = Field(
         default=None,
         allow_template=True,
+        description=_DESCRIPTIONS["service"],
     )
     service_data: dict[str, Any] | None = Field(
         default=None,
         allow_template=True,
+        description=_DESCRIPTIONS["service_data"],
     )
     target: dict[str, Any] | None = Field(
         default=None,
         allow_template=True,
+        description=_DESCRIPTIONS["target"],
     )
     dial_event_type: str | None = Field(
         default=None,
@@ -538,45 +548,55 @@ class Dial(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         description="The event type of the dial that will trigger the service."
         "Either DialEventType.TURN or DialEventType.PUSH",
     )
-    text: str = Field(default="", allow_template=True)
+    text: str = Field(
+        default="",
+        allow_template=True,
+        description=_DESCRIPTIONS["text"],
+    )
     text_color: str | None = Field(
         default=None,
         allow_template=True,
+        description=_DESCRIPTIONS["text_color"],
     )
     text_size: int = Field(
         default=16,
         allow_template=False,
+        description=_DESCRIPTIONS["text_size"],
     )
     text_offset: int = Field(
         default=0,
         allow_template=False,
+        description=_DESCRIPTIONS["text_offset"],
     )
     icon: str | None = Field(
         default=None,
         allow_template=True,
+        description=_DESCRIPTIONS["icon"],
     )
     icon_mdi: str | None = Field(
         default=None,
         allow_template=True,
+        description=_DESCRIPTIONS["icon_mdi"],
     )
     icon_background_color: str = Field(
         default="#000000",
         allow_template=True,
+        description=_DESCRIPTIONS["icon_background_color"],
     )
     icon_mdi_color: str | None = Field(
         default=None,
         allow_template=True,
+        description=_DESCRIPTIONS["icon_mdi_color"],
     )
     icon_gray_when_off: bool = Field(
         default=False,
         allow_template=False,
-        description="When specifying `icon` and `entity_id`, if the state is `off`, the icon will be converted to grayscale.",
+        description=_DESCRIPTIONS["icon_gray_when_off"],
     )
     delay: float | str = Field(
         default=0.0,
         allow_template=True,
-        description="The delay inbetween events for the service to be called"
-        " Dial changes are added to decrease traffic ",
+        description="The delay inbetween events for the service to be called. Dial changes are added to decrease traffic.",
     )
     state_attribute: str | None = Field(
         default=None,
@@ -757,6 +777,7 @@ class Dial(BaseModel, extra="forbid"):  # type: ignore[call-arg]
             self._timer = AsyncDelayedCallback(delay=self.delay, callback=callback)
         self._timer.start()
         return True
+
 
 def _to_filename(id_: str, suffix: str = "") -> Path:
     """Converts an id with ":" and "_" to a filename with optional suffix."""

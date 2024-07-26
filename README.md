@@ -1006,7 +1006,8 @@ The dials also work very similarly to the buttons, you only have to specify an e
 
 ## Include variables
 
-### NOTE: Include variables work independent from the Streamdeck plus feature and can be used in every supported streamdeck version.
+>[!NOTE]
+> Include variables work independent from the Streamdeck plus feature and can be used in every supported streamdeck version.
 
 You can also pass variables with the include tag to the included file. This can be useful for creating templates and reusing them for multiple entities. Here is an example of how you can use include variables in your configuration:
 

@@ -539,7 +539,7 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
     allow_touchscreen_events: bool = Field(
         default=False,
         allow_template=True,
-        description="Whether events from the touchscreen such as setting minimal value on short and setting maximal value on LONG are allowed",
+        description="Whether events from the touchscreen are allowed, for example set the minimal value on `SHORT` and set maximal value on `LONG`.",
     )
 
     # vars for timer

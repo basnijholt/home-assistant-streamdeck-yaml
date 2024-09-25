@@ -11,6 +11,8 @@ import io
 import json
 import math
 import re
+import signal
+import sys
 import time
 import warnings
 from contextlib import asynccontextmanager
@@ -41,6 +43,7 @@ from StreamDeck.ImageHelpers import PILHelper
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
+    from types import FrameType
 
     import pandas as pd
     from StreamDeck.Devices import StreamDeck
@@ -2438,13 +2441,13 @@ def update_all_key_images(
 
 
 async def run(
+    deck: StreamDeck,
     host: str,
     token: str,
     protocol: Literal["wss", "ws"],
     config: Config,
 ) -> None:
     """Main entry point for the Stream Deck integration."""
-    deck = get_deck()
     async with setup_ws(host, token, protocol) as websocket:
         try:
             complete_state = await get_states(websocket)
@@ -2552,6 +2555,17 @@ def _help() -> str:
         return ""
 
 
+def _get_signal_handler(deck: StreamDeck) -> Callable[[int, FrameType | None], None]:
+    def handler(signum: int, frame: FrameType | None) -> None:  # noqa: ARG001
+        console.log(f"Signal caught: {signum=}")
+        deck.reset()
+        deck.close()
+        console.log(f"Closed deck connection {deck=}")
+        sys.exit(0)
+
+    return handler
+
+
 def main() -> None:
     """Start the Stream Deck integration."""
     import argparse
@@ -2583,8 +2597,15 @@ def main() -> None:
         f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}",
     )
     config = Config.load(args.config)
+
+    deck = get_deck()
+    handler = _get_signal_handler(deck)
+    signal.signal(signal.SIGINT, handler)
+    signal.signal(signal.SIGTERM, handler)
+
     asyncio.run(
         run(
+            deck=deck,
             host=args.host,
             token=args.token,
             protocol=args.protocol,

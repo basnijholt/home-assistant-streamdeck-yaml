@@ -30,20 +30,20 @@ TEST_STATE_FILENAME = ROOT / "tests" / "state_plus.json"
 
 
 # TESTS FOR STREAM DECK PLUS
-@pytest.fixture()
+@pytest.fixture
 def websocket_mock() -> Mock:
     """Mock websocket client protocol."""
     return Mock(spec=websockets.WebSocketClientProtocol)
 
 
-@pytest.fixture()
+@pytest.fixture
 def state() -> dict[str, dict[str, Any]]:
     """State fixture."""
     with TEST_STATE_FILENAME.open("r") as f:
         return json.load(f)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_deck_plus() -> Mock:
     """Mocks a StreamDeck Plus."""
     deck_mock = Mock(spec=StreamDeckPlus)
@@ -83,7 +83,7 @@ def mock_deck_plus() -> Mock:
     return deck_mock
 
 
-@pytest.fixture()
+@pytest.fixture
 def dial_dict() -> dict[str, dict[str, Any]]:
     """Returns Config dictionary for streamdeck plus."""
     return {
@@ -120,7 +120,7 @@ def dial_dict() -> dict[str, dict[str, Any]]:
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def state_change_msg() -> dict[str, Any]:
     """Message for state change."""
     return {
@@ -164,7 +164,7 @@ def state_change_msg() -> dict[str, Any]:
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def dials(dial_dict: dict[str, dict[str, Any]]) -> list[Dial]:
     """Order of dials for page."""
     dial_order = [

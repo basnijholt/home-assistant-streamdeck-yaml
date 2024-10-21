@@ -65,14 +65,14 @@ def test_reload_config() -> None:
     assert c.pages != []
 
 
-@pytest.fixture()
+@pytest.fixture
 def state() -> dict[str, dict[str, Any]]:
     """State fixture."""
     with TEST_STATE_FILENAME.open("r") as f:
         return json.load(f)
 
 
-@pytest.fixture()
+@pytest.fixture
 def button_dict() -> dict[str, dict[str, Any]]:
     """Different button configurations."""
     return {
@@ -160,7 +160,7 @@ def button_dict() -> dict[str, dict[str, Any]]:
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def buttons(button_dict: dict[str, dict[str, Any]]) -> list[Button]:
     """List of `Button`s."""
     button_order = [
@@ -185,7 +185,7 @@ def buttons(button_dict: dict[str, dict[str, Any]]) -> list[Button]:
     return [Button(**button_dict[key]) for key in button_order]
 
 
-@pytest.fixture()
+@pytest.fixture
 def config(buttons: list[Button]) -> Config:
     """Config fixture."""
     page_1 = Page(buttons=buttons[:BUTTONS_PER_PAGE], name="Home")
@@ -331,7 +331,7 @@ def test_init_icon() -> None:
     _init_icon(size=(100, 100))
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_deck() -> Mock:
     """Mocks a StreamDeck."""
     deck_mock = Mock(spec=StreamDeckOriginal)
@@ -499,7 +499,7 @@ def test_generate_uniform_hex_colors() -> None:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def websocket_mock() -> Mock:
     """Mock websocket client protocol."""
     return Mock(spec=websockets.WebSocketClientProtocol)

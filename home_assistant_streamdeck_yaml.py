@@ -794,6 +794,41 @@ class Page(BaseModel):
         return cls.to_pandas_table().to_markdown(index=False)
 
 
+def flatten(interactables) -> dict[str, Any]:
+    flat_buttons = []
+    for interactable in interactables:
+        if isinstance(interactable, list):
+            flat_buttons += item
+            console.log(item)
+        else:
+            flat_buttons.append(interactable)
+    return flat_buttons
+
+
+def flat_interactable(page_data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return a flat list of all interactable buttons."""
+    buttons = page_data.get("buttons")
+    dials = page_data.get("dials")
+
+    flat_buttons = []
+    if buttons is not None:
+        for button in buttons:
+            if isinstance(button, list):
+                flat_buttons += button
+            else:
+                flat_buttons.append(button)
+        page_data["buttons"] = flat_buttons
+
+    flat_dials = []
+    if dials is not None:
+        for dial in dials:
+            if isinstance(dial, list):
+                flat_dials += dial
+            else:
+                flat_dials.append(dial)
+        page_data["dials"] = flat_dials
+
+
 class Config(BaseModel):
     """Configuration file."""
 
@@ -843,9 +878,8 @@ class Config(BaseModel):
         """Read the configuration file."""
         with fname.open() as f:
             data, include_files = safe_load_yaml(f, return_included_paths=True)
-            for page in [data.get("pages") and data.get["anonymous_pages"]]:
-                flat_interactable(page.get("buttons"))
-                flat_interactable(page.get("dials"))
+            for page in data.get("pages") + data.get("anonymous_pages"):
+                flat_interactable(page)
             config = cls(**data)  # type: ignore[arg-type]
             config._configuration_file = fname
             config._include_files = include_files

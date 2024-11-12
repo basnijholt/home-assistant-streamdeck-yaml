@@ -814,17 +814,6 @@ class Page(BaseModel):
         return cls.to_pandas_table().to_markdown(index=False)
 
 
-def flatten(interactables) -> dict[str, Any]:
-    flat_buttons = []
-    for interactable in interactables:
-        if isinstance(interactable, list):
-            flat_buttons += item
-            console.log(item)
-        else:
-            flat_buttons.append(interactable)
-    return flat_buttons
-
-
 def flat_interactable(page_data: dict[str, Any]) -> list[dict[str, Any]]:
     """Return a flat list of all interactable buttons."""
     buttons = page_data.get("buttons")

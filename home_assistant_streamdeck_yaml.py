@@ -856,22 +856,12 @@ class Config(BaseModel):
         default=False,
         description="If True, the configuration YAML file will automatically" " be reloaded when it is modified.",
     )
+
     _current_page_index: int = PrivateAttr(default=0)
     _is_on: bool = PrivateAttr(default=True)
     _detached_page: Page | None = PrivateAttr(default=None)
     _configuration_file: Path | None = PrivateAttr(default=None)
     _include_files: list[Path] = PrivateAttr(default_factory=list)
-
-    @classmethod
-    def flat_interactable(page_data: dict[str, Any]) -> list[dict[str, Any]]:
-        """Return a flat list of all interactable buttons."""
-        flat_buttons = []
-        for item in page_data:
-            if isinstance(item, list):
-                flat_buttons += item
-            else:
-                flat_buttons.append(item)
-        page_data = flat_buttons
 
     @classmethod
     def load(cls: type[Config], fname: Path) -> Config:

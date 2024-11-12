@@ -382,11 +382,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             elif state["state"] == "on":
                 text_color = "orangered"
 
-            if (
-                button.icon_mdi is None
-                and button.icon is None
-                and button.domain in DEFAULT_MDI_ICONS
-            ):
+            if button.icon_mdi is None and button.icon is None and button.domain in DEFAULT_MDI_ICONS:
                 icon_mdi = DEFAULT_MDI_ICONS[button.domain]
 
             if state["state"] == "off":
@@ -424,32 +420,22 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         """Validate the special_type_data."""
         special_type = values["special_type"]
         if special_type == "go-to-page" and not isinstance(v, (int, str)):
-            msg = (
-                "If special_type is go-to-page, special_type_data must be an int or str"
-            )
+            msg = "If special_type is go-to-page, special_type_data must be an int or str"
             raise AssertionError(msg)
-        if (
-            special_type in {"next-page", "previous-page", "empty", "turn-off"}
-            and v is not None
-        ):
+        if special_type in {"next-page", "previous-page", "empty", "turn-off"} and v is not None:
             msg = f"special_type_data needs to be empty with {special_type=}"
             raise AssertionError(msg)
         if special_type == "light-control":
             if v is None:
                 v = {}
             if not isinstance(v, dict):
-                msg = (
-                    "With 'light-control', 'special_type_data' must"
-                    f" be a dict, not '{v}'"
-                )
+                msg = "With 'light-control', 'special_type_data' must" f" be a dict, not '{v}'"
                 raise AssertionError(msg)
             # Can only have the following keys: colors and colormap
             allowed_keys = {"colors", "colormap", "color_temp_kelvin"}
             invalid_keys = v.keys() - allowed_keys
             if invalid_keys:
-                msg = (
-                    f"Invalid keys in 'special_type_data', only {allowed_keys} allowed"
-                )
+                msg = f"Invalid keys in 'special_type_data', only {allowed_keys} allowed"
                 raise AssertionError(msg)
             # If colors is present, it must be a list of strings
             if "colors" in v:
@@ -517,8 +503,7 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
     dial_event_type: str | None = Field(
         default=None,
         allow_template=True,
-        description="The event type of the dial that will trigger the service."
-        " Either `DialEventType.TURN` or `DialEventType.PUSH`.",
+        description="The event type of the dial that will trigger the service." " Either `DialEventType.TURN` or `DialEventType.PUSH`.",
     )
 
     state_attribute: str | None = Field(
@@ -642,10 +627,7 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             text_color = dial.text_color or "white"
 
             assert dial.entity_id is not None
-            if (
-                complete_state[dial.entity_id]["state"] == "off"
-                and dial.icon_gray_when_off
-            ):
+            if complete_state[dial.entity_id]["state"] == "off" and dial.icon_gray_when_off:
                 icon_convert_to_grayscale = True
 
             if image is None:
@@ -700,9 +682,7 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
 def _update_dial_descriptions() -> None:
     for _k, _v in Dial.__fields__.items():
         _v.field_info.description = (
-            _v.field_info.description.replace("on the button", "above the dial")
-            .replace("button", "dial")
-            .replace("pressed", "rotated")
+            _v.field_info.description.replace("on the button", "above the dial").replace("button", "dial").replace("pressed", "rotated")
         )
         if _k == "delay":
             _v.field_info.description = (
@@ -814,7 +794,7 @@ class Page(BaseModel):
         return cls.to_pandas_table().to_markdown(index=False)
 
 
-def flat_interactable(page_data: dict[str, Any]) -> list[dict[str, Any]]:
+def flat_interactable(page_data: dict[str, Any]) -> None:
     """Return a flat list of all interactable buttons."""
     buttons = page_data.get("buttons")
     dials = page_data.get("dials")
@@ -855,8 +835,7 @@ class Config(BaseModel):
     )
     state_entity_id: str | None = Field(
         default=None,
-        description="The entity ID to sync display state with. For"
-        " example `input_boolean.streamdeck` or `binary_sensor.anyone_home`.",
+        description="The entity ID to sync display state with. For" " example `input_boolean.streamdeck` or `binary_sensor.anyone_home`.",
     )
     brightness: int = Field(
         default=100,
@@ -864,8 +843,7 @@ class Config(BaseModel):
     )
     auto_reload: bool = Field(
         default=False,
-        description="If True, the configuration YAML file will automatically"
-        " be reloaded when it is modified.",
+        description="If True, the configuration YAML file will automatically" " be reloaded when it is modified.",
     )
 
     _current_page_index: int = PrivateAttr(default=0)
@@ -1381,9 +1359,7 @@ async def handle_changes(
         last_modified_time = edit_time(config._configuration_file)
         while True:
             files = [config._configuration_file, *config._include_files]
-            if config.auto_reload and any(
-                edit_time(fn) > last_modified_time for fn in files
-            ):
+            if config.auto_reload and any(edit_time(fn) > last_modified_time for fn in files):
                 console.log("Configuration file has been modified, reloading")
                 last_modified_time = max(edit_time(fn) for fn in files)
                 try:
@@ -1947,9 +1923,7 @@ async def _sync_input_boolean(
     state: Literal["on", "off"],
 ) -> None:
     """Sync the input boolean state with the Stream Deck."""
-    if (state_entity_id is not None) and (
-        state_entity_id.split(".")[0] == "input_boolean"
-    ):
+    if (state_entity_id is not None) and (state_entity_id.split(".")[0] == "input_boolean"):
         await call_service(
             websocket,
             f"input_boolean.turn_{state}",
@@ -1988,18 +1962,12 @@ def _on_touchscreen_event_callback(
         else:
             # Short touch: Sets dial value to minimal value
             # Long touch: Sets dial to maximal value
-            lcd_icon_size = (
-                deck.touchscreen_image_format()["size"][0] / deck.dial_count()
-            )
+            lcd_icon_size = deck.touchscreen_image_format()["size"][0] / deck.dial_count()
             icon_pos = value["x"] // lcd_icon_size
             dials = config.dial_sorted(int(icon_pos))
             assert dials is not None
 
-            selected_dial = (
-                dials[0]
-                if dials[0].dial_event_type == DialEventType.TURN.name
-                else dials[1]
-            )
+            selected_dial = dials[0] if dials[0].dial_event_type == DialEventType.TURN.name else dials[1]
             assert selected_dial is not None
 
             if selected_dial.allow_touchscreen_events:
@@ -2056,11 +2024,7 @@ async def handle_dial_event(
 
     if selected_dial.service is not None:
         selected_dial = selected_dial.rendered_template_dial(complete_state)
-        service_data = (
-            {"entity_id": selected_dial.entity_id}
-            if selected_dial.service_data is None
-            else selected_dial.service_data
-        )
+        service_data = {"entity_id": selected_dial.entity_id} if selected_dial.service_data is None else selected_dial.service_data
 
     # Ensures the entity id is given to the service even if service_data is set
     if "entity_id" not in service_data:
@@ -2382,11 +2346,7 @@ def _convert_svg_to_png(
         else None
     )
 
-    image = (
-        Image.open(io.BytesIO(png_content))
-        if png_content
-        else Image.new("RGBA", size, fill_color)
-    )
+    image = Image.open(io.BytesIO(png_content)) if png_content else Image.new("RGBA", size, fill_color)
 
     im = ImageOps.expand(image, border=(margin, margin), fill="black")
     im = im.resize(size)
@@ -2536,9 +2496,7 @@ def safe_load_yaml(
 
         def __init__(self, stream: Any) -> None:
             """Initialize IncludeLoader."""
-            self._root = (
-                Path(stream.name).parent if hasattr(stream, "name") else Path.cwd()
-            )
+            self._root = Path(stream.name).parent if hasattr(stream, "name") else Path.cwd()
             super().__init__(stream)
 
     def _include(loader: IncludeLoader, node: yaml.nodes.Node) -> Any:

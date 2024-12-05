@@ -1589,6 +1589,7 @@ def _render_jinja(
         env.filters["min"] = _min_filter
         env.filters["max"] = _max_filter
         template = env.from_string(text)
+        assert dial is not None
         return template.render(
             min=min,
             max=max,

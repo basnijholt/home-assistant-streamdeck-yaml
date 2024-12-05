@@ -1547,9 +1547,10 @@ def _round(num: float, digits: int) -> int | float:
     return round(num, digits)
 
 
-def _dial_value(dial: Dial) -> float:
+def _dial_value(dial: Dial | None) -> float:
+    if dial is None:
+        return 0
     try:
-        assert dial is not None
         attributes = dial.get_attributes()
         return float(attributes["state"])
     except KeyError:
@@ -1558,8 +1559,10 @@ def _dial_value(dial: Dial) -> float:
 
 def _dial_attr(
     attr: str,
-    dial: Dial,
+    dial: Dial | None,
 ) -> float:
+    if dial is None:
+        return 0
     try:
         assert attr is not None
         dial_attributes = dial.get_attributes()
@@ -1589,7 +1592,6 @@ def _render_jinja(
         env.filters["min"] = _min_filter
         env.filters["max"] = _max_filter
         template = env.from_string(text)
-        assert dial is not None
         return template.render(
             min=min,
             max=max,

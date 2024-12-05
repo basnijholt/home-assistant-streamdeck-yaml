@@ -22,7 +22,11 @@ def is_already_tagged(repo: git.Repo) -> bool:
 def should_skip_release(repo: git.Repo) -> bool:
     """Check if the commit message contains [skip release]."""
     commit_message = repo.head.commit.message.split("\n")[0]
-    return "[skip release]" in commit_message or "[pre-commit.ci]" in commit_message
+    return (
+        "[skip release]" in commit_message
+        or "[pre-commit.ci]" in commit_message
+        or "⬆️ Update" in commit_message
+    )
 
 
 def get_new_version(repo: git.Repo) -> str:

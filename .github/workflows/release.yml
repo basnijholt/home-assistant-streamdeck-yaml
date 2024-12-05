@@ -39,7 +39,7 @@ jobs:
       run: python .github/release.py
 
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       if: steps.generate_version.outputs.version != ''
       with:
         tag_name: ${{ steps.generate_version.outputs.version }}

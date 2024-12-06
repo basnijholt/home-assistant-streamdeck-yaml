@@ -8,6 +8,9 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/${{ github.repository }}
 
     steps:
     - uses: basnijholt/calver-auto-release@v1

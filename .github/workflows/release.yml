@@ -15,7 +15,7 @@ jobs:
       contents: write  # for creating tags and releases
       id-token: write  # for PyPI publishing
     steps:
-    - uses: basnijholt/calver-auto-release@v1.0.5
+    - uses: basnijholt/calver-auto-release@v1
       id: release
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}

@@ -12,8 +12,8 @@ jobs:
       name: pypi
       url: https://pypi.org/p/${{ github.repository }}
     permissions:
-      contents: write  # Add this permission for creating tags and releases
-      id-token: write  # Keep this for PyPI publishing
+      contents: write  # for creating tags and releases
+      id-token: write  # for PyPI publishing
     steps:
     - uses: basnijholt/calver-auto-release@v1
       id: release

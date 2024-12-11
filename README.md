@@ -957,7 +957,7 @@ And shows a ring indicator and the numerical value of the brightness.
 - entity_id: light.testing
   service: light.turn_on
   service_data:
-    brightness: '{{ dial_value | int}}'
+    brightness: '{{ dial_value() | int}}'
   icon: >
     {%- set state = dial_value() -%}
     {%- set min = dial_attr("min") -%}

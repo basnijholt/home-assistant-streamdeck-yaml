@@ -814,6 +814,30 @@ class Page(BaseModel):
         return cls.to_pandas_table().to_markdown(index=False)
 
 
+def flat_interactable(page_data: dict[str, Any]) -> None:
+    """Return a flat list of all interactable buttons."""
+    buttons = page_data.get("buttons")
+    dials = page_data.get("dials")
+
+    flat_buttons = []
+    if buttons is not None:
+        for button in buttons:
+            if isinstance(button, list):
+                flat_buttons += button
+            else:
+                flat_buttons.append(button)
+        page_data["buttons"] = flat_buttons
+
+    flat_dials = []
+    if dials is not None:
+        for dial in dials:
+            if isinstance(dial, list):
+                flat_dials += dial
+            else:
+                flat_dials.append(dial)
+        page_data["dials"] = flat_dials
+
+
 class Config(BaseModel):
     """Configuration file."""
 
@@ -843,6 +867,7 @@ class Config(BaseModel):
         description="If True, the configuration YAML file will automatically"
         " be reloaded when it is modified.",
     )
+
     _current_page_index: int = PrivateAttr(default=0)
     _is_on: bool = PrivateAttr(default=True)
     _detached_page: Page | None = PrivateAttr(default=None)
@@ -854,6 +879,8 @@ class Config(BaseModel):
         """Read the configuration file."""
         with fname.open() as f:
             data, include_files = safe_load_yaml(f, return_included_paths=True)
+            for page in data.get("pages") + data.get("anonymous_pages"):
+                flat_interactable(page)
             config = cls(**data)  # type: ignore[arg-type]
             config._configuration_file = fname
             config._include_files = include_files

@@ -1342,14 +1342,20 @@ def _light_page(
 
 def _climate_page(
     entity_id: str,
+    complete_state: StateDict,
     temperatures: tuple[int, ...] | None,
     modes: tuple[str, ...] | None,
-    name: str | None
+    name: str | None, 
+
 ) -> Page:
     """Return a page of buttons for controlling lights."""
+    
+    state = complete_state[entity_id]
+
     button_1 = [
         Button( 
-            text = name,
+            text = name + str(state["attributes"]["current_temperature"]),
+            
             )
     ]
     buttons_temperatures = [
@@ -2278,9 +2284,11 @@ async def _handle_key_press(
         assert isinstance(button.special_type_data, dict)
         page = _climate_page(
             entity_id=button.entity_id,
+            complete_state=complete_state,
             temperatures = button.special_type_data.get("temperatures", None),
             modes = button.special_type_data.get("modes", ["heat", "cool", "heat_cool"]),
             name = button.special_type_data.get("name", "Room"),
+
         )
         config._detached_page = page
         update_all()

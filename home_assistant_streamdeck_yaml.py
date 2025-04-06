@@ -262,6 +262,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " If `climate-control`, the data should optionally be a dictionary."
         " The dictionary can contain the following keys:"
         " `temperatures` : The temperures that can be set via the controller "
+        " `name`: A Short name to display on the child page"
         " If `light-control`, the data should optionally be a dictionary."
         " The dictionary can contain the following keys:"
         " The `colors` key and a value a list of max (`n_keys_on_streamdeck - 5`) hex colors."
@@ -490,7 +491,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                 )
                 raise AssertionError(msg)
             # Can only have the following keys: colors and colormap
-            allowed_keys = {"temperatures"}
+            allowed_keys = {"temperatures","name"}
             invalid_keys = v.keys() - allowed_keys
             if invalid_keys:
                 msg = (
@@ -1351,11 +1352,13 @@ def _climate_page(
     """Return a page of buttons for controlling lights."""
     
     state = complete_state[entity_id]
-
+    
+        
+    current_temperature = state.get("attributes", {}).get("current_temperature", "MISSING")
+                
     button_1 = [
         Button( 
-            text = name + str(state["attributes"]["current_temperature"]),
-            
+            text = name + "\n" + str(current_temperature) + "°C",
             )
     ]
     buttons_temperatures = [
@@ -2287,7 +2290,7 @@ async def _handle_key_press(
             complete_state=complete_state,
             temperatures = button.special_type_data.get("temperatures", None),
             modes = button.special_type_data.get("modes", ["heat", "cool", "heat_cool"]),
-            name = button.special_type_data.get("name", "Room"),
+            name = button.special_type_data.get("name", ""),
 
         )
         config._detached_page = page

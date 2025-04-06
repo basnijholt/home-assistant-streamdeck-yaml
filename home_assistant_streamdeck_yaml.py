@@ -392,6 +392,13 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                 text_color = button.text_color
             elif state["state"] == "on":
                 text_color = "orangered"
+            elif state["state"] == "heat":
+                text_color = "orangered"
+            elif state["state"] == "cool":
+                text_color = "cyan"
+            elif state["state"] == "heat_cool":
+                text_color = "darkviolet"
+            
 
             if (
                 button.icon_mdi is None

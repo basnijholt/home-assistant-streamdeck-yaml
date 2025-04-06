@@ -376,6 +376,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             icon_mdi = button.icon_mdi or "reload"
         elif button.special_type == "close-page":
             text = button.text or "back"
+            icon_mdi = button.icon_mdi or "arrow-u-left-bottom-bold"
         elif button.entity_id in complete_state:
             # Has entity_id
             state = complete_state[button.entity_id]

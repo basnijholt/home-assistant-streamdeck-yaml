@@ -230,6 +230,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             "previous-page",
             "empty",
             "go-to-page",
+            "close-page",
             "turn-off",
             "light-control",
             "reload",
@@ -373,6 +374,8 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         elif button.special_type == "reload":
             text = button.text or "Reload\nconfig"
             icon_mdi = button.icon_mdi or "reload"
+        elif button.special_type == "close-page":
+            text = button.text or "back"
         elif button.entity_id in complete_state:
             # Has entity_id
             state = complete_state[button.entity_id]
@@ -772,6 +775,7 @@ class Page(BaseModel):
         default_factory=list,
         description="A list of dials on the page.",
     )
+    _parent_page_index: int = PrivateAttr([])
 
     _dials_sorted: list[Dial] = PrivateAttr([])
 
@@ -844,6 +848,7 @@ class Config(BaseModel):
         " be reloaded when it is modified.",
     )
     _current_page_index: int = PrivateAttr(default=0)
+    _parent_page_index : int = PrivateAttr(default=0)
     _is_on: bool = PrivateAttr(default=True)
     _detached_page: Page | None = PrivateAttr(default=None)
     _configuration_file: Path | None = PrivateAttr(default=None)
@@ -905,6 +910,7 @@ class Config(BaseModel):
 
     def next_page(self) -> Page:
         """Go to the next page."""
+        self._parent_page_index = self._current_page_index
         self._current_page_index = self.next_page_index
         return self.pages[self._current_page_index]
 
@@ -952,7 +958,10 @@ class Config(BaseModel):
 
     def to_page(self, page: int | str) -> Page:
         """Go to a page based on the page name or index."""
+        console.log(f"parent page index {self._parent_page_index}")
+        
         if isinstance(page, int):
+            self._parent_page_index = self._current_page_index
             self._current_page_index = page
             return self.current_page()
 
@@ -966,6 +975,11 @@ class Config(BaseModel):
                 self._detached_page = p
                 return p
         console.log(f"Could find page {page}, staying on current page")
+        return self.current_page()
+        
+    def close_page(self) -> Page: 
+        console.log("Closing page")
+        self._current_page_index = self._parent_page_index
         return self.current_page()
 
 
@@ -1263,7 +1277,7 @@ def _light_page(
         for kelvin in (color_temp_kelvin or ())
     ]
     buttons_brightness = []
-    for brightness in [0, 10, 30, 60, 100]:
+    for brightness in [1, 10, 30, 60, 100]:
         background_color = _scale_hex_color("#FFFFFF", brightness / 100)
         button = Button(
             icon_background_color=background_color,
@@ -1276,9 +1290,20 @@ def _light_page(
             },
         )
         buttons_brightness.append(button)
+    button_back = [
+        Button(
+            text="BACK",
+            )]
+    button_off = [
+        Button(
+            service="light.turn_off",
+            text="OFF",
+            service_data={"entity_id": entity_id},
+            )]
+    
     return Page(
         name="Lights",
-        buttons=buttons_colors + buttons_color_temp_kelvin + buttons_brightness,
+        buttons=buttons_colors + buttons_brightness + buttons_color_temp_kelvin + button_off + button_back,
     )
 
 
@@ -2148,6 +2173,9 @@ async def _handle_key_press(
         config.to_page(button.special_type_data)  # type: ignore[arg-type]
         update_all()
         return  # to skip the _detached_page reset below
+    elif button.special_type == "close-page":
+        config.close_page()
+        update_all()
     elif button.special_type == "turn-off":
         turn_off(config, deck)
         await _sync_input_boolean(config.state_entity_id, websocket, "off")

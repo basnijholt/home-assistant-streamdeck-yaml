@@ -1300,6 +1300,7 @@ def _light_page(
             service="light.turn_off",
             text="OFF",
             service_data={"entity_id": entity_id},
+            icon_mdi="lightbulb-group-off",
             )]
     
     return Page(

@@ -75,6 +75,9 @@ LCD_ICON_SIZE_Y = 100
 console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
 
+# To keep track of long presses
+LONG_PRESS_THRESHOLD = 1.0  # Threshold in seconds for a long press
+press_start_times: Dict[int, float] = {}  # Dictionary to store press start times per key
 
 class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     """Parent of Button and Dial."""
@@ -2249,6 +2252,7 @@ async def _handle_key_press(
     config: Config,
     button: Button,
     deck: StreamDeck,
+    is_long_press: bool = False,  # New parameter
 ) -> None:
     if not config._is_on:
         turn_on(config, deck, complete_state)
@@ -2261,6 +2265,7 @@ async def _handle_key_press(
         update_all_key_images(deck, config, complete_state)
         update_all_dials(deck, config, complete_state)
 
+    # Handle special button types
     if button.special_type == "next-page":
         config.next_page()
         update_all()
@@ -2271,7 +2276,7 @@ async def _handle_key_press(
         assert isinstance(button.special_type_data, (str, int))
         config.to_page(button.special_type_data)  # type: ignore[arg-type]
         update_all()
-        return  # to skip the _detached_page reset below
+        return
     elif button.special_type == "close-page":
         config.close_page()
         update_all()
@@ -2289,20 +2294,19 @@ async def _handle_key_press(
         )
         config._detached_page = page
         update_all()
-        return  # to skip the _detached_page reset below
+        return
     elif button.special_type == "climate-control":
         assert isinstance(button.special_type_data, dict)
         page = _climate_page(
             entity_id=button.entity_id,
             complete_state=complete_state,
-            temperatures = button.special_type_data.get("temperatures", None),
-            modes = button.special_type_data.get("modes", ["heat", "cool", "heat_cool"]),
-            name = button.special_type_data.get("name", ""),
-
+            temperatures=button.special_type_data.get("temperatures", None),
+            modes=button.special_type_data.get("modes", ["heat", "cool", "heat_cool"]),
+            name=button.special_type_data.get("name", ""),
         )
         config._detached_page = page
         update_all()
-        return  # to skip the _detached_page reset below
+        return
     elif button.special_type == "reload":
         config.reload()
         update_all()
@@ -2314,7 +2318,18 @@ async def _handle_key_press(
             if button.entity_id is not None:
                 service_data["entity_id"] = button.entity_id
         else:
-            service_data = button.service_data
+            service_data = button.service_data.copy()  # Copy to avoid modifying original
+        
+        # Example: Differentiate short and long press actions
+        if is_long_press:
+            # Long press action (e.g., turn off or adjust brightness)
+            if button.service == "light.toggle":
+                service_data["brightness_pct"] = 10  # Dim to 10% on long press
+                button.service = "light.turn_on"  # Override to turn_on for brightness
+            elif button.service == "switch.toggle":
+                button.service = "switch.turn_off"  # Turn off on long press
+        # Short press retains the original service call
+
         console.log(f"Calling service {button.service} with data {service_data}")
         assert button.service is not None  # for mypy
         await call_service(websocket, button.service, service_data, button.target)
@@ -2335,32 +2350,65 @@ def _on_press_callback(
         key_pressed: bool,  # noqa: FBT001
     ) -> None:
         console.log(f"Key {key} {'pressed' if key_pressed else 'released'}")
-
+        
         button = config.button(key)
-        assert button is not None
-        if button is not None and key_pressed:
-
-            async def cb() -> None:
-                """Update the deck once more after the timer is over."""
-                assert button is not None  # for mypy
-                await _handle_key_press(websocket, complete_state, config, button, deck)
-
-            if button.maybe_start_or_cancel_timer(cb):
-                key_pressed = False  # do not click now
-
-        try:
+        if button is None:
+            return
+        
+        if key_pressed:
+            # Record the start time when the button is pressed
+            press_start_times[key] = time.time()
+            # Update the key image to show it's pressed (optional feedback)
             update_key_image(
                 deck,
                 key=key,
                 config=config,
                 complete_state=complete_state,
-                key_pressed=key_pressed,
+                key_pressed=True,
             )
-            if key_pressed:
-                await _handle_key_press(websocket, complete_state, config, button, deck)
-        except Exception as e:  # noqa: BLE001
-            console.print_exception(show_locals=True)
-            console.log(f"key_change_callback failed with a {type(e)}: {e}")
+        else:  # Key released
+            if key in press_start_times:
+                # Calculate press duration
+                press_duration = time.time() - press_start_times[key]
+                del press_start_times[key]  # Clean up
+                
+                # Update the key image back to unpressed state
+                update_key_image(
+                    deck,
+                    key=key,
+                    config=config,
+                    complete_state=complete_state,
+                    key_pressed=False,
+                )
+                
+                # Determine if it's a long or short press
+                is_long_press = press_duration >= LONG_PRESS_THRESHOLD
+                console.log(f"Key {key} press duration: {press_duration:.2f}s, Long press: {is_long_press}")
+
+                async def cb() -> None:
+                    """Update the deck once more after the timer is over."""
+                    assert button is not None  # for mypy
+                    await _handle_key_press(
+                        websocket, complete_state, config, button, deck, is_long_press
+                    )
+
+                # Handle delay if present, otherwise process immediately
+                if button.maybe_start_or_cancel_timer(cb):
+                    return
+                
+                # Process the key press immediately if no delay
+                await _handle_key_press(
+                    websocket, complete_state, config, button, deck, is_long_press
+                )
+            else:
+                # Key was released but no press was recorded (edge case)
+                update_key_image(
+                    deck,
+                    key=key,
+                    config=config,
+                    complete_state=complete_state,
+                    key_pressed=False,
+                )
 
     return key_change_callback
 
@@ -2586,14 +2634,12 @@ async def run(
     protocol: Literal["wss", "ws"],
     config: Config,
 ) -> None:
-    """Main entry point for the Stream Deck integration."""
     deck = get_deck()
     async with setup_ws(host, token, protocol) as websocket:
         try:
             complete_state = await get_states(websocket)
 
             deck.set_brightness(config.brightness)
-            # Turn on state entity boolean on home assistant
             await _sync_input_boolean(config.state_entity_id, websocket, "on")
             update_all_key_images(deck, config, complete_state)
             deck.set_key_callback_async(

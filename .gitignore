@@ -161,3 +161,8 @@ cython_debug/
 
 # VS Code
 settings.json
+
+# Assets, which are icons downloaded from the web and are not part of the source code.
+assets/
+
+.gitignore

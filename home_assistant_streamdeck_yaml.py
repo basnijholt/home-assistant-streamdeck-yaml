@@ -948,6 +948,13 @@ class Config(BaseModel):
         description="If True, the configuration YAML file will automatically"
         " be reloaded when it is modified.",
     )
+    return_to_home_after_no_presses: dict[str, Any] | None = Field(
+        default=None,
+        allow_template=False,
+        description="Configuration to return to a home page after inactivity."
+        " Includes `duration` (float, seconds of inactivity) and `home_page` (str, name of the page)."
+        " If not specified, no automatic return occurs.",
+    )
     _current_page_index: int = PrivateAttr(default=0)
     _parent_page_index : int = PrivateAttr(default=0)
     _is_on: bool = PrivateAttr(default=True)
@@ -955,6 +962,24 @@ class Config(BaseModel):
     _configuration_file: Path | None = PrivateAttr(default=None)
     _include_files: list[Path] = PrivateAttr(default_factory=list)
 
+    @validator("return_to_home_after_no_presses", pre=True)
+    def _validate_return_to_home(cls, v: Any) -> Any:
+        if v is None:
+            return None
+        if not isinstance(v, dict):
+            raise ValueError("return_to_home_after_no_presses must be a dictionary")
+        required_keys = {"duration", "home_page"}
+        missing_keys = required_keys - set(v.keys())
+        if missing_keys:
+            raise ValueError(f"Missing keys in return_to_home_after_no_presses: {missing_keys}")
+        extra_keys = set(v.keys()) - required_keys
+        if extra_keys:
+            raise ValueError(f"Extra keys in return_to_home_after_no_presses: {extra_keys}")
+        if not isinstance(v["duration"], (int, float)) or v["duration"] <= 0:
+            raise ValueError("duration must be a positive number")
+        if not isinstance(v["home_page"], str):
+            raise ValueError("home_page must be a string")
+        return v
     @classmethod
     def load(cls: type[Config], fname: Path) -> Config:
         """Read the configuration file."""
@@ -971,6 +996,7 @@ class Config(BaseModel):
         assert self._configuration_file is not None
         # Updates all public attributes
         new_config = self.load(self._configuration_file)
+        self.return_to_home_after_no_presses = new_config.return_to_home_after_no_presses
         self.__dict__.update(new_config.__dict__)
         self._include_files = new_config._include_files
         # Set the private attributes we want to preserve
@@ -2447,12 +2473,45 @@ async def _handle_key_press(
 
 def _on_press_callback(
     websocket: websockets.WebSocketClientProtocol,
-    complete_state: StateDict,
+    complete_state: dict,  # Mutable reference from run
     config: Config,
 ) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:
     LONG_PRESS_THRESHOLD = 1.0  # Threshold in seconds for a long press
     press_tasks: Dict[int, asyncio.Task] = {}  # Track ongoing press tasks
     press_start_times: Dict[int, float] = {}  # Track press start times
+    last_interaction_time = time.time()  # Track last interaction
+    inactivity_task: asyncio.Task | None = None  # Track inactivity monitoring task
+
+    # Function to update last interaction and manage inactivity task
+    def update_interaction(deck: StreamDeck):
+        nonlocal last_interaction_time, inactivity_task
+        last_interaction_time = time.time()
+        if inactivity_task:
+            inactivity_task.cancel()
+        if config.return_to_home_after_no_presses:
+            async def check_inactivity():
+                duration = config.return_to_home_after_no_presses["duration"]
+                home_page = config.return_to_home_after_no_presses["home_page"]
+                await asyncio.sleep(duration)
+                if time.time() - last_interaction_time >= duration:
+                    console.log(f"No presses for {duration}s, returning to {home_page}")
+                    # Clear detached_page to ensure we return to the main page stack
+                    if config._detached_page is not None:
+                        console.log("Clearing detached page")
+                        config._detached_page = None
+                    # Create a dummy button to trigger go-to-page via _handle_key_press
+                    # Create a dummy button to trigger go-to-page via _handle_key_press
+                    dummy_button = Button(special_type="go-to-page", special_type_data=home_page)
+                    await _handle_key_press(
+                        websocket,
+                        complete_state,
+                        config,
+                        dummy_button,
+                        deck,
+                        is_long_press=False,
+                    )
+                    console.log(f"Completed return to {home_page}, current index: {config.current_page_idx}")
+            inactivity_task = asyncio.create_task(check_inactivity())
 
     async def key_change_callback(
         deck: StreamDeck,
@@ -2466,6 +2525,9 @@ def _on_press_callback(
             return
         
         if key_pressed:
+            # Update interaction time on any press
+            update_interaction(deck)
+
             # Record the start time and update the key image
             press_start_times[key] = time.time()
             update_key_image(
@@ -2525,9 +2587,11 @@ def _on_press_callback(
                     await _handle_key_press(
                         websocket, complete_state, config, button, deck, is_long_press=False
                     )
+            
+            # Update interaction time on release as well
+            update_interaction(deck)
 
     return key_change_callback
-
 
 @ft.lru_cache(maxsize=128)
 def _download(url: str) -> bytes:
@@ -2753,30 +2817,42 @@ async def run(
     deck = get_deck()
     async with setup_ws(host, token, protocol) as websocket:
         try:
+            # Fetch initial state
             complete_state = await get_states(websocket)
-
+            # Wrap complete_state in a dict to make it mutable and updatable
+            state_wrapper = {"data": complete_state}
+            
             deck.set_brightness(config.brightness)
             await _sync_input_boolean(config.state_entity_id, websocket, "on")
-            update_all_key_images(deck, config, complete_state)
-            deck.set_key_callback_async(
-                _on_press_callback(websocket, complete_state, config),
-            )
-            update_all_dials(deck, config, complete_state)
-            if deck.dial_count() != 0:
-                deck.set_dial_callback_async(
-                    _on_dial_event_callback(websocket, complete_state, config),
-                )
-            if deck.is_visual():
-                deck.set_touchscreen_callback_async(
-                    _on_touchscreen_event_callback(websocket, complete_state, config),
-                )
-            deck.set_brightness(config.brightness)
-            await subscribe_state_changes(websocket)
-            await handle_changes(websocket, complete_state, deck, config)
-        finally:
-            await _sync_input_boolean(config.state_entity_id, websocket, "off")
-            deck.reset()
+            update_all_key_images(deck, config, state_wrapper["data"])
+            
+            # Set callback with the mutable state reference
+            key_callback = _on_press_callback(websocket, state_wrapper["data"], config)
+            deck.set_key_callback_async(key_callback)
 
+            # Main loop to update state dynamically
+            while True:
+                msg = await websocket.recv()
+                if isinstance(msg, str):
+                    data = json.loads(msg)
+                    if data.get("type") == "event" and "event" in data:
+                        event = data["event"]
+                        if event.get("event_type") == "state_changed":
+                            entity_id = event["data"]["entity_id"]
+                            new_state = event["data"]["new_state"]
+                            if new_state:
+                                state_wrapper["data"][entity_id] = new_state
+                            elif entity_id in state_wrapper["data"]:
+                                del state_wrapper["data"][entity_id]
+                            # Update display with new state
+                            update_all_key_images(deck, config, state_wrapper["data"])
+                            update_all_dials(deck, config, state_wrapper["data"])
+        except Exception as e:
+            console.log(f"Error in run: {e}")
+            raise
+        finally:
+            deck.reset()
+            deck.close()
 
 def _rich_table_str(df: pd.DataFrame) -> str:
     table = _pandas_to_rich_table(df)

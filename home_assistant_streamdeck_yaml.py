@@ -2069,10 +2069,14 @@ def update_key_image(
 ) -> None:
     """Update the image for a key."""
     button = config.button(key)
+    def clear_image() -> None:
+        deck.set_key_image(key, None)
     if button is None:
+        clear_image()
         return
     if button.special_type == "empty":
-        return
+        clear_image()
+        return 
     size = deck.key_image_format()["size"]
     image = button.try_render_icon(
         complete_state=complete_state,
@@ -2343,7 +2347,7 @@ async def _handle_key_press(
         return
 
     def update_all() -> None:
-        deck.reset()
+        # deck.reset()
         config.current_page().sort_dials()
         update_all_key_images(deck, config, complete_state)
         update_all_dials(deck, config, complete_state)
@@ -2473,7 +2477,7 @@ async def _handle_key_press(
 
 def _on_press_callback(
     websocket: websockets.WebSocketClientProtocol,
-    complete_state: dict,  # Mutable reference from run
+    complete_state: dict,  # Updated in run via WebSocket
     config: Config,
 ) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:
     LONG_PRESS_THRESHOLD = 1.0  # Threshold in seconds for a long press
@@ -2482,7 +2486,6 @@ def _on_press_callback(
     last_interaction_time = time.time()  # Track last interaction
     inactivity_task: asyncio.Task | None = None  # Track inactivity monitoring task
 
-    # Function to update last interaction and manage inactivity task
     def update_interaction(deck: StreamDeck):
         nonlocal last_interaction_time, inactivity_task
         last_interaction_time = time.time()
@@ -2495,12 +2498,9 @@ def _on_press_callback(
                 await asyncio.sleep(duration)
                 if time.time() - last_interaction_time >= duration:
                     console.log(f"No presses for {duration}s, returning to {home_page}")
-                    # Clear detached_page to ensure we return to the main page stack
                     if config._detached_page is not None:
                         console.log("Clearing detached page")
                         config._detached_page = None
-                    # Create a dummy button to trigger go-to-page via _handle_key_press
-                    # Create a dummy button to trigger go-to-page via _handle_key_press
                     dummy_button = Button(special_type="go-to-page", special_type_data=home_page)
                     await _handle_key_press(
                         websocket,
@@ -2525,11 +2525,10 @@ def _on_press_callback(
             return
         
         if key_pressed:
-            # Update interaction time on any press
             update_interaction(deck)
-
-            # Record the start time and update the key image
             press_start_times[key] = time.time()
+            if button.entity_id in complete_state:
+                console.log(f"Rendering key {key} with state: {complete_state[button.entity_id]['state']}")
             update_key_image(
                 deck,
                 key=key,
@@ -2538,31 +2537,27 @@ def _on_press_callback(
                 key_pressed=True,
             )
 
-            # Start a task to monitor the press duration for long press
             async def monitor_long_press():
                 await asyncio.sleep(LONG_PRESS_THRESHOLD)
-                if key in press_start_times:  # Button still pressed
+                if key in press_start_times:
                     console.log(f"Key {key} long press detected after {LONG_PRESS_THRESHOLD}s")
                     await _handle_key_press(
                         websocket, complete_state, config, button, deck, is_long_press=True
                     )
-                    # Mark as handled to prevent short press on release
                     del press_start_times[key]
-
             press_tasks[key] = asyncio.create_task(monitor_long_press())
         
         else:  # Key released
             if key in press_tasks:
-                # Cancel the long press task if it hasn't completed
                 press_tasks[key].cancel()
                 del press_tasks[key]
             
             if key in press_start_times:
-                # If still in press_start_times, it was a short press
                 press_duration = time.time() - press_start_times[key]
                 del press_start_times[key]
                 
-                # Update the key image back to unpressed state
+                if button.entity_id in complete_state:
+                    console.log(f"Rendering key {key} with state: {complete_state[button.entity_id]['state']}")
                 update_key_image(
                     deck,
                     key=key,
@@ -2573,14 +2568,10 @@ def _on_press_callback(
                 
                 console.log(f"Key {key} released after {press_duration:.2f}s")
                 if press_duration < LONG_PRESS_THRESHOLD:
-                    # Handle short press immediately if no delay
                     async def cb() -> None:
-                        """Update the deck once more after the timer is over."""
-                        assert button is not None  # for mypy
                         await _handle_key_press(
                             websocket, complete_state, config, button, deck, is_long_press=False
                         )
-
                     if button.maybe_start_or_cancel_timer(cb):
                         return
                     
@@ -2588,7 +2579,6 @@ def _on_press_callback(
                         websocket, complete_state, config, button, deck, is_long_press=False
                     )
             
-            # Update interaction time on release as well
             update_interaction(deck)
 
     return key_change_callback
@@ -2819,40 +2809,30 @@ async def run(
         try:
             # Fetch initial state
             complete_state = await get_states(websocket)
-            # Wrap complete_state in a dict to make it mutable and updatable
-            state_wrapper = {"data": complete_state}
-            
-            deck.set_brightness(config.brightness)
-            await _sync_input_boolean(config.state_entity_id, websocket, "on")
-            update_all_key_images(deck, config, state_wrapper["data"])
-            
-            # Set callback with the mutable state reference
-            key_callback = _on_press_callback(websocket, state_wrapper["data"], config)
-            deck.set_key_callback_async(key_callback)
+            console.log("Initial state loaded")
 
-            # Main loop to update state dynamically
-            while True:
-                msg = await websocket.recv()
-                if isinstance(msg, str):
-                    data = json.loads(msg)
-                    if data.get("type") == "event" and "event" in data:
-                        event = data["event"]
-                        if event.get("event_type") == "state_changed":
-                            entity_id = event["data"]["entity_id"]
-                            new_state = event["data"]["new_state"]
-                            if new_state:
-                                state_wrapper["data"][entity_id] = new_state
-                            elif entity_id in state_wrapper["data"]:
-                                del state_wrapper["data"][entity_id]
-                            # Update display with new state
-                            update_all_key_images(deck, config, state_wrapper["data"])
-                            update_all_dials(deck, config, state_wrapper["data"])
-        except Exception as e:
-            console.log(f"Error in run: {e}")
-            raise
+            deck.set_brightness(config.brightness)
+             # Turn on state entity boolean on home assistant
+            await _sync_input_boolean(config.state_entity_id, websocket, "on")
+            update_all_key_images(deck, config, complete_state)
+            deck.set_key_callback_async(
+                _on_press_callback(websocket, complete_state, config),
+            )
+            update_all_dials(deck, config, complete_state)
+            if deck.dial_count() != 0:
+                deck.set_dial_callback_async(
+                    _on_dial_event_callback(websocket, complete_state, config),
+                )
+            if deck.is_visual():
+                deck.set_touchscreen_callback_async(
+                    _on_touchscreen_event_callback(websocket, complete_state, config),
+                )
+            deck.set_brightness(config.brightness)
+            await subscribe_state_changes(websocket)
+            await handle_changes(websocket, complete_state, deck, config)
         finally:
+            await _sync_input_boolean(config.state_entity_id, websocket, "off")
             deck.reset()
-            deck.close()
 
 def _rich_table_str(df: pd.DataFrame) -> str:
     table = _pandas_to_rich_table(df)

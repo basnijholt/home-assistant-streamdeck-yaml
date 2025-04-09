@@ -587,7 +587,8 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             )
         if "special_type" in v and "special_type_data" in v:
             cls._validate_special_type(
-                v["special_type_data"], {"special_type": v["special_type"]},
+                v["special_type_data"],
+                {"special_type": v["special_type"]},
             )
         return v
 
@@ -1484,7 +1485,8 @@ def _climate_page(
     state = complete_state[entity_id]
 
     current_temperature = state.get("attributes", {}).get(
-        "current_temperature", "MISSING",
+        "current_temperature",
+        "MISSING",
     )
 
     button_1 = [
@@ -2482,7 +2484,10 @@ async def _handle_key_press(
                 f"Long press calling service {service} with data {service_data}",
             )
             await call_service(
-                websocket, service, service_data, None,
+                websocket,
+                service,
+                service_data,
+                None,
             )  # No target field, use entity_id in service_data
     # Handle short press or default behavior
     elif button.special_type == "next-page":
@@ -2510,7 +2515,8 @@ async def _handle_key_press(
             colormap=button.special_type_data.get("colormap", None),
             colors=button.special_type_data.get("colors", None),
             color_temp_kelvin=button.special_type_data.get(
-                "color_temp_kelvin", None,
+                "color_temp_kelvin",
+                None,
             ),
         )
         config._detached_page = page
@@ -2523,7 +2529,8 @@ async def _handle_key_press(
             complete_state=complete_state,
             temperatures=button.special_type_data.get("temperatures", None),
             modes=button.special_type_data.get(
-                "modes", ["heat", "cool", "heat_cool"],
+                "modes",
+                ["heat", "cool", "heat_cool"],
             ),
             name=button.special_type_data.get("name", ""),
         )
@@ -2580,7 +2587,8 @@ def _on_press_callback(
                         console.log("Clearing detached page")
                         config._detached_page = None
                     dummy_button = Button(
-                        special_type="go-to-page", special_type_data=home_page,
+                        special_type="go-to-page",
+                        special_type_data=home_page,
                     )
                     await _handle_key_press(
                         websocket,

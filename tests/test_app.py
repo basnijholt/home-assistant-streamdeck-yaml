@@ -450,13 +450,11 @@ def test_light_page() -> None:
         "#800080",  # purple
         "#FFA500",  # orange
         "#00FFFF",  # cyan
-        "#FFD700",  # gold
-        "#008000",  # dark green
     )
 
     page = _light_page(
         entity_id="light.bedroom",
-        n_colors=10,
+        n_colors=8,
         colormap=None,
         colors=hex_colors,
         color_temp_kelvin=None,

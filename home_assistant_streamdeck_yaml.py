@@ -2807,12 +2807,9 @@ async def run(
     deck = get_deck()
     async with setup_ws(host, token, protocol) as websocket:
         try:
-            # Fetch initial state
             complete_state = await get_states(websocket)
-            console.log("Initial state loaded")
-
             deck.set_brightness(config.brightness)
-             # Turn on state entity boolean on home assistant
+            # Turn on state entity boolean on home assistant
             await _sync_input_boolean(config.state_entity_id, websocket, "on")
             update_all_key_images(deck, config, complete_state)
             deck.set_key_callback_async(

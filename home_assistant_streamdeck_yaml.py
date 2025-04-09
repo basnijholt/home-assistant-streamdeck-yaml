@@ -2804,10 +2804,12 @@ async def run(
     protocol: Literal["wss", "ws"],
     config: Config,
 ) -> None:
+    """Main entry point for the Stream Deck integration."""
     deck = get_deck()
     async with setup_ws(host, token, protocol) as websocket:
         try:
             complete_state = await get_states(websocket)
+
             deck.set_brightness(config.brightness)
             # Turn on state entity boolean on home assistant
             await _sync_input_boolean(config.state_entity_id, websocket, "on")
@@ -2830,6 +2832,7 @@ async def run(
         finally:
             await _sync_input_boolean(config.state_entity_id, websocket, "off")
             deck.reset()
+
 
 def _rich_table_str(df: pd.DataFrame) -> str:
     table = _pandas_to_rich_table(df)

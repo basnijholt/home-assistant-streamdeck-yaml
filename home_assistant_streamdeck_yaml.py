@@ -822,8 +822,7 @@ class Page(BaseModel):
 
 class Config(BaseModel):
     """Configuration file."""
-
-    yaml_encoding: str | None = Field(
+    yaml_encoding: str = Field(
         default="utf-8",
         description="The encoding of the YAML file.",
     )

@@ -1267,7 +1267,7 @@ def _light_page(
     n_colors: int,
     colors: tuple[str, ...] | None,
     color_temp_kelvin: tuple[int, ...] | None,
-    brightness: tuple[int, ...],
+    brightness: tuple[int, ...] | None,
     colormap: str | None,
 ) -> Page:
     """Return a page of buttons for controlling lights."""

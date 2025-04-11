@@ -17,6 +17,11 @@
       - 3521  # from default HA options
       - 5025  # from default HA options
       - 6535  # from default HA options
+    brightness:
+      - 0
+      - 10 
+      - 50 
+      - 100
 - special_type: go-to-page
   special_type_data: all-lights
   text: |

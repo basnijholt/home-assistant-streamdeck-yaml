@@ -218,6 +218,7 @@ def test_example_config_browsing_pages(config: Config) -> None:
     assert config._current_page_index == 0
     assert config.button(0) == first_page.buttons[0]
 
+
 def test_example_close_pages(config: Config) -> None:
     """Test example config close pages."""
     assert isinstance(config, Config)
@@ -227,7 +228,6 @@ def test_example_close_pages(config: Config) -> None:
     assert config._current_page_index == 1
     config.close_page()
     assert config._current_page_index == 0
-    
 
 
 @pytest.mark.skipif(
@@ -1103,7 +1103,11 @@ async def test_anonymous_page(
     )
     anon = Page(
         name="anon",
-        buttons=[Button(text="yolo"), Button(text="foo", delay=0.1), Button(special_type="close-page")],
+        buttons=[
+            Button(text="yolo"),
+            Button(text="foo", delay=0.1),
+            Button(special_type="close-page"),
+        ],
     )
     config = Config(pages=[home], anonymous_pages=[anon])
     assert config._current_page_index == 0
@@ -1142,4 +1146,3 @@ async def test_anonymous_page(
     await press(mock_deck, 2, key_pressed=True)
     assert config._detached_page is None
     assert config.current_page() == home
-

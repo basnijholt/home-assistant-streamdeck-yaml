@@ -218,6 +218,7 @@ def test_example_config_browsing_pages(config: Config) -> None:
     assert config._current_page_index == 0
     assert config.button(0) == first_page.buttons[0]
 
+
 def test_example_close_pages(config: Config) -> None:
     """Test example config close pages."""
     assert isinstance(config, Config)

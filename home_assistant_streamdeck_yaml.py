@@ -266,7 +266,9 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
     )
 
     @classmethod
-    def from_yaml(cls: type[Button], yaml_str: str, encoding : str | None = None) -> Button:
+    def from_yaml(
+        cls: type[Button], yaml_str: str, encoding: str | None = None,
+    ) -> Button:
         """Set the attributes from a YAML string."""
         data = safe_load_yaml(yaml_str, encoding=encoding)
         return cls(**data[0])
@@ -855,7 +857,9 @@ class Config(BaseModel):
     _include_files: list[Path] = PrivateAttr(default_factory=list)
 
     @classmethod
-    def load(cls: type[Config], fname: Path, yaml_encoding: str | None = None) -> Config:
+    def load(
+        cls: type[Config], fname: Path, yaml_encoding: str | None = None,
+    ) -> Config:
         """Read the configuration file."""
         with fname.open() as f:
             data, include_files = safe_load_yaml(
@@ -874,7 +878,8 @@ class Config(BaseModel):
         assert self._configuration_file is not None
         # Updates all public attributes
         new_config = self.load(
-            self._configuration_file, yaml_encoding=self.yaml_encoding,
+            self._configuration_file,
+            yaml_encoding=self.yaml_encoding,
         )
         self.__dict__.update(new_config.__dict__)
         self._include_files = new_config._include_files

@@ -851,10 +851,10 @@ class Config(BaseModel):
     _include_files: list[Path] = PrivateAttr(default_factory=list)
 
     @classmethod
-    def load(cls: type[Config], fname: Path, encoding) -> Config:
+    def load(cls: type[Config], fname: Path, yaml_encoding) -> Config:
         """Read the configuration file."""
         with fname.open() as f:
-            data, include_files = safe_load_yaml(f, return_included_paths=True, encoding=encoding)
+            data, include_files = safe_load_yaml(f, return_included_paths=True, encoding=yaml_encoding)
             config = cls(**data)  # type: ignore[arg-type]
             config._configuration_file = fname
             config._include_files = include_files
@@ -2582,7 +2582,7 @@ def main() -> None:
         type=Path,
     )
     parser.add_argument(
-        "--encoding",
+        "--yaml-encoding",
         default=yaml_encoding,
         help=f"Specify encoding for YAML files (default is system encoding or from environment variable YAML_ENCODING (default: {yaml_encoding})",
     )
@@ -2597,7 +2597,7 @@ def main() -> None:
     console.log(
         f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}",
     )
-    config = Config.load(args.config, encoding=args.encoding)
+    config = Config.load(args.config, yaml_encoding=args.yaml_encoding)
     asyncio.run(
         run(
             host=args.host,

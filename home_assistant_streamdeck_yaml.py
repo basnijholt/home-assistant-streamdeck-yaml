@@ -9,11 +9,11 @@ import functools as ft
 import hashlib
 import io
 import json
+import locale
 import math
 import re
 import time
 import warnings
-import locale 
 from contextlib import asynccontextmanager
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -854,7 +854,9 @@ class Config(BaseModel):
     def load(cls: type[Config], fname: Path, yaml_encoding) -> Config:
         """Read the configuration file."""
         with fname.open() as f:
-            data, include_files = safe_load_yaml(f, return_included_paths=True, encoding=yaml_encoding)
+            data, include_files = safe_load_yaml(
+                f, return_included_paths=True, encoding=yaml_encoding,
+            )
             config = cls(**data)  # type: ignore[arg-type]
             config._configuration_file = fname
             config._include_files = include_files
@@ -2524,7 +2526,9 @@ def safe_load_yaml(
         if isinstance(node.value, str):
             filepath = loader._root / str(loader.construct_scalar(node))  # type: ignore[arg-type]
             included_files.append(filepath)
-            return yaml.load(filepath.read_text(encoding=encoding), IncludeLoader)  # noqa: S506
+            return yaml.load(
+                filepath.read_text(encoding=encoding), IncludeLoader,
+            )
         else:  # noqa: RET505
             mapping = loader.construct_mapping(node, deep=True)  # type: ignore[arg-type]
             assert mapping is not None
@@ -2532,7 +2536,9 @@ def safe_load_yaml(
             included_files.append(filepath)
             variables = mapping["vars"]
 
-            loaded_data = yaml.load(filepath.read_text(encoding=encoding), IncludeLoader)  # noqa: S506
+            loaded_data = yaml.load(
+                filepath.read_text(encoding=encoding), IncludeLoader,
+            )
             assert loaded_data is not None
             assert variables is not None
             _traverse_yaml(loaded_data, variables)
@@ -2565,10 +2571,10 @@ def main() -> None:
     from dotenv import load_dotenv
 
     load_dotenv()
-    
+
     # Get the system default encoding
     system_encoding = locale.getpreferredencoding()
-    yaml_encoding = os.getenv('YAML_ENCODING', system_encoding)
+    yaml_encoding = os.getenv("YAML_ENCODING", system_encoding)
 
     parser = argparse.ArgumentParser(
         epilog=_help(),

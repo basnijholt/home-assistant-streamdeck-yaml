@@ -2197,7 +2197,6 @@ async def _handle_key_press(
     deck: StreamDeck,
     is_long_press: bool = False,
 ) -> None:
-    console.log(f"Key {button} long press {is_long_press} detected")
     if not config._is_on:
         turn_on(config, deck, complete_state)
         await _sync_input_boolean(config.state_entity_id, websocket, "on")
@@ -2319,13 +2318,10 @@ def _on_press_callback(
             )
 
             async def monitor_long_press():
-                console.log(f"Starting long press monitor for key {key}")
                 try:
                     await asyncio.sleep(LONG_PRESS_THRESHOLD)
-                    console.log(f"Long press monitor completed for key {key}")
                     if key in press_start_times:  # Button still pressed
                         console.log(f"Key {key} long press detected after {LONG_PRESS_THRESHOLD}s")
-                        console.log(f"Long press config: {button.long_press}")
                         try:
                             await _handle_key_press(
                                 websocket, complete_state, config, button, deck, is_long_press=True
@@ -2342,7 +2338,6 @@ def _on_press_callback(
         
         else:  # Key released
             if key in press_tasks:
-                console.log(f"Canceling long press task for key {key}")
                 press_tasks[key].cancel()
                 del press_tasks[key]
             

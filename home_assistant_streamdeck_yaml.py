@@ -73,6 +73,10 @@ LCD_PIXELS_Y = 100
 LCD_ICON_SIZE_X = 200
 LCD_ICON_SIZE_Y = 100
 
+
+LONG_PRESS_THRESHOLD = 1.0 # Threshold in seconds for a long press
+press_start_times: Dict[int, float] = {}  # Dictionary to store press start times per key
+
 console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
 
@@ -2141,6 +2145,7 @@ async def _handle_key_press(
     config: Config,
     button: Button,
     deck: StreamDeck,
+    is_long_press: bool = False,
 ) -> None:
     if not config._is_on:
         turn_on(config, deck, complete_state)
@@ -2153,51 +2158,83 @@ async def _handle_key_press(
         update_all_key_images(deck, config, complete_state)
         update_all_dials(deck, config, complete_state)
 
-    if button.special_type == "next-page":
-        config.next_page()
-        update_all()
-    elif button.special_type == "previous-page":
-        config.previous_page()
-        update_all()
-    elif button.special_type == "go-to-page":
-        assert isinstance(button.special_type_data, (str, int))
-        config.to_page(button.special_type_data)  # type: ignore[arg-type]
-        update_all()
-        return  # to skip the _detached_page reset below
-    elif button.special_type == "turn-off":
-        turn_off(config, deck)
-        await _sync_input_boolean(config.state_entity_id, websocket, "off")
-    elif button.special_type == "light-control":
-        assert isinstance(button.special_type_data, dict)
-        page = _light_page(
-            entity_id=button.entity_id,
-            n_colors=10,
-            colormap=button.special_type_data.get("colormap", None),
-            colors=button.special_type_data.get("colors", None),
-            color_temp_kelvin=button.special_type_data.get("color_temp_kelvin", None),
-        )
-        config._detached_page = page
-        update_all()
-        return  # to skip the _detached_page reset below
-    elif button.special_type == "reload":
-        config.reload()
-        update_all()
-        return
-    elif button.service is not None:
-        button = button.rendered_template_button(complete_state)
-        if button.service_data is None:
-            service_data = {}
-            if button.entity_id is not None:
-                service_data["entity_id"] = button.entity_id
-        else:
-            service_data = button.service_data
-        console.log(f"Calling service {button.service} with data {service_data}")
-        assert button.service is not None  # for mypy
-        await call_service(websocket, button.service, service_data, button.target)
+    async def handle_press( 
+            button : Button,
+            entity_id: str | None = None,
+            service: str | None = None,
+            service_data: dict[str, Any] | None = None,
+            target: dict[str, Any] | None = None,
+            special_type: str | None = None,
+            special_type_data: str | None = None,
+    ) -> None: 
+        if special_type == "next-page":
+            config.next_page()
+            update_all()
+        elif special_type == "previous-page":
+            config.previous_page()
+            update_all()
+        elif special_type == "go-to-page":
+            assert isinstance(button.special_type_data, (str, int))
+            config.to_page(button.special_type_data)  # type: ignore[arg-type]
+            update_all()
+            return # to skip the _detached_page reset below
+        elif special_type == "turn-off":
+            turn_off(config, deck)
+            await _sync_input_boolean(config.state_entity_id, websocket, "off")
+        elif special_type == "light-control":
+            assert isinstance(special_type_data, dict)
+            page = _light_page(
+                entity_id=entity_id,
+                n_colors=10,
+                colormap=special_type_data.get("colormap", None),
+                colors=special_type_data.get("colors", None),
+                color_temp_kelvin=special_type_data.get("color_temp_kelvin", None),
+            )
+            config._detached_page = page
+            update_all()
+            return  # to skip the _detached_page reset below
+        elif special_type == "reload":
+            config.reload()
+            update_all()
+            return
+        elif service is not None:          
+            button = button.rendered_template_button(complete_state)
+            if service_data is None:
+                service_data = {}
+                if entity_id is not None:
+                    service_data["entity_id"] = entity_id
+            else:
+                service_data = service_data
+            console.log(f"Calling service {service} with data {service_data}")
+            assert service is not None  # for mypy
+            await call_service(websocket, button.service, service_data, button.target)
+            
+        if config._detached_page:
+            config._detached_page = None
+            update_all()
 
-    if config._detached_page:
-        config._detached_page = None
-        update_all()
+    if is_long_press and button.long_press: 
+        await handle_press(
+            entity_id=button.entity_id,
+            service=button.long_press.service,
+            service_data=button.long_press.service_data,
+            target=button.long_press.target,
+            special_type=button.long_press.special_type,
+            special_type_data=button.long_press.special_type_data,
+            button=button,
+        )
+    else :
+        await handle_press(
+            entity_id=button.entity_id,
+            service=button.service,
+            service_data=button.service_data,
+            target=button.target,
+            special_type=button.special_type,
+            special_type_data=button.special_type_data,
+            button=button,
+        )
+
+
 
 
 def _on_press_callback(
@@ -2205,38 +2242,81 @@ def _on_press_callback(
     complete_state: StateDict,
     config: Config,
 ) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:
+    LONG_PRESS_THRESHOLD = 1.0  # Threshold in seconds for a long press
+    press_tasks: Dict[int, asyncio.Task] = {}  # Track ongoing press tasks
+    press_start_times: Dict[int, float] = {}  # Track press start times
+
     async def key_change_callback(
         deck: StreamDeck,
         key: int,
         key_pressed: bool,  # noqa: FBT001
     ) -> None:
         console.log(f"Key {key} {'pressed' if key_pressed else 'released'}")
-
+        
         button = config.button(key)
-        assert button is not None
-        if button is not None and key_pressed:
-
-            async def cb() -> None:
-                """Update the deck once more after the timer is over."""
-                assert button is not None  # for mypy
-                await _handle_key_press(websocket, complete_state, config, button, deck)
-
-            if button.maybe_start_or_cancel_timer(cb):
-                key_pressed = False  # do not click now
-
-        try:
+        if button is None:
+            return
+        
+        if key_pressed:
+            # Record the start time and update the key image
+            press_start_times[key] = time.time()
             update_key_image(
                 deck,
                 key=key,
                 config=config,
                 complete_state=complete_state,
-                key_pressed=key_pressed,
+                key_pressed=True,
             )
-            if key_pressed:
-                await _handle_key_press(websocket, complete_state, config, button, deck)
-        except Exception as e:  # noqa: BLE001
-            console.print_exception(show_locals=True)
-            console.log(f"key_change_callback failed with a {type(e)}: {e}")
+
+            # Start a task to monitor the press duration for long press
+            async def monitor_long_press():
+                await asyncio.sleep(LONG_PRESS_THRESHOLD)
+                if key in press_start_times:  # Button still pressed
+                    console.log(f"Key {key} long press detected after {LONG_PRESS_THRESHOLD}s")
+                    await _handle_key_press(
+                        websocket, complete_state, config, button, deck, is_long_press=True
+                    )
+                    # Mark as handled to prevent short press on release
+                    del press_start_times[key]
+
+            press_tasks[key] = asyncio.create_task(monitor_long_press())
+        
+        else:  # Key released
+            if key in press_tasks:
+                # Cancel the long press task if it hasn't completed
+                press_tasks[key].cancel()
+                del press_tasks[key]
+            
+            if key in press_start_times:
+                # If still in press_start_times, it was a short press
+                press_duration = time.time() - press_start_times[key]
+                del press_start_times[key]
+                
+                # Update the key image back to unpressed state
+                update_key_image(
+                    deck,
+                    key=key,
+                    config=config,
+                    complete_state=complete_state,
+                    key_pressed=False,
+                )
+                
+                console.log(f"Key {key} released after {press_duration:.2f}s")
+                if press_duration < LONG_PRESS_THRESHOLD:
+                    # Handle short press immediately if no delay
+                    async def cb() -> None:
+                        """Update the deck once more after the timer is over."""
+                        assert button is not None  # for mypy
+                        await _handle_key_press(
+                            websocket, complete_state, config, button, deck, is_long_press=False
+                        )
+
+                    if button.maybe_start_or_cancel_timer(cb):
+                        return
+                    
+                    await _handle_key_press(
+                        websocket, complete_state, config, button, deck, is_long_press=False
+                    )
 
     return key_change_callback
 

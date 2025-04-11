@@ -265,6 +265,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " The `color_temp_kelvin` key and a value a list of max (`n_keys_on_streamdeck - 6`) color temperatures in Kelvin."
         " The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html)"
         " The `brightness` key and a value a brightness level (0-100)."
+        " The `brightness` key and a value a brightness level (0-100)."
         " can be used. This requires the `matplotlib` package to be installed. If no"
         " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",
     )

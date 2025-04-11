@@ -13,6 +13,7 @@ import math
 import re
 import time
 import warnings
+import locale 
 from contextlib import asynccontextmanager
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -850,10 +851,10 @@ class Config(BaseModel):
     _include_files: list[Path] = PrivateAttr(default_factory=list)
 
     @classmethod
-    def load(cls: type[Config], fname: Path) -> Config:
+    def load(cls: type[Config], fname: Path, encoding) -> Config:
         """Read the configuration file."""
         with fname.open() as f:
-            data, include_files = safe_load_yaml(f, return_included_paths=True)
+            data, include_files = safe_load_yaml(f, return_included_paths=True, encoding=encoding)
             config = cls(**data)  # type: ignore[arg-type]
             config._configuration_file = fname
             config._include_files = include_files
@@ -2487,6 +2488,7 @@ def safe_load_yaml(
     f: TextIO | str,
     *,
     return_included_paths: bool = False,
+    encoding: str,
 ) -> Any | tuple[Any, list]:
     """Load a YAML file."""
     included_files = []
@@ -2522,7 +2524,7 @@ def safe_load_yaml(
         if isinstance(node.value, str):
             filepath = loader._root / str(loader.construct_scalar(node))  # type: ignore[arg-type]
             included_files.append(filepath)
-            return yaml.load(filepath.read_text(), IncludeLoader)  # noqa: S506
+            return yaml.load(filepath.read_text(encoding=encoding), IncludeLoader)  # noqa: S506
         else:  # noqa: RET505
             mapping = loader.construct_mapping(node, deep=True)  # type: ignore[arg-type]
             assert mapping is not None
@@ -2530,7 +2532,7 @@ def safe_load_yaml(
             included_files.append(filepath)
             variables = mapping["vars"]
 
-            loaded_data = yaml.load(filepath.read_text(), IncludeLoader)  # noqa: S506
+            loaded_data = yaml.load(filepath.read_text(encoding=encoding), IncludeLoader)  # noqa: S506
             assert loaded_data is not None
             assert variables is not None
             _traverse_yaml(loaded_data, variables)
@@ -2563,6 +2565,10 @@ def main() -> None:
     from dotenv import load_dotenv
 
     load_dotenv()
+    
+    # Get the system default encoding
+    system_encoding = locale.getpreferredencoding()
+    yaml_encoding = os.getenv('YAML_ENCODING', system_encoding)
 
     parser = argparse.ArgumentParser(
         epilog=_help(),
@@ -2576,6 +2582,12 @@ def main() -> None:
         type=Path,
     )
     parser.add_argument(
+        "--encoding",
+        default=yaml_encoding,
+        help=f"Specify encoding for YAML files (default is system encoding or from environment variable YAML_ENCODING (default: {yaml_encoding})",
+    )
+
+    parser.add_argument(
         "--protocol",
         default=os.environ.get("WEBSOCKET_PROTOCOL", "wss"),
         choices=["wss", "ws"],
@@ -2585,7 +2597,7 @@ def main() -> None:
     console.log(
         f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}",
     )
-    config = Config.load(args.config)
+    config = Config.load(args.config, encoding=args.encoding)
     asyncio.run(
         run(
             host=args.host,

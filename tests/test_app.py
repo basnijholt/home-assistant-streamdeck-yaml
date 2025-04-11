@@ -227,6 +227,7 @@ def test_example_close_pages(config: Config) -> None:
     assert config._current_page_index == 1
     config.close_page()
     assert config._current_page_index == 0
+    
 
 
 def test_example_close_pages(config: Config) -> None:

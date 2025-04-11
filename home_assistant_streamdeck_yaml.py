@@ -73,13 +73,7 @@ LCD_PIXELS_Y = 100
 LCD_ICON_SIZE_X = 200
 LCD_ICON_SIZE_Y = 100
 
-<<<<<<< HEAD
 press_start_times: Dict[int, float] = {}  # Dictionary to store press start times per key.
-=======
-
-LONG_PRESS_THRESHOLD = 1.0 # Threshold in seconds for a long press
-press_start_times: Dict[int, float] = {}  # Dictionary to store press start times per key
->>>>>>> 48c81b9fbabd0247a42cea7543ecd7d645309f3f
 
 console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
@@ -2231,13 +2225,8 @@ async def _handle_key_press(
             config.previous_page()
             update_all()
         elif special_type == "go-to-page":
-<<<<<<< HEAD
             assert isinstance(special_type_data, (str, int))
             config.to_page(special_type_data)  # type: ignore[arg-type]
-=======
-            assert isinstance(button.special_type_data, (str, int))
-            config.to_page(button.special_type_data)  # type: ignore[arg-type]
->>>>>>> 48c81b9fbabd0247a42cea7543ecd7d645309f3f
             update_all()
             return # to skip the _detached_page reset below
         elif special_type == "turn-off":
@@ -2267,10 +2256,6 @@ async def _handle_key_press(
                     service_data["entity_id"] = entity_id
             else:
                 service_data = service_data
-<<<<<<< HEAD
-=======
-            console.log(f"Calling service {service} with data {service_data}")
->>>>>>> 48c81b9fbabd0247a42cea7543ecd7d645309f3f
             assert service is not None  # for mypy
             await call_service(websocket, button.service, service_data, button.target)
             
@@ -2280,7 +2265,6 @@ async def _handle_key_press(
 
     if is_long_press and button.long_press: 
         await handle_press(
-<<<<<<< HEAD
             entity_id=button.long_press.get("entity_id", button.entity_id),
             service=button.long_press.get("service"),
             service_data=button.long_press.get("service_data"),
@@ -2292,19 +2276,7 @@ async def _handle_key_press(
     else :
         await handle_press(
             entity_id=button.entity_id,
-=======
-            entity_id=button.entity_id,
-            service=button.long_press.service,
-            service_data=button.long_press.service_data,
-            target=button.long_press.target,
-            special_type=button.long_press.special_type,
-            special_type_data=button.long_press.special_type_data,
-            button=button,
-        )
-    else :
-        await handle_press(
-            entity_id=button.entity_id,
->>>>>>> 48c81b9fbabd0247a42cea7543ecd7d645309f3f
+
             service=button.service,
             service_data=button.service_data,
             target=button.target,
@@ -2321,16 +2293,9 @@ def _on_press_callback(
     complete_state: StateDict,
     config: Config,
 ) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:
-<<<<<<< HEAD
     press_tasks: Dict[int, asyncio.Task] = {}  # Track ongoing press tasks
     press_start_times: Dict[int, float] = {}  # Track press start times
     long_press_threshold = config.long_press_duration
-=======
-    LONG_PRESS_THRESHOLD = 1.0  # Threshold in seconds for a long press
-    press_tasks: Dict[int, asyncio.Task] = {}  # Track ongoing press tasks
-    press_start_times: Dict[int, float] = {}  # Track press start times
-
->>>>>>> 48c81b9fbabd0247a42cea7543ecd7d645309f3f
     async def key_change_callback(
         deck: StreamDeck,
         key: int,
@@ -2340,20 +2305,12 @@ def _on_press_callback(
         
         button = config.button(key)
         if button is None:
-<<<<<<< HEAD
             console.log(f"No button found for key {key}")
             return
         
         if key_pressed:
             press_start_times[key] = time.time()
             console.log(f"Key {key} pressed, starting long press monitor with threshold {long_press_threshold}s")
-=======
-            return
-        
-        if key_pressed:
-            # Record the start time and update the key image
-            press_start_times[key] = time.time()
->>>>>>> 48c81b9fbabd0247a42cea7543ecd7d645309f3f
             update_key_image(
                 deck,
                 key=key,
@@ -2362,7 +2319,6 @@ def _on_press_callback(
                 key_pressed=True,
             )
 
-<<<<<<< HEAD
             async def monitor_long_press():
                 try:
                     await asyncio.sleep(long_press_threshold)
@@ -2379,42 +2335,21 @@ def _on_press_callback(
                     console.log(f"Long press monitor for key {key} was canceled")
                 except Exception as e:
                     console.log(f"Unexpected error in long press monitor for key {key}: {e}")
-=======
-            # Start a task to monitor the press duration for long press
-            async def monitor_long_press():
-                await asyncio.sleep(LONG_PRESS_THRESHOLD)
-                if key in press_start_times:  # Button still pressed
-                    console.log(f"Key {key} long press detected after {LONG_PRESS_THRESHOLD}s")
-                    await _handle_key_press(
-                        websocket, complete_state, config, button, deck, is_long_press=True
-                    )
-                    # Mark as handled to prevent short press on release
-                    del press_start_times[key]
->>>>>>> 48c81b9fbabd0247a42cea7543ecd7d645309f3f
 
             press_tasks[key] = asyncio.create_task(monitor_long_press())
         
         else:  # Key released
             if key in press_tasks:
-<<<<<<< HEAD
-=======
                 # Cancel the long press task if it hasn't completed
->>>>>>> 48c81b9fbabd0247a42cea7543ecd7d645309f3f
                 press_tasks[key].cancel()
                 del press_tasks[key]
             
             if key in press_start_times:
-<<<<<<< HEAD
-                press_duration = time.time() - press_start_times[key]
-                del press_start_times[key]
-                
-=======
                 # If still in press_start_times, it was a short press
                 press_duration = time.time() - press_start_times[key]
                 del press_start_times[key]
                 
                 # Update the key image back to unpressed state
->>>>>>> 48c81b9fbabd0247a42cea7543ecd7d645309f3f
                 update_key_image(
                     deck,
                     key=key,
@@ -2424,7 +2359,6 @@ def _on_press_callback(
                 )
                 
                 console.log(f"Key {key} released after {press_duration:.2f}s")
-<<<<<<< HEAD
                 if press_duration < long_press_threshold:
                     console.log(f"Handling short press for key {key}")
                     async def cb() -> None:
@@ -2439,18 +2373,6 @@ def _on_press_callback(
 
                     if button.maybe_start_or_cancel_timer(cb):
                         console.log(f"Timer started for key {key}, delaying short press")
-=======
-                if press_duration < LONG_PRESS_THRESHOLD:
-                    # Handle short press immediately if no delay
-                    async def cb() -> None:
-                        """Update the deck once more after the timer is over."""
-                        assert button is not None  # for mypy
-                        await _handle_key_press(
-                            websocket, complete_state, config, button, deck, is_long_press=False
-                        )
-
-                    if button.maybe_start_or_cancel_timer(cb):
->>>>>>> 48c81b9fbabd0247a42cea7543ecd7d645309f3f
                         return
                     
                     await _handle_key_press(

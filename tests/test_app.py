@@ -20,7 +20,6 @@ from StreamDeck.Devices.StreamDeckOriginal import StreamDeckOriginal
 from home_assistant_streamdeck_yaml import (
     ASSETS_PATH,
     DEFAULT_CONFIG,
-    LONG_PRESS_THRESHOLD,
     Button,
     Config,
     IconWarning,
@@ -1084,8 +1083,12 @@ async def test_long_press(
     websocket_mock: Mock,
     state: dict[str, dict[str, Any]],
 ) -> None:
-    short_press_time = 0.0001
-    long_press_time = LONG_PRESS_THRESHOLD + 0.1
+    long_press_threshold = 0.5
+    short_press_time = 0.0
+    assert short_press_time < long_press_threshold
+    long_press_time = long_press_threshold + 0.1
+    assert long_press_time > long_press_threshold
+    
     home = Page(
         name="home",
         buttons=[Button(special_type="go-to-page", special_type_data="short", long_press={"special_type":"go-to-page", "special_type_data":"long"})],
@@ -1098,7 +1101,7 @@ async def test_long_press(
         name="long",
         buttons= [Button(text="long", special_type="go-to-page", special_type_data="home")],
     )
-    config = Config(pages=[home, short, long])
+    config = Config(pages=[home, short, long], long_press_duration=long_press_threshold)
     assert config._current_page_index == 0
     assert config.current_page() == home
     press = _on_press_callback(websocket_mock, state, config)

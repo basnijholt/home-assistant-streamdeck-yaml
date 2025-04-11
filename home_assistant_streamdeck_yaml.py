@@ -73,9 +73,7 @@ LCD_PIXELS_Y = 100
 LCD_ICON_SIZE_X = 200
 LCD_ICON_SIZE_Y = 100
 
-
-LONG_PRESS_THRESHOLD = 1.0 # Threshold in seconds for a long press
-press_start_times: Dict[int, float] = {}  # Dictionary to store press start times per key
+press_start_times: Dict[int, float] = {}  # Dictionary to store press start times per key.
 
 console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
@@ -902,6 +900,10 @@ class Config(BaseModel):
         description="If True, the configuration YAML file will automatically"
         " be reloaded when it is modified.",
     )
+    long_press_duration: float = Field(
+        default=0.5,
+        description="The duration (in seconds) for a long press.",
+    )
     _current_page_index: int = PrivateAttr(default=0)
     _is_on: bool = PrivateAttr(default=True)
     _detached_page: Page | None = PrivateAttr(default=None)
@@ -1717,7 +1719,6 @@ async def call_service(
     if target is not None:
         subscribe_payload["target"] = target
         
-    console.log(f"Calling service {domain}.{service} with payload: {subscribe_payload}")
     await websocket.send(json.dumps(subscribe_payload))
 
 
@@ -2293,7 +2294,7 @@ def _on_press_callback(
 ) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:
     press_tasks: Dict[int, asyncio.Task] = {}  # Track ongoing press tasks
     press_start_times: Dict[int, float] = {}  # Track press start times
-
+    long_press_threshold = config.long_press_duration
     async def key_change_callback(
         deck: StreamDeck,
         key: int,
@@ -2308,7 +2309,7 @@ def _on_press_callback(
         
         if key_pressed:
             press_start_times[key] = time.time()
-            console.log(f"Key {key} pressed, starting long press monitor")
+            console.log(f"Key {key} pressed, starting long press monitor with threshold {long_press_threshold}s")
             update_key_image(
                 deck,
                 key=key,
@@ -2319,9 +2320,9 @@ def _on_press_callback(
 
             async def monitor_long_press():
                 try:
-                    await asyncio.sleep(LONG_PRESS_THRESHOLD)
+                    await asyncio.sleep(long_press_threshold)
                     if key in press_start_times:  # Button still pressed
-                        console.log(f"Key {key} long press detected after {LONG_PRESS_THRESHOLD}s")
+                        console.log(f"Key {key} long press detected after {long_press_threshold}s")
                         try:
                             await _handle_key_press(
                                 websocket, complete_state, config, button, deck, is_long_press=True
@@ -2354,7 +2355,7 @@ def _on_press_callback(
                 )
                 
                 console.log(f"Key {key} released after {press_duration:.2f}s")
-                if press_duration < LONG_PRESS_THRESHOLD:
+                if press_duration < long_press_threshold:
                     console.log(f"Handling short press for key {key}")
                     async def cb() -> None:
                         """Update the deck once more after the timer is over."""

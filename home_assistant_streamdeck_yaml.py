@@ -10,11 +10,11 @@ import hashlib
 import io
 import json
 import locale
+import locale
 import math
 import re
 import time
 import warnings
-import locale 
 from contextlib import asynccontextmanager
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -867,7 +867,9 @@ class Config(BaseModel):
     ) -> Config:
         """Read the configuration file."""
         with fname.open() as f:
-            data, include_files = safe_load_yaml(f, return_included_paths=True, encoding=yaml_encoding)
+            data, include_files = safe_load_yaml(
+                f, return_included_paths=True, encoding=yaml_encoding,
+            )
             config = cls(**data)  # type: ignore[arg-type]
             config._configuration_file = fname
             config._include_files = include_files
@@ -2552,8 +2554,7 @@ def safe_load_yaml(
             variables = mapping["vars"]
 
             loaded_data = yaml.load(
-                filepath.read_text(encoding=encoding),
-                IncludeLoader,  # noqa: S506
+                filepath.read_text(encoding=encoding), IncludeLoader,
             )
             assert loaded_data is not None
             assert variables is not None
@@ -2587,10 +2588,10 @@ def main() -> None:
     from dotenv import load_dotenv
 
     load_dotenv()
-    
+
     # Get the system default encoding
     system_encoding = locale.getpreferredencoding()
-    yaml_encoding = os.getenv('YAML_ENCODING', system_encoding)
+    yaml_encoding = os.getenv("YAML_ENCODING", system_encoding)
 
     parser = argparse.ArgumentParser(
         epilog=_help(),

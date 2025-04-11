@@ -867,11 +867,7 @@ class Config(BaseModel):
     ) -> Config:
         """Read the configuration file."""
         with fname.open() as f:
-            data, include_files = safe_load_yaml(
-                f,
-                return_included_paths=True,
-                encoding=yaml_encoding,
-            )
+            data, include_files = safe_load_yaml(f, return_included_paths=True, encoding=yaml_encoding)
             config = cls(**data)  # type: ignore[arg-type]
             config._configuration_file = fname
             config._include_files = include_files

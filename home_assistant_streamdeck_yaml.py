@@ -1004,12 +1004,13 @@ class Config(BaseModel):
                 return p
         console.log(f"Could find page {page}, staying on current page")
         return self.current_page()
-    
+
     def close_page(self) -> Page:
         """Close the current page."""
         self._detached_page = None
         self._current_page_index = self._parent_page_index
         return self.current_page()
+
 
 def _next_id() -> int:
     global _ID_COUNTER
@@ -2192,7 +2193,7 @@ async def _handle_key_press(
         update_all()
     elif button.special_type == "close-page":
         config.close_page()
-        update_all()    
+        update_all()
     elif button.special_type == "go-to-page":
         assert isinstance(button.special_type_data, (str, int))
         config.to_page(button.special_type_data)  # type: ignore[arg-type]

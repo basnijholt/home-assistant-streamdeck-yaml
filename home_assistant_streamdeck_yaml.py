@@ -817,7 +817,10 @@ class Page(BaseModel):
 
 class Config(BaseModel):
     """Configuration file."""
-
+    yaml_encoding: str = Field(
+        default="utf-8",
+        description="The encoding of the YAML file.",
+    )
     pages: list[Page] = Field(
         default_factory=list,
         description="A list of `Page`s in the configuration.",
@@ -867,7 +870,7 @@ class Config(BaseModel):
         """Reload the configuration file."""
         assert self._configuration_file is not None
         # Updates all public attributes
-        new_config = self.load(self._configuration_file)
+        new_config = self.load(self._configuration_file, yaml_encoding=self.yaml_encoding)
         self.__dict__.update(new_config.__dict__)
         self._include_files = new_config._include_files
         # Set the private attributes we want to preserve

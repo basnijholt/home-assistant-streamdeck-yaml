@@ -867,7 +867,9 @@ class Config(BaseModel):
         """Read the configuration file."""
         with fname.open() as f:
             data, include_files = safe_load_yaml(
-                f, return_included_paths=True, encoding=yaml_encoding,
+                f,
+                return_included_paths=True,
+                encoding=yaml_encoding,
             )
             config = cls(**data)  # type: ignore[arg-type]
             config._configuration_file = fname
@@ -2553,7 +2555,8 @@ def safe_load_yaml(
             variables = mapping["vars"]
 
             loaded_data = yaml.load(
-                filepath.read_text(encoding=encoding), IncludeLoader,
+                filepath.read_text(encoding=encoding),
+                IncludeLoader,
             )
             assert loaded_data is not None
             assert variables is not None

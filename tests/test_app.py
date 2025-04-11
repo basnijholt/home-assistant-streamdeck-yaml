@@ -97,6 +97,7 @@ def button_dict() -> dict[str, dict[str, Any]]:
                     "#FFD700",  # gold
                     "#008000",  # dark green
                 ],
+                "brightness": [0, 10, 50, 100],
             },
         },
         "icon_from_url": {
@@ -217,6 +218,16 @@ def test_example_config_browsing_pages(config: Config) -> None:
     first_page = config.to_page(first_page.name)
     assert config._current_page_index == 0
     assert config.button(0) == first_page.buttons[0]
+
+def test_example_close_pages(config: Config) -> None:
+    """Test example config close pages."""
+    assert isinstance(config, Config)
+    assert config._current_page_index == 0
+    second_page = config.next_page()
+    assert isinstance(second_page, Page)
+    assert config._current_page_index == 1
+    config.close_pages()
+    assert config._current_page_index == 0
 
 
 def test_example_close_pages(config: Config) -> None:

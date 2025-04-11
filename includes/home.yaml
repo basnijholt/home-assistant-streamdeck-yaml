@@ -19,8 +19,8 @@
       - 6535  # from default HA options
     brightness:
       - 0
-      - 10
-      - 50
+      - 10 
+      - 50 
       - 100
 - special_type: go-to-page
   special_type_data: all-lights

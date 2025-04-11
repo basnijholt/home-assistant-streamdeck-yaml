@@ -14,6 +14,7 @@ import math
 import re
 import time
 import warnings
+import locale 
 from contextlib import asynccontextmanager
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -2590,10 +2591,10 @@ def main() -> None:
     from dotenv import load_dotenv
 
     load_dotenv()
-
+    
     # Get the system default encoding
     system_encoding = locale.getpreferredencoding()
-    yaml_encoding = os.getenv("YAML_ENCODING", system_encoding)
+    yaml_encoding = os.getenv('YAML_ENCODING', system_encoding)
 
     parser = argparse.ArgumentParser(
         epilog=_help(),

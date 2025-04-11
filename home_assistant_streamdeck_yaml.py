@@ -851,7 +851,7 @@ class Config(BaseModel):
     _include_files: list[Path] = PrivateAttr(default_factory=list)
 
     @classmethod
-    def load(cls: type[Config], fname: Path, yaml_encoding) -> Config:
+    def load(cls: type[Config], fname: Path, yaml_encoding: str) -> Config:
         """Read the configuration file."""
         with fname.open() as f:
             data, include_files = safe_load_yaml(f, return_included_paths=True, encoding=yaml_encoding)

@@ -266,9 +266,9 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
     )
 
     @classmethod
-    def from_yaml(cls: type[Button], yaml_str: str) -> Button:
+    def from_yaml(cls: type[Button], yaml_str: str, encoding : str | None = None) -> Button:
         """Set the attributes from a YAML string."""
-        data = safe_load_yaml(yaml_str)
+        data = safe_load_yaml(yaml_str, encoding=encoding)
         return cls(**data[0])
 
     @property
@@ -818,7 +818,7 @@ class Page(BaseModel):
 class Config(BaseModel):
     """Configuration file."""
 
-    yaml_encoding: str = Field(
+    yaml_encoding: str | None = Field(
         default="utf-8",
         description="The encoding of the YAML file.",
     )
@@ -855,7 +855,7 @@ class Config(BaseModel):
     _include_files: list[Path] = PrivateAttr(default_factory=list)
 
     @classmethod
-    def load(cls: type[Config], fname: Path, yaml_encoding: str) -> Config:
+    def load(cls: type[Config], fname: Path, yaml_encoding: str | None = None) -> Config:
         """Read the configuration file."""
         with fname.open() as f:
             data, include_files = safe_load_yaml(
@@ -2498,7 +2498,7 @@ def safe_load_yaml(
     f: TextIO | str,
     *,
     return_included_paths: bool = False,
-    encoding: str,
+    encoding: str | None = None,
 ) -> Any | tuple[Any, list]:
     """Load a YAML file."""
     included_files = []

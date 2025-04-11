@@ -56,6 +56,6 @@
   special_type_data: bas
 - special_type: empty
 - special_type: empty
-- special_type: empty
+- special_type: close-page
 - special_type: previous-page
 - special_type: next-page

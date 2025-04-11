@@ -97,7 +97,6 @@ def button_dict() -> dict[str, dict[str, Any]]:
                     "#FFD700",  # gold
                     "#008000",  # dark green
                 ],
-                "brightness": [0, 10, 50, 100],
             },
         },
         "icon_from_url": {

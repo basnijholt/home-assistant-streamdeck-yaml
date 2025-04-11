@@ -231,6 +231,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             "previous-page",
             "empty",
             "go-to-page",
+            "close-page",
             "turn-off",
             "light-control",
             "reload",
@@ -245,6 +246,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " If `previous-page`, the button will go to the previous page."
         " If `turn-off`, the button will turn off the SteamDeck until any button is pressed."
         " If `empty`, the button will be empty."
+        " If `close-page`, the button will close the current page and return to the previous one."
         " If `go-to-page`, the button will go to the page specified by `special_type_data`"
         " (either an `int` or `str` (name of the page))."
         " If `light-control`, the button will control a light, and the `special_type_data`"
@@ -368,6 +370,9 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             page = button.special_type_data
             text = button.text or f"Go to\nPage\n{page}"
             icon_mdi = button.icon_mdi or "book-open-page-variant"
+        elif button.special_type == "close-page":
+            text = button.text or "Close\nPage"
+            icon_mdi = button.icon_mdi or "arrow-u-left-bottom-bold"
         elif button.special_type == "turn-off":
             text = button.text or "Turn off"
             icon_mdi = button.icon_mdi or "power"
@@ -774,6 +779,8 @@ class Page(BaseModel):
         description="A list of dials on the page.",
     )
 
+    _parent_page_index: int = PrivateAttr([])
+
     _dials_sorted: list[Dial] = PrivateAttr([])
 
     def sort_dials(self) -> list[tuple[Dial, Dial | None]]:
@@ -848,6 +855,7 @@ class Config(BaseModel):
         " be reloaded when it is modified.",
     )
     _current_page_index: int = PrivateAttr(default=0)
+    _parent_page_index: int = PrivateAttr(default=0)
     _is_on: bool = PrivateAttr(default=True)
     _detached_page: Page | None = PrivateAttr(default=None)
     _configuration_file: Path | None = PrivateAttr(default=None)
@@ -913,6 +921,7 @@ class Config(BaseModel):
 
     def next_page(self) -> Page:
         """Go to the next page."""
+        self._parent_page_index = self._current_page_index
         self._current_page_index = self.next_page_index
         return self.pages[self._current_page_index]
 
@@ -928,6 +937,7 @@ class Config(BaseModel):
 
     def previous_page(self) -> Page:
         """Go to the previous page."""
+        self._parent_page_index = self._current_page_index
         self._current_page_index = self.previous_page_index
         return self.pages[self._current_page_index]
 
@@ -961,6 +971,7 @@ class Config(BaseModel):
     def to_page(self, page: int | str) -> Page:
         """Go to a page based on the page name or index."""
         if isinstance(page, int):
+            self._parent_page_index = self._current_page_index
             self._current_page_index = page
             return self.current_page()
 
@@ -975,7 +986,12 @@ class Config(BaseModel):
                 return p
         console.log(f"Could find page {page}, staying on current page")
         return self.current_page()
-
+    
+    def close_page(self) -> Page:
+        """Close the current page."""
+        self._detached_page = None
+        self._current_page_index = self._parent_page_index
+        return self.current_page()
 
 def _next_id() -> int:
     global _ID_COUNTER
@@ -2151,6 +2167,9 @@ async def _handle_key_press(
     elif button.special_type == "previous-page":
         config.previous_page()
         update_all()
+    elif button.special_type == "close-page":
+        config.close_page()
+        update_all()    
     elif button.special_type == "go-to-page":
         assert isinstance(button.special_type_data, (str, int))
         config.to_page(button.special_type_data)  # type: ignore[arg-type]

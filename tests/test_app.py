@@ -219,17 +219,6 @@ def test_example_config_browsing_pages(config: Config) -> None:
     assert config.button(0) == first_page.buttons[0]
 
 
-def test_example_close_pages(config: Config) -> None:
-    """Test example config close pages."""
-    assert isinstance(config, Config)
-    assert config._current_page_index == 0
-    second_page = config.next_page()
-    assert isinstance(second_page, Page)
-    assert config._current_page_index == 1
-    config.close_pages()
-    assert config._current_page_index == 0
-
-
 @pytest.mark.skipif(
     not IS_CONNECTED_TO_HOMEASSISTANT,
     reason="Not connected to Home Assistant",

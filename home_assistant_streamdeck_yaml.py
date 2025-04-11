@@ -2218,7 +2218,6 @@ async def _handle_key_press(
             special_type: str | None = None,
             special_type_data: str | None = None,
     ) -> None: 
-        console.log(f"Handling press for {button} for {entity_id=}, {service=}, {target=}, {special_type=}, {special_type_data=}")
         if special_type == "next-page":
             config.next_page()
             update_all()
@@ -2226,8 +2225,8 @@ async def _handle_key_press(
             config.previous_page()
             update_all()
         elif special_type == "go-to-page":
-            assert isinstance(button.special_type_data, (str, int))
-            config.to_page(button.special_type_data)  # type: ignore[arg-type]
+            assert isinstance(special_type_data, (str, int))
+            config.to_page(special_type_data)  # type: ignore[arg-type]
             update_all()
             return # to skip the _detached_page reset below
         elif special_type == "turn-off":
@@ -2257,7 +2256,6 @@ async def _handle_key_press(
                     service_data["entity_id"] = entity_id
             else:
                 service_data = service_data
-            console.log(f"Calling service {service} with data {service_data}")
             assert service is not None  # for mypy
             await call_service(websocket, button.service, service_data, button.target)
             
@@ -2266,14 +2264,13 @@ async def _handle_key_press(
             update_all()
 
     if is_long_press and button.long_press: 
-        console.log(f"Handling long press")
         await handle_press(
-            entity_id=button.long_press.entity_id or button.entity_id,
-            service=button.long_press.service,
-            service_data=button.long_press.service_data,
-            target=button.long_press.target or button.target,
-            special_type=button.long_press.special_type,
-            special_type_data=button.long_press.special_type_data,
+            entity_id=button.long_press.get("entity_id", button.entity_id),
+            service=button.long_press.get("service"),
+            service_data=button.long_press.get("service_data"),
+            target=button.long_press.get("target", button.target),
+            special_type=button.long_press.get("special_type"),
+            special_type_data=button.long_press.get("special_type_data"),
             button=button,
         )
     else :
@@ -2308,11 +2305,12 @@ def _on_press_callback(
         
         button = config.button(key)
         if button is None:
+            console.log(f"No button found for key {key}")
             return
         
         if key_pressed:
-            # Record the start time and update the key image
             press_start_times[key] = time.time()
+            console.log(f"Key {key} pressed, starting long press monitor")
             update_key_image(
                 deck,
                 key=key,
@@ -2321,31 +2319,38 @@ def _on_press_callback(
                 key_pressed=True,
             )
 
-            # Start a task to monitor the press duration for long press
             async def monitor_long_press():
-                await asyncio.sleep(LONG_PRESS_THRESHOLD)
-                if key in press_start_times:  # Button still pressed
-                    console.log(f"Key {key} long press detected after {LONG_PRESS_THRESHOLD}s")
-                    await _handle_key_press(
-                        websocket, complete_state, config, button, deck, is_long_press=True
-                    )
-                    # Mark as handled to prevent short press on release
-                    del press_start_times[key]
+                console.log(f"Starting long press monitor for key {key}")
+                try:
+                    await asyncio.sleep(LONG_PRESS_THRESHOLD)
+                    console.log(f"Long press monitor completed for key {key}")
+                    if key in press_start_times:  # Button still pressed
+                        console.log(f"Key {key} long press detected after {LONG_PRESS_THRESHOLD}s")
+                        console.log(f"Long press config: {button.long_press}")
+                        try:
+                            await _handle_key_press(
+                                websocket, complete_state, config, button, deck, is_long_press=True
+                            )
+                        except Exception as e:
+                            console.log(f"Error in long press handling: {e}")
+                        del press_start_times[key]
+                except asyncio.CancelledError:
+                    console.log(f"Long press monitor for key {key} was canceled")
+                except Exception as e:
+                    console.log(f"Unexpected error in long press monitor for key {key}: {e}")
 
             press_tasks[key] = asyncio.create_task(monitor_long_press())
         
         else:  # Key released
             if key in press_tasks:
-                # Cancel the long press task if it hasn't completed
+                console.log(f"Canceling long press task for key {key}")
                 press_tasks[key].cancel()
                 del press_tasks[key]
             
             if key in press_start_times:
-                # If still in press_start_times, it was a short press
                 press_duration = time.time() - press_start_times[key]
                 del press_start_times[key]
                 
-                # Update the key image back to unpressed state
                 update_key_image(
                     deck,
                     key=key,
@@ -2356,15 +2361,19 @@ def _on_press_callback(
                 
                 console.log(f"Key {key} released after {press_duration:.2f}s")
                 if press_duration < LONG_PRESS_THRESHOLD:
-                    # Handle short press immediately if no delay
+                    console.log(f"Handling short press for key {key}")
                     async def cb() -> None:
                         """Update the deck once more after the timer is over."""
                         assert button is not None  # for mypy
-                        await _handle_key_press(
-                            websocket, complete_state, config, button, deck, is_long_press=False
-                        )
+                        try:
+                            await _handle_key_press(
+                                websocket, complete_state, config, button, deck, is_long_press=False
+                            )
+                        except Exception as e:
+                            console.log(f"Error in short press handling: {e}")
 
                     if button.maybe_start_or_cancel_timer(cb):
+                        console.log(f"Timer started for key {key}, delaying short press")
                         return
                     
                     await _handle_key_press(

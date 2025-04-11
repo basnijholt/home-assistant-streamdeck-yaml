@@ -1102,8 +1102,11 @@ async def test_anonymous_page(
     button = config.button(0)
     assert button.text == "yolo"
     press = _on_press_callback(websocket_mock, state, config)
+    async def press_and_release (key: int) -> None:
+        await press(mock_deck, key, key_pressed=True)
+        await press(mock_deck, key, key_pressed=False)
     # Click the button
-    await press(mock_deck, 0, key_pressed=True)
+    await press_and_release(0)
     # Should now be the button on the first page
     button = config.button(0)
     assert button.special_type == "go-to-page"
@@ -1112,7 +1115,7 @@ async def test_anonymous_page(
     # Click the delay button
     button = config.button(1)
     assert button.text == "foo"
-    await press(mock_deck, 1, key_pressed=True)
+    await press_and_release(1)
     # Should now still be the button because of the delay
     assert button.text == "foo"
     assert config._detached_page is not None

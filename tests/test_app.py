@@ -225,7 +225,7 @@ def test_example_close_pages(config: Config) -> None:
     second_page = config.next_page()
     assert isinstance(second_page, Page)
     assert config._current_page_index == 1
-    config.close_pages()
+    config.close_page()
     assert config._current_page_index == 0
 
 
@@ -435,6 +435,7 @@ def test_light_page() -> None:
         colormap="hsv",
         colors=None,
         color_temp_kelvin=None,
+        brightness=None,
     )
     buttons = page.buttons
     assert len(buttons) == BUTTONS_PER_PAGE

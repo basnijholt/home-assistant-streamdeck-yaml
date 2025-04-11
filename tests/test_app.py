@@ -20,6 +20,7 @@ from StreamDeck.Devices.StreamDeckOriginal import StreamDeckOriginal
 from home_assistant_streamdeck_yaml import (
     ASSETS_PATH,
     DEFAULT_CONFIG,
+    LONG_PRESS_THRESHOLD,
     Button,
     Config,
     IconWarning,
@@ -1077,6 +1078,42 @@ def test_to_markdown_table() -> None:
     """Test to_markdown_table for docs."""
     table = Button.to_markdown_table()
     assert isinstance(table, str)
+
+async def test_long_press(
+    mock_deck: Mock,
+    websocket_mock: Mock,
+    state: dict[str, dict[str, Any]],
+) -> None:
+    short_press_time = 0.0001
+    long_press_time = LONG_PRESS_THRESHOLD + 0.1
+    home = Page(
+        name="home",
+        buttons=[Button(special_type="go-to-page", special_type_data="short", long_press={"special_type":"go-to-page", "special_type_data":"long"})],
+    )
+    short = Page(
+        name="short",
+        buttons=[Button(text="short", special_type="go-to-page", special_type_data="home")],
+    )
+    long = Page(
+        name="long",
+        buttons= [Button(text="long", special_type="go-to-page", special_type_data="home")],
+    )
+    config = Config(pages=[home, short, long])
+    assert config._current_page_index == 0
+    assert config.current_page() == home
+    press = _on_press_callback(websocket_mock, state, config)
+    async def press_and_release (key: int, seconds: float) -> None:
+        await press(mock_deck, key, key_pressed=True)
+        await asyncio.sleep(seconds)
+        await press(mock_deck, key, key_pressed=False)    
+    await press_and_release(0, short_press_time)
+    assert config.current_page() == short
+    await press_and_release(0, short_press_time)
+    assert config.current_page() == home 
+    await press_and_release(0, long_press_time)
+    assert config.current_page() == long
+    await press_and_release(0, short_press_time)
+    assert config.current_page() == home     
 
 
 async def test_anonymous_page(

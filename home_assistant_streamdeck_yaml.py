@@ -262,11 +262,16 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " The dictionary can contain the following keys:"
         " The `colors` key and a value a list of max (`n_keys_on_streamdeck - 6`) hex colors."
         " The `color_temp_kelvin` key and a value a list of max (`n_keys_on_streamdeck - 6`) color temperatures in Kelvin."
+<<<<<<< HEAD
         " The `colors` key and a value a list of max (`n_keys_on_streamdeck - 6`) hex colors."
         " The `color_temp_kelvin` key and a value a list of max (`n_keys_on_streamdeck - 6`) color temperatures in Kelvin."
         " The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html)"
         " The `brightness` key and a value a brightness level (0-100)."
         " The `brightness` key and a value a brightness level (0-100)."
+=======
+        " The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html)"
+        " The `brightness` key and a value a brightness level (0-100)."
+>>>>>>> 72c6202dd3601f2c31d5d1fe020e2542751bc884
         " can be used. This requires the `matplotlib` package to be installed. If no"
         " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",
     )
@@ -836,8 +841,12 @@ class Page(BaseModel):
 class Config(BaseModel):
     """Configuration file."""
 
+<<<<<<< HEAD
 
     yaml_encoding: str | None = Field(
+=======
+    yaml_encoding: str = Field(
+>>>>>>> 72c6202dd3601f2c31d5d1fe020e2542751bc884
         default="utf-8",
         description="The encoding of the YAML file.",
     )
@@ -1272,7 +1281,11 @@ def _light_page(
     n_colors: int,
     colors: tuple[str, ...] | None,
     color_temp_kelvin: tuple[int, ...] | None,
+<<<<<<< HEAD
     brightness: tuple[int, ...] | None,
+=======
+    brightness: tuple[int, ...],
+>>>>>>> 72c6202dd3601f2c31d5d1fe020e2542751bc884
     colormap: str | None,
 ) -> Page:
     """Return a page of buttons for controlling lights."""
@@ -1310,7 +1323,11 @@ def _light_page(
             icon_background_color=background_color,
             service="light.turn_on",
             text_color=_max_contrast_color(background_color),
+<<<<<<< HEAD
             text=f"{brightness}%" if brightness >0 else "OFF" if brightness > 0 else "OFF",
+=======
+            text=f"{brightness}%" if brightness > 0 else "OFF",
+>>>>>>> 72c6202dd3601f2c31d5d1fe020e2542751bc884
             service_data={
                 "entity_id": entity_id,
                 "brightness_pct": brightness,
@@ -1318,7 +1335,10 @@ def _light_page(
         )
         buttons_brightness.append(button)
     buttons_back = [Button(special_type="close-page")]
+<<<<<<< HEAD
     buttons_back = [Button(special_type="close-page")]
+=======
+>>>>>>> 72c6202dd3601f2c31d5d1fe020e2542751bc884
     return Page(
         name="Lights",
         buttons=buttons_colors

@@ -19,8 +19,13 @@
       - 6535  # from default HA options
     brightness:
       - 0
+<<<<<<< HEAD
       - 10 
       - 50 
+=======
+      - 10
+      - 50
+>>>>>>> 72c6202dd3601f2c31d5d1fe020e2542751bc884
       - 100
 - special_type: go-to-page
   special_type_data: all-lights

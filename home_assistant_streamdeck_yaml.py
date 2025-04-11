@@ -268,6 +268,17 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " can be used. This requires the `matplotlib` package to be installed. If no"
         " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",
     )
+    long_press: dict[str, Any] | None = Field(
+         default=None,
+         allow_template=True,
+         description="Configuration for long press actions. Can include:"
+         " `service`: The service to call on long press (e.g., 'light.turn_off')."
+         " `service_data`: Data to pass to the service (e.g., {'brightness_pct': 10})."
+         " `entity_id`: The entity ID to target (e.g., 'light.living_room'), overriding the button's entity_id if specified."
+         " `special_type`: Special action for long press (e.g., 'next-page', 'light-control')."
+         " `special_type_data`: Data for the special type action (e.g., {'colors': ['#FF0000']})."
+         " If not specified, the default service or special_type action is used for both short and long presses.",
+     )
 
     @classmethod
     def from_yaml(
@@ -477,6 +488,43 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                 # Cast color_temp_kelvin to tuple (to make it hashable)
                 v["color_temp_kelvin"] = tuple(v["color_temp_kelvin"])
         return v
+
+    @validator("long_press", pre=True)
+    def _validate_long_press(cls, v: Any, values: dict[str, Any]) -> Any:
+        if v is None:
+            return None
+        if not isinstance(v, dict):
+            raise ValueError("long_press must be a dictionary")
+        allowed_keys = {"service", "service_data", "entity_id", "special_type", "special_type_data"}
+        invalid_keys = set(v.keys()) - allowed_keys
+        if invalid_keys:
+            raise ValueError(f"Invalid keys in long_press: {invalid_keys}. Allowed: {allowed_keys}")
+        if "service" in v and not isinstance(v["service"], str):
+            raise ValueError("long_press.service must be a string")
+        if "service_data" in v and not isinstance(v["service_data"], dict):
+            raise ValueError("long_press.service_data must be a dictionary")
+        if "entity_id" in v and not isinstance(v["entity_id"], str):
+            raise ValueError("long_press.entity_id must be a string")
+        if "special_type" in v:
+            allowed_special_types = {
+                "next-page", "previous-page", "empty", "go-to-page", "close-page",
+                "turn-off", "light-control", "climate-control", "reload"
+            }
+            if v["special_type"] not in allowed_special_types:
+                raise ValueError(f"long_press.special_type must be one of {allowed_special_types}")
+        if "special_type_data" in v and "special_type" not in v:
+            raise ValueError("long_press.special_type_data requires special_type to be set")
+        if "special_type" in v and "special_type_data" in v:
+            cls._validate_special_type(v["special_type_data"], {"special_type": v["special_type"]})
+        return v
+
+        @classmethod
+        def templatable(cls: type[Button]) -> set[str]:
+            """Return if an attribute is templatable, which is if the type-annotation is str."""
+            schema = cls.schema()
+            properties = schema["properties"]
+            return {k for k, v in properties.items() if v["allow_template"]} | {"long_press"}
+
 
     def maybe_start_or_cancel_timer(
         self,
@@ -1668,6 +1716,8 @@ async def call_service(
     }
     if target is not None:
         subscribe_payload["target"] = target
+        
+    console.log(f"Calling service {domain}.{service} with payload: {subscribe_payload}")
     await websocket.send(json.dumps(subscribe_payload))
 
 
@@ -2147,6 +2197,7 @@ async def _handle_key_press(
     deck: StreamDeck,
     is_long_press: bool = False,
 ) -> None:
+    console.log(f"Key {button} long press {is_long_press} detected")
     if not config._is_on:
         turn_on(config, deck, complete_state)
         await _sync_input_boolean(config.state_entity_id, websocket, "on")
@@ -2167,6 +2218,7 @@ async def _handle_key_press(
             special_type: str | None = None,
             special_type_data: str | None = None,
     ) -> None: 
+        console.log(f"Handling press for {button} for {entity_id=}, {service=}, {target=}, {special_type=}, {special_type_data=}")
         if special_type == "next-page":
             config.next_page()
             update_all()
@@ -2214,11 +2266,12 @@ async def _handle_key_press(
             update_all()
 
     if is_long_press and button.long_press: 
+        console.log(f"Handling long press")
         await handle_press(
-            entity_id=button.entity_id,
+            entity_id=button.long_press.entity_id or button.entity_id,
             service=button.long_press.service,
             service_data=button.long_press.service_data,
-            target=button.long_press.target,
+            target=button.long_press.target or button.target,
             special_type=button.long_press.special_type,
             special_type_data=button.long_press.special_type_data,
             button=button,

@@ -1102,6 +1102,7 @@ async def test_anonymous_page(
     button = config.button(0)
     assert button.text == "yolo"
     press = _on_press_callback(websocket_mock, state, config)
+    # We need to have a release otherwise it will be timing for a long press
     async def press_and_release (key: int) -> None:
         await press(mock_deck, key, key_pressed=True)
         await press(mock_deck, key, key_pressed=False)

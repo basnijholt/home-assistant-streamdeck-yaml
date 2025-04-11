@@ -832,6 +832,7 @@ class Page(BaseModel):
 
 class Config(BaseModel):
     """Configuration file."""
+
     yaml_encoding: str = Field(
         default="utf-8",
         description="The encoding of the YAML file.",
@@ -888,7 +889,9 @@ class Config(BaseModel):
         """Reload the configuration file."""
         assert self._configuration_file is not None
         # Updates all public attributes
-        new_config = self.load(self._configuration_file, yaml_encoding=self.yaml_encoding)
+        new_config = self.load(
+            self._configuration_file, yaml_encoding=self.yaml_encoding,
+        )
         self.__dict__.update(new_config.__dict__)
         self._include_files = new_config._include_files
         # Set the private attributes we want to preserve
@@ -994,12 +997,13 @@ class Config(BaseModel):
                 return p
         console.log(f"Could find page {page}, staying on current page")
         return self.current_page()
-    
+
     def close_page(self) -> Page:
         """Close the current page."""
         self._detached_page = None
         self._current_page_index = self._parent_page_index
         return self.current_page()
+
 
 def _next_id() -> int:
     global _ID_COUNTER
@@ -1302,7 +1306,7 @@ def _light_page(
             icon_background_color=background_color,
             service="light.turn_on",
             text_color=_max_contrast_color(background_color),
-            text=f"{brightness}%" if brightness >0 else "OFF",
+            text=f"{brightness}%" if brightness > 0 else "OFF",
             service_data={
                 "entity_id": entity_id,
                 "brightness_pct": brightness,
@@ -1312,7 +1316,10 @@ def _light_page(
     buttons_back = [Button(special_type="close-page")]
     return Page(
         name="Lights",
-        buttons=buttons_colors + buttons_color_temp_kelvin + buttons_brightness + buttons_back,
+        buttons=buttons_colors
+        + buttons_color_temp_kelvin
+        + buttons_brightness
+        + buttons_back,
     )
 
 
@@ -2179,7 +2186,7 @@ async def _handle_key_press(
         update_all()
     elif button.special_type == "close-page":
         config.close_page()
-        update_all()    
+        update_all()
     elif button.special_type == "go-to-page":
         assert isinstance(button.special_type_data, (str, int))
         config.to_page(button.special_type_data)  # type: ignore[arg-type]

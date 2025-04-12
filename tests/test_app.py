@@ -448,6 +448,7 @@ def test_light_page() -> None:
         colormap=None,
         colors=None,
         color_temp_kelvin=None,
+        brightness=None,
     )
     buttons = page.buttons
     assert len(buttons) == BUTTONS_PER_PAGE

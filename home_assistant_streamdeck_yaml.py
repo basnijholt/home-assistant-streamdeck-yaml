@@ -260,8 +260,8 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " If `go-to-page`, the data should be an `int` or `str` (name of the page)."
         " If `light-control`, the data should optionally be a dictionary."
         " The dictionary can contain the following keys:"
-        " The `colors` key and a value a list of max (`n_keys_on_streamdeck - 6`) hex colors."
-        " The `color_temp_kelvin` key and a value a list of max (`n_keys_on_streamdeck - 6`) color temperatures in Kelvin."
+        " The `colors` key and a value a list of max (`n_keys_on_streamdeck - 5`) hex colors."
+        " The `color_temp_kelvin` key and a value a list of max (`n_keys_on_streamdeck - 5`) color temperatures in Kelvin."
         " The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html)"
         " can be used. This requires the `matplotlib` package to be installed. If no"
         " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",

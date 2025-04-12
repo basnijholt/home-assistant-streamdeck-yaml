@@ -51,6 +51,7 @@ IS_CONNECTED_TO_HOMEASSISTANT = False
 BUTTONS_PER_PAGE = 15
 DEFAULT_CONFIG_ENCODING = "utf-8"
 
+
 def test_load_config() -> None:
     """Test Config.load."""
     Config.load(DEFAULT_CONFIG, yaml_encoding=DEFAULT_CONFIG_ENCODING)

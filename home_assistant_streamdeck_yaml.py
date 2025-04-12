@@ -936,7 +936,7 @@ class Config(BaseModel):
         allow_template=False,
         description="Configuration to return to a home page after inactivity."
         " Includes `duration` (float, seconds of inactivity) and `home_page` (str, name of the page)."
-        " If not specified, no automatic return occurs.",
+        " If not specified, no automatic return occurs. Requires a restart to take effect."
     )    
     _current_page_index: int = PrivateAttr(default=0)
     _is_on: bool = PrivateAttr(default=True)

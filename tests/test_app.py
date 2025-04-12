@@ -49,16 +49,16 @@ sys.path.append(str(ROOT))
 TEST_STATE_FILENAME = ROOT / "tests" / "state.json"
 IS_CONNECTED_TO_HOMEASSISTANT = False
 BUTTONS_PER_PAGE = 15
-
+DEFAULT_CONFIG_ENCODING = "utf-8"
 
 def test_load_config() -> None:
     """Test Config.load."""
-    Config.load(DEFAULT_CONFIG)
+    Config.load(DEFAULT_CONFIG, yaml_encoding=DEFAULT_CONFIG_ENCODING)
 
 
 def test_reload_config() -> None:
     """Test Config.load."""
-    c = Config.load(DEFAULT_CONFIG)
+    c = Config.load(DEFAULT_CONFIG, yaml_encoding=DEFAULT_CONFIG_ENCODING)
     c.pages = []
     assert c.pages == []
     c.reload()

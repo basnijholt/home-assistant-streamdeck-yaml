@@ -1091,7 +1091,9 @@ async def test_long_press(
     
     home = Page(
         name="home",
-        buttons=[Button(special_type="go-to-page", special_type_data="short", long_press={"special_type":"go-to-page", "special_type_data":"long"})],
+        buttons=[
+            Button(special_type="go-to-page", special_type_data="short", long_press={"special_type":"go-to-page", "special_type_data":"long"}),
+            Button(special_type="go-to-page", special_type_data="short"),],
     )
     short = Page(
         name="short",
@@ -1116,7 +1118,10 @@ async def test_long_press(
     await press_and_release(0, long_press_time)
     assert config.current_page() == long
     await press_and_release(0, short_press_time)
-    assert config.current_page() == home     
+    assert config.current_page() == home
+    await press_and_release()
+    await press_and_release(0, long_press_time)
+    assert config.current_page() == short # shouldn't do anything as no long action is configured
 
 
 async def test_anonymous_page(

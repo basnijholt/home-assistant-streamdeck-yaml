@@ -280,7 +280,9 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
 
     @classmethod
     def from_yaml(
-        cls: type[Button], yaml_str: str, encoding: str | None = None,
+        cls: type[Button],
+        yaml_str: str,
+        encoding: str | None = None,
     ) -> Button:
         """Set the attributes from a YAML string."""
         data = safe_load_yaml(yaml_str, encoding=encoding)
@@ -912,7 +914,9 @@ class Config(BaseModel):
 
     @classmethod
     def load(
-        cls: type[Config], fname: Path, yaml_encoding: str | None = None,
+        cls: type[Config],
+        fname: Path,
+        yaml_encoding: str | None = None,
     ) -> Config:
         """Read the configuration file."""
         with fname.open() as f:
@@ -2682,7 +2686,7 @@ def safe_load_yaml(
             included_files.append(filepath)
             return yaml.load(
                 filepath.read_text(encoding=encoding),
-                IncludeLoader,
+                IncludeLoader,  # noqa: S506
             )
         else:  # noqa: RET505
             mapping = loader.construct_mapping(node, deep=True)  # type: ignore[arg-type]
@@ -2693,7 +2697,7 @@ def safe_load_yaml(
 
             loaded_data = yaml.load(
                 filepath.read_text(encoding=encoding),
-                IncludeLoader,
+                IncludeLoader,  # noqa: S506
             )
             assert loaded_data is not None
             assert variables is not None

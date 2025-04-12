@@ -876,7 +876,9 @@ class Config(BaseModel):
 
     @classmethod
     def load(
-        cls: type[Config], fname: Path, yaml_encoding: str | None = None,
+        cls: type[Config],
+        fname: Path,
+        yaml_encoding: str | None = None,
     ) -> Config:
         """Read the configuration file."""
         with fname.open() as f:

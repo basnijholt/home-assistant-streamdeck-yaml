@@ -15,6 +15,7 @@ import re
 import time
 import warnings
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import (
@@ -79,7 +80,6 @@ press_start_times: Dict[int, float] = (
 
 console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
-
 
 class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     """Parent of Button and Dial."""
@@ -2063,8 +2063,50 @@ async def _sync_input_boolean(
             {"entity_id": state_entity_id},
         )
 
+@dataclass
+class InactivityState:
+    last_interaction_time: float = time.time() # default to current time
+    inactivity_task: Optional[asyncio.Task] = None
 
+async def update_interaction(
+    state: InactivityState,
+    config: Config,
+    websocket: websockets.WebSocketClientProtocol,
+    complete_state: StateDict,
+    deck: StreamDeck,
+) -> None:
+    state.last_interaction_time = time.time()
+    if state.inactivity_task:
+        state.inactivity_task.cancel()
+    if config.return_to_home_after_no_presses:
+        async def check_inactivity():
+            duration = config.return_to_home_after_no_presses["duration"]
+            home_page = config.return_to_home_after_no_presses["home_page"]
+            await asyncio.sleep(duration)
+            if time.time() - state.last_interaction_time >= duration:
+                console.log(f"No activity for {duration}s, returning to {home_page}")
+                if config._detached_page is not None:
+                    console.log("Clearing detached page")
+                    config._detached_page = None
+                dummy_button = Button(
+                    special_type="go-to-page",
+                    special_type_data=home_page,
+                )
+                await _handle_key_press(
+                    websocket,
+                    complete_state,
+                    config,
+                    dummy_button,
+                    deck,
+                    is_long_press=False,
+                )
+                console.log(
+                    f"Completed return to {home_page}, current index: {config._current_page_index}",
+                )
+        state.inactivity_task = asyncio.create_task(check_inactivity())          
+            
 def _on_touchscreen_event_callback(
+    inactivity_state: InactivityState, 
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
     config: Config,
@@ -2078,6 +2120,7 @@ def _on_touchscreen_event_callback(
         value: dict[str, int],
     ) -> None:
         console.log(f"Touchscreen event {event_type} called at value {value}")
+        await update_interaction(inactivity_state, deck, config, websocket, complete_state) # Update for inactivity monitoring
         if event_type == TouchscreenEventType.DRAG:
             # go to next or previous page
             if value["x"] > value["x_out"]:
@@ -2189,6 +2232,7 @@ async def handle_dial_event(
 
 
 def _on_dial_event_callback(
+    inactivity_state: InactivityState, 
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
     config: Config,
@@ -2207,7 +2251,7 @@ def _on_dial_event_callback(
         )
         dial = config.dial_sorted(dial_num)
         assert dial is not None
-
+        await update_interaction(inactivity_state, deck, config, websocket, complete_state) # Update for inactivity monitoring  
         async def callback() -> None:
             await handle_dial_event(
                 websocket,
@@ -2351,6 +2395,7 @@ async def _handle_key_press(
 
 
 def _on_press_callback(
+    inactivity_state: InactivityState,
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
     config: Config,
@@ -2358,55 +2403,20 @@ def _on_press_callback(
     press_tasks: Dict[int, asyncio.Task] = {}  # Track ongoing press tasks
     press_start_times: Dict[int, float] = {}  # Track press start times
     long_press_threshold = config.long_press_duration
-    last_interaction_time = time.time()  # Track last interaction
-    inactivity_task: asyncio.Task | None = None  # Track inactivity monitoring task
 
-    def update_interaction(deck: StreamDeck):
-        nonlocal last_interaction_time, inactivity_task
-        last_interaction_time = time.time()
-        if inactivity_task:
-            inactivity_task.cancel()
-        if config.return_to_home_after_no_presses:
-            async def check_inactivity():
-                duration = config.return_to_home_after_no_presses["duration"]
-                home_page = config.return_to_home_after_no_presses["home_page"]
-                await asyncio.sleep(duration)
-                if time.time() - last_interaction_time >= duration:
-                    console.log(f"No presses for {duration}s, returning to {home_page}")
-                    if config._detached_page is not None:
-                        console.log("Clearing detached page")
-                        config._detached_page = None
-                    dummy_button = Button(
-                        special_type="go-to-page",
-                        special_type_data=home_page,
-                    )
-                    await _handle_key_press(
-                        websocket,
-                        complete_state,
-                        config,
-                        dummy_button,
-                        deck,
-                        is_long_press=False,
-                    )
-                    console.log(
-                        f"Completed return to {home_page}, current index: {config.current_page_idx}",
-                    )
-            inactivity_task = asyncio.create_task(check_inactivity())
-                
     async def key_change_callback(
         deck: StreamDeck,
         key: int,
         key_pressed: bool,  # noqa: FBT001
     ) -> None:
         console.log(f"Key {key} {'pressed' if key_pressed else 'released'}")
-
+        await update_interaction(inactivity_state, config, websocket, complete_state, deck)  # Fixed
         button = config.button(key)
         if button is None:
             console.log(f"No button found for key {key}")
             return
 
-        if key_pressed:
-            update_interaction(deck)
+        if key_pressed:           
             press_start_times[key] = time.time()
             console.log(
                 f"Key {key} pressed, starting long press monitor with threshold {long_press_threshold}s",
@@ -2448,7 +2458,6 @@ def _on_press_callback(
             press_tasks[key] = asyncio.create_task(monitor_long_press())
 
         else:  # Key released
-            update_interaction(deck)
             if key in press_tasks:
                 # Cancel the long press task if it hasn't completed
                 press_tasks[key].cancel()
@@ -2731,22 +2740,23 @@ async def run(
     async with setup_ws(host, token, protocol) as websocket:
         try:
             complete_state = await get_states(websocket)
-
+            # Initialize shared inactivity state
+            inactivity_state = InactivityState()
             deck.set_brightness(config.brightness)
             # Turn on state entity boolean on home assistant
             await _sync_input_boolean(config.state_entity_id, websocket, "on")
             update_all_key_images(deck, config, complete_state)
             deck.set_key_callback_async(
-                _on_press_callback(websocket, complete_state, config),
+                _on_press_callback(inactivity_state, websocket, complete_state, config),  # Fixed
             )
             update_all_dials(deck, config, complete_state)
             if deck.dial_count() != 0:
                 deck.set_dial_callback_async(
-                    _on_dial_event_callback(websocket, complete_state, config),
+                    _on_dial_event_callback(inactivity_state, websocket, complete_state, config),  # Fixed
                 )
             if deck.is_visual():
                 deck.set_touchscreen_callback_async(
-                    _on_touchscreen_event_callback(websocket, complete_state, config),
+                    _on_touchscreen_event_callback(inactivity_state, websocket, complete_state, config),  # Fixed
                 )
             deck.set_brightness(config.brightness)
             await subscribe_state_changes(websocket)

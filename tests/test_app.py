@@ -23,6 +23,7 @@ from home_assistant_streamdeck_yaml import (
     Button,
     Config,
     IconWarning,
+    InactivityState,
     Page,
     _download_and_save_mdi,
     _download_spotify_image,
@@ -1089,6 +1090,7 @@ async def test_long_press(
     assert short_press_time < long_press_threshold
     long_press_time = long_press_threshold + 0.1
     assert long_press_time > long_press_threshold
+    inactivity_state = InactivityState()
 
     home = Page(
         name="home",
@@ -1116,7 +1118,7 @@ async def test_long_press(
     config = Config(pages=[home, short, long], long_press_duration=long_press_threshold)
     assert config._current_page_index == 0
     assert config.current_page() == home
-    press = _on_press_callback(websocket_mock, state, config)
+    press = _on_press_callback(inactivity_state, websocket_mock, state, config)
 
     async def press_and_release(key: int, seconds: float) -> None:
         await press(mock_deck, key, key_pressed=True)
@@ -1159,7 +1161,9 @@ async def test_anonymous_page(
     assert config.current_page() == anon
     button = config.button(0)
     assert button.text == "yolo"
-    press = _on_press_callback(websocket_mock, state, config)
+    inactivity_state = InactivityState()
+    press = _on_press_callback(inactivity_state, websocket_mock, state, config)
+    
 
     # We need to have a release otherwise it will be timing for a long press
     async def press_and_release(key: int) -> None:
@@ -1201,12 +1205,16 @@ async def test_return_to_home(
         name="home",
         buttons=[Button(special_type="go-to-page", special_type_data="anon")],
     )
+    test = Page(
+        name="test",
+        buttons=[Button(special_type="empty")]
+    )
     anon = Page(
         name="anon",
         buttons=[Button(text="yolo"), Button(text="foo", delay=0.1)],
     )
     config = Config(
-        pages=[home], 
+        pages=[home,test], 
         anonymous_pages=[anon], 
         return_to_home_after_no_presses={
             "home_page": "home", 
@@ -1215,8 +1223,9 @@ async def test_return_to_home(
         )
     
         # We need to have a release otherwise it will be timing for a long press
+    inactivity_state = InactivityState()
     async def press_and_release(key: int) -> None:
-        press = _on_press_callback(websocket_mock, state, config)
+        press = _on_press_callback(inactivity_state, websocket_mock, state, config)
         await press(mock_deck, key, key_pressed=True)
         await press(mock_deck, key, key_pressed=False)
         
@@ -1229,5 +1238,8 @@ async def test_return_to_home(
     # Should now be on the home page, with the anon page closed automatically
     assert config._detached_page is None
     assert config.current_page() == home
+    await(press_and_release(0))
+    assert config._detached_page is not None
+    assert config.current_page() == anon
 
     

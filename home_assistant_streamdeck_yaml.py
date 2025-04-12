@@ -1879,8 +1879,10 @@ def update_key_image(
 ) -> None:
     """Update the image for a key."""
     button = config.button(key)
+
     def clear_image() -> None:
         deck.set_key_image(key, None)
+
     if button is None:
         clear_image()
         return

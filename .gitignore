@@ -161,3 +161,6 @@ cython_debug/
 
 # VS Code
 settings.json
+
+# Assets (since this directory gets populated with images when running the app with defaults and tests)
+assets/

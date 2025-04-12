@@ -40,6 +40,7 @@ dependencies = [
     "pyyaml",
     "requests",
     "rich",
+    "tabulate",
     "websockets",
     {conda = "libusb"},
     {conda = "libhidapi"},

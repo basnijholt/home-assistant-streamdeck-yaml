@@ -260,11 +260,12 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " If `go-to-page`, the data should be an `int` or `str` (name of the page)."
         " If `light-control`, the data should optionally be a dictionary."
         " The dictionary can contain the following keys:"
-        " The `colors` key and a value a list of max (`n_keys_on_streamdeck - 5`) hex colors."
-        " The `color_temp_kelvin` key and a value a list of max (`n_keys_on_streamdeck - 5`) color temperatures in Kelvin."
+        " The `colors` key and a value a list of max (`n_keys_on_streamdeck - 6`) hex colors."
+        " The `color_temp_kelvin` key and a value a list of max (`n_keys_on_streamdeck - 6`) color temperatures in Kelvin."
         " The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html)"
         " can be used. This requires the `matplotlib` package to be installed. If no"
-        " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",
+        " list of `colors` or `colormap` is specified, 10 equally spaced colors are used."
+        " The `brightness` key and a value a brightness level (0-100)."
     )
 
     @classmethod
@@ -454,7 +455,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                 )
                 raise AssertionError(msg)
             # Can only have the following keys: colors and colormap
-            allowed_keys = {"colors", "colormap", "color_temp_kelvin"}
+            allowed_keys = {"colors", "colormap", "color_temp_kelvin", "brightness"}
             invalid_keys = v.keys() - allowed_keys
             if invalid_keys:
                 msg = (
@@ -479,6 +480,13 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                         raise AssertionError(msg)  # noqa: TRY004
                 # Cast color_temp_kelvin to tuple (to make it hashable)
                 v["color_temp_kelvin"] = tuple(v["color_temp_kelvin"])
+            if "brightness" in v:
+                for brightness in v["brightness"]:
+                    if not isinstance(brightness, int):
+                        msg = "All brightness must be integers"
+                        raise AssertionError(msg)  # noqa: TRY004
+                # Cast brightness to tuple (to make it hashable)
+                v["brightness"] = tuple(v["brightness"])
         return v
 
     def maybe_start_or_cancel_timer(
@@ -1268,6 +1276,7 @@ def _light_page(
     colors: tuple[str, ...] | None,
     color_temp_kelvin: tuple[int, ...] | None,
     colormap: str | None,
+    brightness: tuple[int, ...] | None,
 ) -> Page:
     """Return a page of buttons for controlling lights."""
     if colormap is None and colors is None:
@@ -1298,13 +1307,13 @@ def _light_page(
         for kelvin in (color_temp_kelvin or ())
     ]
     buttons_brightness = []
-    for brightness in [0, 10, 30, 60, 100]:
+    for brightness in brightness if brightness is not None else [0, 33, 66, 100]:
         background_color = _scale_hex_color("#FFFFFF", brightness / 100)
         button = Button(
             icon_background_color=background_color,
             service="light.turn_on",
             text_color=_max_contrast_color(background_color),
-            text=f"{brightness}%",
+            text=f"{brightness}%" if brightness > 0 else "OFF",
             service_data={
                 "entity_id": entity_id,
                 "brightness_pct": brightness,
@@ -2201,6 +2210,7 @@ async def _handle_key_press(
             colormap=button.special_type_data.get("colormap", None),
             colors=button.special_type_data.get("colors", None),
             color_temp_kelvin=button.special_type_data.get("color_temp_kelvin", None),
+            brightness=button.special_type_data.get("brightness", None),
         )
         config._detached_page = page
         update_all()

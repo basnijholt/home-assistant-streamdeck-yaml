@@ -73,7 +73,9 @@ LCD_PIXELS_Y = 100
 LCD_ICON_SIZE_X = 200
 LCD_ICON_SIZE_Y = 100
 
-press_start_times: Dict[int, float] = {}  # Dictionary to store press start times per key.
+press_start_times: Dict[int, float] = (
+    {}
+)  # Dictionary to store press start times per key.
 
 console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
@@ -267,16 +269,16 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",
     )
     long_press: dict[str, Any] | None = Field(
-         default=None,
-         allow_template=True,
-         description="Configuration for long press actions. Can include:"
-         " `service`: The service to call on long press (e.g., 'light.turn_off')."
-         " `service_data`: Data to pass to the service (e.g., {'brightness_pct': 10})."
-         " `entity_id`: The entity ID to target (e.g., 'light.living_room'), overriding the button's entity_id if specified."
-         " `special_type`: Special action for long press (e.g., 'next-page', 'light-control')."
-         " `special_type_data`: Data for the special type action (e.g., {'colors': ['#FF0000']})."
-         " If not specified, the default service or special_type action is used for both short and long presses.",
-     )
+        default=None,
+        allow_template=True,
+        description="Configuration for long press actions. Can include:"
+        " `service`: The service to call on long press (e.g., 'light.turn_off')."
+        " `service_data`: Data to pass to the service (e.g., {'brightness_pct': 10})."
+        " `entity_id`: The entity ID to target (e.g., 'light.living_room'), overriding the button's entity_id if specified."
+        " `special_type`: Special action for long press (e.g., 'next-page', 'light-control')."
+        " `special_type_data`: Data for the special type action (e.g., {'colors': ['#FF0000']})."
+        " If not specified, the default service or special_type action is used for both short and long presses.",
+    )
 
     @classmethod
     def from_yaml(
@@ -495,10 +497,18 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             return None
         if not isinstance(v, dict):
             raise ValueError("long_press must be a dictionary")
-        allowed_keys = {"service", "service_data", "entity_id", "special_type", "special_type_data"}
+        allowed_keys = {
+            "service",
+            "service_data",
+            "entity_id",
+            "special_type",
+            "special_type_data",
+        }
         invalid_keys = set(v.keys()) - allowed_keys
         if invalid_keys:
-            raise ValueError(f"Invalid keys in long_press: {invalid_keys}. Allowed: {allowed_keys}")
+            raise ValueError(
+                f"Invalid keys in long_press: {invalid_keys}. Allowed: {allowed_keys}",
+            )
         if "service" in v and not isinstance(v["service"], str):
             raise ValueError("long_press.service must be a string")
         if "service_data" in v and not isinstance(v["service_data"], dict):
@@ -507,15 +517,28 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             raise ValueError("long_press.entity_id must be a string")
         if "special_type" in v:
             allowed_special_types = {
-                "next-page", "previous-page", "empty", "go-to-page", "close-page",
-                "turn-off", "light-control", "climate-control", "reload"
+                "next-page",
+                "previous-page",
+                "empty",
+                "go-to-page",
+                "close-page",
+                "turn-off",
+                "light-control",
+                "climate-control",
+                "reload",
             }
             if v["special_type"] not in allowed_special_types:
-                raise ValueError(f"long_press.special_type must be one of {allowed_special_types}")
+                raise ValueError(
+                    f"long_press.special_type must be one of {allowed_special_types}",
+                )
         if "special_type_data" in v and "special_type" not in v:
-            raise ValueError("long_press.special_type_data requires special_type to be set")
+            raise ValueError(
+                "long_press.special_type_data requires special_type to be set",
+            )
         if "special_type" in v and "special_type_data" in v:
-            cls._validate_special_type(v["special_type_data"], {"special_type": v["special_type"]})
+            cls._validate_special_type(
+                v["special_type_data"], {"special_type": v["special_type"]},
+            )
         return v
 
         @classmethod
@@ -523,8 +546,9 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             """Return if an attribute is templatable, which is if the type-annotation is str."""
             schema = cls.schema()
             properties = schema["properties"]
-            return {k for k, v in properties.items() if v["allow_template"]} | {"long_press"}
-
+            return {k for k, v in properties.items() if v["allow_template"]} | {
+                "long_press",
+            }
 
     def maybe_start_or_cancel_timer(
         self,
@@ -1722,7 +1746,7 @@ async def call_service(
     }
     if target is not None:
         subscribe_payload["target"] = target
-        
+
     await websocket.send(json.dumps(subscribe_payload))
 
 
@@ -2213,15 +2237,15 @@ async def _handle_key_press(
         update_all_key_images(deck, config, complete_state)
         update_all_dials(deck, config, complete_state)
 
-    async def handle_press( 
-            button : Button,
-            entity_id: str | None = None,
-            service: str | None = None,
-            service_data: dict[str, Any] | None = None,
-            target: dict[str, Any] | None = None,
-            special_type: str | None = None,
-            special_type_data: str | None = None,
-    ) -> None: 
+    async def handle_press(
+        button: Button,
+        entity_id: str | None = None,
+        service: str | None = None,
+        service_data: dict[str, Any] | None = None,
+        target: dict[str, Any] | None = None,
+        special_type: str | None = None,
+        special_type_data: str | None = None,
+    ) -> None:
         if special_type == "next-page":
             config.next_page()
             update_all()
@@ -2232,7 +2256,7 @@ async def _handle_key_press(
             assert isinstance(special_type_data, (str, int))
             config.to_page(special_type_data)  # type: ignore[arg-type]
             update_all()
-            return # to skip the _detached_page reset below
+            return  # to skip the _detached_page reset below
         elif special_type == "turn-off":
             turn_off(config, deck)
             await _sync_input_boolean(config.state_entity_id, websocket, "off")
@@ -2252,7 +2276,7 @@ async def _handle_key_press(
             config.reload()
             update_all()
             return
-        elif service is not None:          
+        elif service is not None:
             button = button.rendered_template_button(complete_state)
             if service_data is None:
                 service_data = {}
@@ -2262,12 +2286,12 @@ async def _handle_key_press(
                 service_data = service_data
             assert service is not None  # for mypy
             await call_service(websocket, button.service, service_data, button.target)
-            
+
         if config._detached_page:
             config._detached_page = None
             update_all()
 
-    if is_long_press and button.long_press: 
+    if is_long_press and button.long_press:
         await handle_press(
             entity_id=button.long_press.get("entity_id", button.entity_id),
             service=button.long_press.get("service"),
@@ -2277,10 +2301,9 @@ async def _handle_key_press(
             special_type_data=button.long_press.get("special_type_data"),
             button=button,
         )
-    else :
+    else:
         await handle_press(
             entity_id=button.entity_id,
-
             service=button.service,
             service_data=button.service_data,
             target=button.target,
@@ -2288,8 +2311,6 @@ async def _handle_key_press(
             special_type_data=button.special_type_data,
             button=button,
         )
-
-
 
 
 def _on_press_callback(
@@ -2300,21 +2321,24 @@ def _on_press_callback(
     press_tasks: Dict[int, asyncio.Task] = {}  # Track ongoing press tasks
     press_start_times: Dict[int, float] = {}  # Track press start times
     long_press_threshold = config.long_press_duration
+
     async def key_change_callback(
         deck: StreamDeck,
         key: int,
         key_pressed: bool,  # noqa: FBT001
     ) -> None:
         console.log(f"Key {key} {'pressed' if key_pressed else 'released'}")
-        
+
         button = config.button(key)
         if button is None:
             console.log(f"No button found for key {key}")
             return
-        
+
         if key_pressed:
             press_start_times[key] = time.time()
-            console.log(f"Key {key} pressed, starting long press monitor with threshold {long_press_threshold}s")
+            console.log(
+                f"Key {key} pressed, starting long press monitor with threshold {long_press_threshold}s",
+            )
             update_key_image(
                 deck,
                 key=key,
@@ -2327,10 +2351,17 @@ def _on_press_callback(
                 try:
                     await asyncio.sleep(long_press_threshold)
                     if key in press_start_times:  # Button still pressed
-                        console.log(f"Key {key} long press detected after {long_press_threshold}s")
+                        console.log(
+                            f"Key {key} long press detected after {long_press_threshold}s",
+                        )
                         try:
                             await _handle_key_press(
-                                websocket, complete_state, config, button, deck, is_long_press=True
+                                websocket,
+                                complete_state,
+                                config,
+                                button,
+                                deck,
+                                is_long_press=True,
                             )
                         except Exception as e:
                             console.log(f"Error in long press handling: {e}")
@@ -2338,21 +2369,23 @@ def _on_press_callback(
                 except asyncio.CancelledError:
                     console.log(f"Long press monitor for key {key} was canceled")
                 except Exception as e:
-                    console.log(f"Unexpected error in long press monitor for key {key}: {e}")
+                    console.log(
+                        f"Unexpected error in long press monitor for key {key}: {e}",
+                    )
 
             press_tasks[key] = asyncio.create_task(monitor_long_press())
-        
+
         else:  # Key released
             if key in press_tasks:
                 # Cancel the long press task if it hasn't completed
                 press_tasks[key].cancel()
                 del press_tasks[key]
-            
+
             if key in press_start_times:
                 # If still in press_start_times, it was a short press
                 press_duration = time.time() - press_start_times[key]
                 del press_start_times[key]
-                
+
                 # Update the key image back to unpressed state
                 update_key_image(
                     deck,
@@ -2361,26 +2394,39 @@ def _on_press_callback(
                     complete_state=complete_state,
                     key_pressed=False,
                 )
-                
+
                 console.log(f"Key {key} released after {press_duration:.2f}s")
                 if press_duration < long_press_threshold:
                     console.log(f"Handling short press for key {key}")
+
                     async def cb() -> None:
                         """Update the deck once more after the timer is over."""
                         assert button is not None  # for mypy
                         try:
                             await _handle_key_press(
-                                websocket, complete_state, config, button, deck, is_long_press=False
+                                websocket,
+                                complete_state,
+                                config,
+                                button,
+                                deck,
+                                is_long_press=False,
                             )
                         except Exception as e:
                             console.log(f"Error in short press handling: {e}")
 
                     if button.maybe_start_or_cancel_timer(cb):
-                        console.log(f"Timer started for key {key}, delaying short press")
+                        console.log(
+                            f"Timer started for key {key}, delaying short press",
+                        )
                         return
-                    
+
                     await _handle_key_press(
-                        websocket, complete_state, config, button, deck, is_long_press=False
+                        websocket,
+                        complete_state,
+                        config,
+                        button,
+                        deck,
+                        is_long_press=False,
                     )
 
     return key_change_callback

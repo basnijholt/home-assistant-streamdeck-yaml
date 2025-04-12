@@ -1078,6 +1078,7 @@ def test_to_markdown_table() -> None:
     table = Button.to_markdown_table()
     assert isinstance(table, str)
 
+
 async def test_long_press(
     mock_deck: Mock,
     websocket_mock: Mock,
@@ -1088,40 +1089,53 @@ async def test_long_press(
     assert short_press_time < long_press_threshold
     long_press_time = long_press_threshold + 0.1
     assert long_press_time > long_press_threshold
-    
+
     home = Page(
         name="home",
         buttons=[
-            Button(special_type="go-to-page", special_type_data="short", long_press={"special_type":"go-to-page", "special_type_data":"long"}),
-            Button(special_type="go-to-page", special_type_data="short"),],
+            Button(
+                special_type="go-to-page",
+                special_type_data="short",
+                long_press={"special_type": "go-to-page", "special_type_data": "long"},
+            ),
+            Button(special_type="go-to-page", special_type_data="short"),
+        ],
     )
     short = Page(
         name="short",
-        buttons=[Button(text="short", special_type="go-to-page", special_type_data="home")],
+        buttons=[
+            Button(text="short", special_type="go-to-page", special_type_data="home"),
+        ],
     )
     long = Page(
         name="long",
-        buttons= [Button(text="long", special_type="go-to-page", special_type_data="home")],
+        buttons=[
+            Button(text="long", special_type="go-to-page", special_type_data="home"),
+        ],
     )
     config = Config(pages=[home, short, long], long_press_duration=long_press_threshold)
     assert config._current_page_index == 0
     assert config.current_page() == home
     press = _on_press_callback(websocket_mock, state, config)
-    async def press_and_release (key: int, seconds: float) -> None:
+
+    async def press_and_release(key: int, seconds: float) -> None:
         await press(mock_deck, key, key_pressed=True)
         await asyncio.sleep(seconds)
-        await press(mock_deck, key, key_pressed=False)    
+        await press(mock_deck, key, key_pressed=False)
+
     await press_and_release(0, short_press_time)
     assert config.current_page() == short
     await press_and_release(0, short_press_time)
-    assert config.current_page() == home 
+    assert config.current_page() == home
     await press_and_release(0, long_press_time)
     assert config.current_page() == long
     await press_and_release(0, short_press_time)
     assert config.current_page() == home
     await press_and_release()
     await press_and_release(0, long_press_time)
-    assert config.current_page() == short # shouldn't do anything as no long action is configured
+    assert (
+        config.current_page() == short
+    )  # shouldn't do anything as no long action is configured
 
 
 async def test_anonymous_page(
@@ -1147,10 +1161,12 @@ async def test_anonymous_page(
     button = config.button(0)
     assert button.text == "yolo"
     press = _on_press_callback(websocket_mock, state, config)
+
     # We need to have a release otherwise it will be timing for a long press
-    async def press_and_release (key: int) -> None:
+    async def press_and_release(key: int) -> None:
         await press(mock_deck, key, key_pressed=True)
         await press(mock_deck, key, key_pressed=False)
+
     # Click the button
     await press_and_release(0)
     # Should now be the button on the first page

@@ -31,7 +31,7 @@
     lights
   long_press:
     special_type: light-control
-    special_type_data: 
+    special_type_data:
       colors:
         - "#81ADFF"  # from default HA options
         - "#D797FF"  # from default HA options

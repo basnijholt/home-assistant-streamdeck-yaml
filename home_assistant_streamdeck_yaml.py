@@ -265,7 +265,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html)"
         " can be used. This requires the `matplotlib` package to be installed. If no"
         " list of `colors` or `colormap` is specified, 10 equally spaced colors are used."
-        " The `brightness` key and a value a brightness level (0-100)."
+        " The `brightness` key and a value a brightness level (0-100).",
     )
 
     @classmethod

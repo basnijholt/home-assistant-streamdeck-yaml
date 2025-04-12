@@ -537,7 +537,8 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             )
         if "special_type" in v and "special_type_data" in v:
             cls._validate_special_type(
-                v["special_type_data"], {"special_type": v["special_type"]},
+                v["special_type_data"],
+                {"special_type": v["special_type"]},
             )
         return v
 

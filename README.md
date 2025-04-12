@@ -196,6 +196,7 @@ auto_reload: true  # Automatically reload the configuration file when it changes
 return_to_home_after_no_presses: # Return to the home screen after 5s of no button events
   home_page: home
   duration: 5
+long_press_duration: 0.5 # After 0.5s of a key press, trigger the long press action if defined.
 pages:
   - name: Home
     buttons:
@@ -204,6 +205,8 @@ pages:
         text: |
           Bedroom
           lights
+        long_press: # On long press, isntead of toggle, bring up the light control page
+          special_type: light-control
       - icon: netflix.png
         service: script.start_spotify
       - icon: xbox.png

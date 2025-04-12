@@ -2545,7 +2545,7 @@ def safe_load_yaml(
             included_files.append(filepath)
             return yaml.load(
                 filepath.read_text(encoding=encoding),
-                IncludeLoader,
+                IncludeLoader,  # noqa: S506
             )
         else:  # noqa: RET505
             mapping = loader.construct_mapping(node, deep=True)  # type: ignore[arg-type]
@@ -2556,7 +2556,7 @@ def safe_load_yaml(
 
             loaded_data = yaml.load(
                 filepath.read_text(encoding=encoding),
-                IncludeLoader,
+                IncludeLoader,  # noqa: S506
             )
             assert loaded_data is not None
             assert variables is not None

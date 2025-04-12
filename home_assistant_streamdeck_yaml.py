@@ -2321,16 +2321,22 @@ async def _handle_key_press(
             config._detached_page = None
             update_all()
 
-    if is_long_press and button.long_press:
-        await handle_press(
-            entity_id=button.long_press.get("entity_id", button.entity_id),
-            service=button.long_press.get("service"),
-            service_data=button.long_press.get("service_data"),
-            target=button.long_press.get("target", button.target),
-            special_type=button.long_press.get("special_type"),
-            special_type_data=button.long_press.get("special_type_data"),
-            button=button,
-        )
+    if is_long_press:
+        if button.long_press:
+            await handle_press(
+                entity_id=button.long_press.get("entity_id", button.entity_id),
+                service=button.long_press.get("service"),
+                service_data=button.long_press.get("service_data"),
+                target=button.long_press.get("target", button.target),
+                special_type=button.long_press.get("special_type"),
+                special_type_data=button.long_press.get("special_type_data"),
+                button=button,
+            )
+        else:
+            console.log(
+                f"Long press detected, but no long press action defined for {button.entity_id}",
+            )
+            return
     else:
         await handle_press(
             entity_id=button.entity_id,

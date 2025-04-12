@@ -432,7 +432,7 @@ def test_light_page() -> None:
     """Test light page."""
     page = _light_page(
         entity_id="light.bedroom",
-        n_colors=10,
+        n_colors=9,
         colormap="hsv",
         colors=None,
         color_temp_kelvin=None,
@@ -443,7 +443,7 @@ def test_light_page() -> None:
 
     page = _light_page(
         entity_id="light.bedroom",
-        n_colors=10,
+        n_colors=9,
         colormap=None,
         colors=None,
         color_temp_kelvin=None,
@@ -467,7 +467,7 @@ def test_light_page() -> None:
 
     page = _light_page(
         entity_id="light.bedroom",
-        n_colors=10,
+        n_colors=9,
         colormap=None,
         colors=hex_colors,
         color_temp_kelvin=None,

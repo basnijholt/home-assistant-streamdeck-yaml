@@ -930,11 +930,41 @@ class Config(BaseModel):
         default=0.5,
         description="The duration (in seconds) for a long press.",
     )
+    return_to_home_after_no_presses: dict[str, Any] | None = Field(
+        default=None,
+        allow_template=False,
+        description="Configuration to return to a home page after inactivity."
+        " Includes `duration` (float, seconds of inactivity) and `home_page` (str, name of the page)."
+        " If not specified, no automatic return occurs.",
+    )    
     _current_page_index: int = PrivateAttr(default=0)
     _is_on: bool = PrivateAttr(default=True)
     _detached_page: Page | None = PrivateAttr(default=None)
     _configuration_file: Path | None = PrivateAttr(default=None)
     _include_files: list[Path] = PrivateAttr(default_factory=list)
+
+    @validator("return_to_home_after_no_presses", pre=True)
+    def _validate_return_to_home(cls, v: Any) -> Any:
+        if v is None:
+            return None
+        if not isinstance(v, dict):
+            raise ValueError("return_to_home_after_no_presses must be a dictionary")
+        required_keys = {"duration", "home_page"}
+        missing_keys = required_keys - set(v.keys())
+        if missing_keys:
+            raise ValueError(
+                f"Missing keys in return_to_home_after_no_presses: {missing_keys}",
+            )
+        extra_keys = set(v.keys()) - required_keys
+        if extra_keys:
+            raise ValueError(
+                f"Extra keys in return_to_home_after_no_presses: {extra_keys}",
+            )
+        if not isinstance(v["duration"], (int, float)) or v["duration"] <= 0:
+            raise ValueError("duration must be a positive number")
+        if not isinstance(v["home_page"], str):
+            raise ValueError("home_page must be a string")
+        return v
 
     @classmethod
     def load(
@@ -2321,7 +2351,41 @@ def _on_press_callback(
     press_tasks: Dict[int, asyncio.Task] = {}  # Track ongoing press tasks
     press_start_times: Dict[int, float] = {}  # Track press start times
     long_press_threshold = config.long_press_duration
+    last_interaction_time = time.time()  # Track last interaction
+    inactivity_task: asyncio.Task | None = None  # Track inactivity monitoring task
 
+    def update_interaction(deck: StreamDeck):
+        nonlocal last_interaction_time, inactivity_task
+        last_interaction_time = time.time()
+        if inactivity_task:
+            inactivity_task.cancel()
+        if config.return_to_home_after_no_presses:
+            async def check_inactivity():
+                duration = config.return_to_home_after_no_presses["duration"]
+                home_page = config.return_to_home_after_no_presses["home_page"]
+                await asyncio.sleep(duration)
+                if time.time() - last_interaction_time >= duration:
+                    console.log(f"No presses for {duration}s, returning to {home_page}")
+                    if config._detached_page is not None:
+                        console.log("Clearing detached page")
+                        config._detached_page = None
+                    dummy_button = Button(
+                        special_type="go-to-page",
+                        special_type_data=home_page,
+                    )
+                    await _handle_key_press(
+                        websocket,
+                        complete_state,
+                        config,
+                        dummy_button,
+                        deck,
+                        is_long_press=False,
+                    )
+                    console.log(
+                        f"Completed return to {home_page}, current index: {config.current_page_idx}",
+                    )
+            inactivity_task = asyncio.create_task(check_inactivity())
+                
     async def key_change_callback(
         deck: StreamDeck,
         key: int,
@@ -2335,6 +2399,7 @@ def _on_press_callback(
             return
 
         if key_pressed:
+            update_interaction(deck)
             press_start_times[key] = time.time()
             console.log(
                 f"Key {key} pressed, starting long press monitor with threshold {long_press_threshold}s",
@@ -2376,6 +2441,7 @@ def _on_press_callback(
             press_tasks[key] = asyncio.create_task(monitor_long_press())
 
         else:  # Key released
+            update_interaction(deck)
             if key in press_tasks:
                 # Cancel the long press task if it hasn't completed
                 press_tasks[key].cancel()

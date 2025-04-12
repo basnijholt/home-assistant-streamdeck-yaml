@@ -1190,3 +1190,45 @@ async def test_anonymous_page(
     # Should now be the button on the first page
     button = config.button(0)
     assert button.special_type == "go-to-page"
+
+async def test_return_to_home(
+    mock_deck: Mock,
+    websocket_mock: Mock,
+    state: dict[str, dict[str, Any]],
+) -> None:
+    """Test that the return to home works."""
+    return_to_home_after = 0.8
+    home = Page(
+        name="home",
+        buttons=[Button(special_type="go-to-page", special_type_data="anon")],
+    )
+    anon = Page(
+        name="anon",
+        buttons=[Button(text="yolo"), Button(text="foo", delay=0.1)],
+    )
+    config = Config(
+        pages=[home], 
+        anonymous_pages=[anon], 
+        return_to_home_after_no_presses={
+            "home_page": "home", 
+            "duration": return_to_home_after,
+            }
+        )
+    
+        # We need to have a release otherwise it will be timing for a long press
+    async def press_and_release(key: int) -> None:
+        press = _on_press_callback(websocket_mock, state, config)
+        await press(mock_deck, key, key_pressed=True)
+        await press(mock_deck, key, key_pressed=False)
+        
+    assert config._current_page_index == 0
+    assert config._detached_page is None
+    await(press_and_release(0))
+    assert config._detached_page is not None
+    assert config.current_page() == anon
+    await asyncio.sleep(return_to_home_after+0.1)  # longer than delay should then switch to home
+    # Should now be on the home page, with the anon page closed automatically
+    assert config._detached_page is None
+    assert config.current_page() == home
+
+    

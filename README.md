@@ -193,6 +193,9 @@ Here's an example `configuration.yaml` file to help
 brightness: 100  # Default brightness of the Stream Deck (0-100)
 state_entity_id: binary_sensor.anyone_home  # Entity to sync display state with
 auto_reload: true  # Automatically reload the configuration file when it changes
+return_to_home_after_no_presses: # Return to the home screen after 5s of no button events
+  home_page: home
+  duration: 5
 pages:
   - name: Home
     buttons:

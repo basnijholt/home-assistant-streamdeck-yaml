@@ -233,6 +233,8 @@ pages:
         special_type_data: 0
       - special_type: previous-page
       - special_type: next-page
+      # Close page and return to the previously active (e.g. if it came from a go-to)
+      - special_type: close-page
   - name: Other
     buttons:
       # Spotify playlist

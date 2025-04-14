@@ -1678,8 +1678,7 @@ def _rgb_to_hex(rgb: tuple[int, int, int]) -> str:
 
 def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     # Remove '#' if present
-    if hex_color.startswith("#"):
-        hex_color = hex_color[1:]
+    hex_color = hex_color.removeprefix("#")
 
     # Convert hexadecimal to RGB
     r, g, b = tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
@@ -1711,7 +1710,7 @@ def _download_and_save_mdi(icon_mdi: str) -> Path:
         return filename_svg
     svg_content = _download(url)
     try:
-        etree.fromstring(svg_content)  # noqa: S320
+        etree.fromstring(svg_content)
     except etree.XMLSyntaxError:
         msg = (f"Invalid SVG: {url}, `svg_content` starts with: {svg_content[:100]!r}",)
         console.log(f"[b red]{msg}[/]")
@@ -2355,7 +2354,7 @@ def _convert_svg_to_png(
     fill_color = _scale_hex_color(color, opacity)
 
     try:
-        svg_tree = etree.fromstring(svg_content)  # noqa: S320
+        svg_tree = etree.fromstring(svg_content)
         svg_tree.attrib["fill"] = fill_color
         svg_tree.attrib["style"] = f"background-color: {background_color}"
         modified_svg_content = etree.tostring(svg_tree)

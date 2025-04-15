@@ -238,6 +238,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             "close-page",
             "turn-off",
             "light-control",
+            "climate-control",
             "reload",
         ]
         | None
@@ -255,6 +256,8 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " (either an `int` or `str` (name of the page))."
         " If `light-control`, the button will control a light, and the `special_type_data`"
         " can be a dictionary, see its description."
+        " If `climate-control`, the button will control climate, and the `special_type_data`"
+        " can be a dictionary, see its description."
         " If `reload`, the button will reload the configuration file when pressed.",
     )
     special_type_data: Any | None = Field(
@@ -268,7 +271,8 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " The `color_temp_kelvin` key and a value a list of max (`n_keys_on_streamdeck - 5`) color temperatures in Kelvin."
         " The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html)"
         " can be used. This requires the `matplotlib` package to be installed. If no"
-        " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",
+        " list of `colors` or `colormap` is specified, 10 equally spaced colors are used."
+        " If `climate-control`, the data should optionally be a dictionary."# FILL IN MORE, 
     )
     long_press: dict[str, Any] | None = Field(
         default=None,
@@ -494,6 +498,31 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                         raise AssertionError(msg)  # noqa: TRY004
                 # Cast color_temp_kelvin to tuple (to make it hashable)
                 v["color_temp_kelvin"] = tuple(v["color_temp_kelvin"])
+        if special_type == "climate-control":
+            if v is None:
+                v = {}
+            if not isinstance(v, dict):
+                msg = (
+                    "With 'climate-control', 'special_type_data' must"
+                    f" be a dict, not '{v}'"
+                )
+                raise AssertionError(msg)
+            # Can only have the following keys: temperatures and name
+            allowed_keys = {"temperatures", "name"}
+            invalid_keys = v.keys() - allowed_keys
+            if invalid_keys:
+                msg = (
+                    f"Invalid keys in 'special_type_data', only {allowed_keys} allowed"
+                )
+                raise AssertionError(msg)
+            # If temperatures is present, it must be a list of integers
+            if "temperatures" in v:
+                for temp in v["temperatures"]:
+                    if not isinstance(temp, int):
+                        msg = "All temperatures must be integers"
+                        raise AssertionError(msg)  # noqa: TRY004
+                # Cast temperatures to tuple (to make it hashable)
+                v["temperatures"] = tuple(v["temperatures"])
         return v
 
     @validator("long_press", pre=True)
@@ -1400,6 +1429,72 @@ def _light_page(
         + buttons_brightness
         + buttons_back,
     )
+    
+
+@ft.lru_cache(maxsize=16)
+def _climate_page(
+    entity_id: str,
+    complete_state: StateDict,
+    temperatures: tuple[int, ...] | None,
+    hvac_modes: tuple[str, ...] | None,
+    name: str | None,
+) -> Page:
+    """Return a page of buttons for controlling lights."""
+    state = complete_state[entity_id]
+
+    current_temperature = state.get("attributes", {}).get(
+        "current_temperature",
+        "MISSING",
+    )
+
+    button_1 = [
+        Button(
+            text=(name + "\n" if name else "") + str(current_temperature) + "°C",
+        ),
+    ]
+    buttons_temperatures = [
+        Button(
+            service="climate.set_temperature",
+            service_data={
+                "entity_id": entity_id,
+                "temperature": temperature,
+            },
+            text=temperature,
+        )
+        for temperature in (temperatures or ())
+    ]
+    buttons_hvac_modes = [
+        Button(
+            service="climate.set_hvac_mode",
+            service_data={
+                "entity_id": entity_id,
+                "hvac_mode": mode,
+            },
+            text=mode,
+        )
+        for mode in (hvac_modes or ())
+    ]
+    button_back = [
+        Button(
+            text="BACK",
+        ),
+    ]
+    button_off = [
+        Button(
+            service="climate.turn_off",
+            text="OFF",
+            service_data={"entity_id": entity_id},
+        ),
+    ]
+
+    return Page(
+        name="Climate",
+        buttons=button_1
+        + buttons_temperatures
+        + buttons_modes
+        + button_off
+        + button_back,
+    )
 
 
 @asynccontextmanager
@@ -2297,6 +2392,16 @@ async def _handle_key_press(
             config._detached_page = page
             update_all()
             return  # to skip the _detached_page reset below
+        elif special_type == "climate-control":
+            assert isinstance(special_type_data, dict) or special_type_data is None
+            page = _climate_page(
+                entity_id=entity_id,
+                temperatures=special_type_data.get("temperatures", None),
+                hvac_modes=special_type_data.get("hvac_modes", None),
+            )
+            config._detached_page = page
+            update_all()
+            return  # to skip the _detached_page reset below      
         elif special_type == "reload":
             config.reload()
             update_all()

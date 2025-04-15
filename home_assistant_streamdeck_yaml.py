@@ -2475,7 +2475,7 @@ async def run(
     while retry_attempts == math.inf or attempt <= retry_attempts:
         try:
             async with setup_ws(host, token, protocol) as websocket:
-                attempt = 0 # Reset attempt counter on successful connect
+                attempt = 0  # Reset attempt counter on successful connect
                 try:
                     complete_state = await get_states(websocket)
 
@@ -2492,7 +2492,9 @@ async def run(
                         )
                     if deck.is_visual():
                         deck.set_touchscreen_callback_async(
-                            _on_touchscreen_event_callback(websocket, complete_state, config),
+                            _on_touchscreen_event_callback(
+                                websocket, complete_state, config,
+                            ),
                         )
                     deck.set_brightness(config.brightness)
 
@@ -2504,13 +2506,19 @@ async def run(
                 # If we got here, we successfully ran until shutdown – exit loop
                 break
 
-        except (websockets.exceptions.ConnectionClosedError, OSError, asyncio.TimeoutError) as e:
+        except (
+            websockets.exceptions.ConnectionClosedError,
+            OSError,
+            asyncio.TimeoutError,
+        ) as e:
             attempt += 1
             console.log(f"[WARNING] WebSocket connection failed: {e}")
             if retry_attempts != math.inf and attempt > retry_attempts:
                 console.log("[ERROR] Max retry attempts reached, giving up.")
                 break
-            console.log(f"[INFO] Retrying in {retry_delay} seconds... (attempt {attempt})")
+            console.log(
+                f"[INFO] Retrying in {retry_delay} seconds... (attempt {attempt})",
+            )
             await asyncio.sleep(retry_delay)
 
 
@@ -2599,6 +2607,7 @@ def _help() -> str:
     except ModuleNotFoundError:
         return ""
 
+
 def parse_retry_attempts(val):
     if val is None:
         return 0
@@ -2608,8 +2617,8 @@ def parse_retry_attempts(val):
         return int(val)
     except (ValueError, TypeError):
         return 0
-    
-    
+
+
 def main() -> None:
     """Start the Stream Deck integration."""
     import argparse
@@ -2663,11 +2672,11 @@ def main() -> None:
         f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}",
     )
     config = Config.load(args.config, yaml_encoding=args.yaml_encoding)
-    
+
     final_retry_attempts = parse_retry_attempts(
         args.connection_retry_attempts
         if args.connection_retry_attempts is not None
-        else 0
+        else 0,
     )
 
     final_retry_delay = (

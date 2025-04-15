@@ -4,6 +4,8 @@
     Living room
     lights
   special_type: light-control
+  long_press:
+    service: light.toggle
   special_type_data:
     colors:
       - "#81ADFF"  # from default HA options
@@ -27,6 +29,21 @@
   text: |
     Dinner
     lights
+  long_press:
+    special_type: light-control
+    special_type_data:
+      colors:
+        - "#81ADFF"  # from default HA options
+        - "#D797FF"  # from default HA options
+        - "#FF9FF2"  # from default HA options
+        - "#FF7056"  # from default HA options
+        - "#0000FF"  # blue
+        - "#FF0000"  # red
+      color_temp_kelvin:
+        - 2000  # from default HA options
+        - 3521  # from default HA options
+        - 5025  # from default HA options
+        - 6535  # from default HA options
 - icon: url:https://files.nijho.lt/bas.jpg
   entity_id: person.bas
   text: |

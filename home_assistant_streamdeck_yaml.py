@@ -76,6 +76,10 @@ LCD_ICON_SIZE_Y = 100
 console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
 
+# Globals or context-level shared state
+is_network_connected = False
+is_ha_connected = False
+
 
 class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     """Parent of Button and Dial."""
@@ -234,6 +238,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             "turn-off",
             "light-control",
             "reload",
+            "network-status"
         ]
         | None
     ) = Field(
@@ -249,7 +254,8 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " (either an `int` or `str` (name of the page))."
         " If `light-control`, the button will control a light, and the `special_type_data`"
         " can be a dictionary, see its description."
-        " If `reload`, the button will reload the configuration file when pressed.",
+        " If `reload`, the button will reload the configuration file when pressed."
+        " If `network-status`, but button will show the connection status to the network",
     )
     special_type_data: Any | None = Field(
         default=None,
@@ -1868,6 +1874,31 @@ def update_dial(
         size_per_dial[1],
     )
 
+def render_connection_status(label: str, connected: bool) -> Image.Image:
+    """Render a simple connection status button."""
+    img = Image.new("RGB", (72, 72), color=(0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    try:
+        font = ImageFont.truetype(DEFAULT_FONT, 16)
+    except IOError:
+        font = ImageFont.load_default()
+
+    color = (0, 255, 0) if connected else (255, 0, 0)
+    symbol = "OK" if connected else "DISCONNECTED"
+    text = f"{label}\n{symbol}"
+    # Calculate multiline text size manually
+    lines = text.split("\n")
+    line_heights = [font.getbbox(line)[3] - font.getbbox(line)[1] for line in lines]
+    total_height = sum(line_heights)
+    max_width = max([font.getbbox(line)[2] - font.getbbox(line)[0] for line in lines])
+
+    y = (72 - total_height) / 2
+    for i, line in enumerate(lines):
+        w = font.getbbox(line)[2] - font.getbbox(line)[0]
+        draw.text(((72 - w) / 2, y), line, font=font, fill=color)
+        y += line_heights[i]
+
+    return img
 
 def update_key_image(
     deck: StreamDeck,
@@ -1883,12 +1914,15 @@ def update_key_image(
         return
     if button.special_type == "empty":
         return
-    size = deck.key_image_format()["size"]
-    image = button.try_render_icon(
-        complete_state=complete_state,
-        key_pressed=key_pressed,
-        size=size,
-    )
+    if button.special_type == "network-status":
+        image = render_connection_status("Network", is_network_connected)
+    else:
+        size = deck.key_image_format()["size"]
+        image = button.try_render_icon(
+            complete_state=complete_state,
+            key_pressed=key_pressed,
+            size=size,
+        )
     assert image is not None
     image = PILHelper.to_native_format(deck, image)
     with deck:
@@ -2459,6 +2493,26 @@ def update_all_key_images(
             key_pressed=False,
         )
 
+async def is_network_available(host="8.8.8.8", port=53, timeout=3) -> bool:
+    try:
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(host, port), timeout
+        )
+        writer.close()
+        await writer.wait_closed()
+        return True
+    except Exception:
+        return False
+
+def show_connection_status_page(deck, config:Config):
+    if "connection" in config.anonymous_pages:
+        config.to_page("connection")
+        return
+    else:
+        config.anonymous_pages.append(Page(name="connection", buttons=[Button(special_type="network-status")]))
+        config.to_page("connection")
+    for key_index in range(deck.key_count()):
+        update_key_image(deck, config=config, complete_state=None, key=key_index)
 
 async def run(
     host: str,
@@ -2508,9 +2562,10 @@ async def run(
 
         except (
             websockets.exceptions.ConnectionClosedError,
-            OSError,
+            OSError, 
             asyncio.TimeoutError,
         ) as e:
+            show_connection_status_page(deck, config)
             attempt += 1
             console.log(f"[WARNING] WebSocket connection failed: {e}")
             if retry_attempts != math.inf and attempt > retry_attempts:

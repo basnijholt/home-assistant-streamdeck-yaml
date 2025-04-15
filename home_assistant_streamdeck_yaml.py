@@ -2475,6 +2475,7 @@ async def run(
     while retry_attempts == math.inf or attempt <= retry_attempts:
         try:
             async with setup_ws(host, token, protocol) as websocket:
+                attempt = 0 # Reset attempt counter on successful connect
                 try:
                     complete_state = await get_states(websocket)
 
@@ -2505,11 +2506,11 @@ async def run(
 
         except (websockets.exceptions.ConnectionClosedError, OSError, asyncio.TimeoutError) as e:
             attempt += 1
-            print(f"[WARNING] WebSocket connection failed: {e}")
+            console.log(f"[WARNING] WebSocket connection failed: {e}")
             if retry_attempts != math.inf and attempt > retry_attempts:
-                print("[ERROR] Max retry attempts reached, giving up.")
+                console.log("[ERROR] Max retry attempts reached, giving up.")
                 break
-            print(f"[INFO] Retrying in {retry_delay} seconds... (attempt {attempt})")
+            console.log(f"[INFO] Retrying in {retry_delay} seconds... (attempt {attempt})")
             await asyncio.sleep(retry_delay)
 
 
@@ -2666,14 +2667,12 @@ def main() -> None:
     final_retry_attempts = parse_retry_attempts(
         args.connection_retry_attempts
         if args.connection_retry_attempts is not None
-        else env_retry_attempts
+        else 0
     )
 
     final_retry_delay = (
-        args.connection_retry_delay
+        int(args.connection_retry_delay)
         if args.connection_retry_delay is not None
-        else int(env_retry_delay)
-        if env_retry_delay is not None
         else 0
     )
 

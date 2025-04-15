@@ -97,7 +97,6 @@
     source: KEF LS50
   icon: spotify.png
   service: script.start_spotify
-- icon: hogwarts.png
-  service: script.start_hogwarts_legacy
+- !include {file: includes/climate_button.yaml, vars: {entity_id: climate.living_room_desk_ac, room: Living, name: Living\nclimate}}
 - special_type: previous-page
 - special_type: next-page

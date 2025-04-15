@@ -1,0 +1,23 @@
+entity_id: ${entity_id}
+special_type: climate-control
+special_type_data:
+  temperatures: [20,21,22,23,24]
+  name: ${room}
+  hvac_modes: [heat, cool, heat_cool]
+text: "${name}\n{{state_attr('${entity_id}','current_temperature')|int }}{%if states('${entity_id}')  != 'off' %} -> {{state_attr('${entity_id}','temperature')|int }} {% endif %} \u00B0C"
+text_offset: -12
+icon_mdi: #"{{ 'lightbulb-on' if is_state('${entity_id}', 'on') else 'lightbulb-off' }}"
+text_color: >
+  {% if is_state('${entity_id}', 'heat') %}
+    #FFA500
+  {% elif is_state('${entity_id}', 'cool') %}
+    cyan
+  {% elif is_state('${entity_id}', 'heat_cool') %}
+    #800080
+  {% elif is_state('${entity_id}', 'off') %}
+    #FFFFFF
+  {% else %}
+    #FF0000
+  {% endif %}         
+long_press:
+  service: climate.toggle 

@@ -508,7 +508,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                 )
                 raise AssertionError(msg)
             # Can only have the following keys: temperatures and name
-            allowed_keys = {"temperatures", "name"}
+            allowed_keys = {"temperatures", "name", "hvac_modes"}
             invalid_keys = v.keys() - allowed_keys
             if invalid_keys:
                 msg = (
@@ -1430,16 +1430,16 @@ def _light_page(
         + buttons_back,
     )
     
-
-@ft.lru_cache(maxsize=16)
+    
 def _climate_page(
     entity_id: str,
     complete_state: StateDict,
     temperatures: tuple[int, ...] | None,
-    hvac_modes: tuple[str, ...] | None,
+    hvac_modes: list[str] | None,
     name: str | None,
 ) -> Page:
     """Return a page of buttons for controlling lights."""
+    console.log(f"Creating climate page for {entity_id}")
     state = complete_state[entity_id]
 
     current_temperature = state.get("attributes", {}).get(
@@ -1447,7 +1447,7 @@ def _climate_page(
         "MISSING",
     )
 
-    button_1 = [
+    button_status = [
         Button(
             text=(name + "\n" if name else "") + str(current_temperature) + "°C",
         ),
@@ -1459,7 +1459,7 @@ def _climate_page(
                 "entity_id": entity_id,
                 "temperature": temperature,
             },
-            text=temperature,
+            text=str(temperature),
         )
         for temperature in (temperatures or ())
     ]
@@ -1472,11 +1472,11 @@ def _climate_page(
             },
             text=mode,
         )
-        for mode in (hvac_modes or ())
+        for mode in (hvac_modes or [])
     ]
     button_back = [
         Button(
-            text="BACK",
+            special_type="close-page"
         ),
     ]
     button_off = [
@@ -1486,12 +1486,11 @@ def _climate_page(
             service_data={"entity_id": entity_id},
         ),
     ]
-
     return Page(
         name="Climate",
         buttons=button_1
         + buttons_temperatures
-        + buttons_modes
+        + buttons_hvac_modes
         + button_off
         + button_back,
     )
@@ -2393,15 +2392,32 @@ async def _handle_key_press(
             update_all()
             return  # to skip the _detached_page reset below
         elif special_type == "climate-control":
+            console.log("calling climate page")
             assert isinstance(special_type_data, dict) or special_type_data is None
-            page = _climate_page(
-                entity_id=entity_id,
-                temperatures=special_type_data.get("temperatures", None),
-                hvac_modes=special_type_data.get("hvac_modes", None),
-            )
-            config._detached_page = page
-            update_all()
-            return  # to skip the _detached_page reset below      
+            console.log(f"special_data: {special_type_data}")
+            temperatures = special_type_data.get("temperatures", None)
+            hvac_modes = special_type_data.get("hvac_modes", None)
+            name = special_type_data.get("name", None)  # Pass name explicitly
+            console.log(f"temperatures: {temperatures}, hvac_modes: {hvac_modes}, name: {name}")
+            try:
+                if entity_id not in complete_state:
+                    console.log(f"Error: entity_id {entity_id} not found in complete_state")
+                    return
+                page = _climate_page(
+                    entity_id=entity_id,
+                    complete_state=complete_state,
+                    temperatures=temperatures,
+                    hvac_modes=hvac_modes,
+                    name=name,
+                )
+                console.log(f"got detached page {page}")
+                config._detached_page = page
+                update_all()
+            except Exception as e:
+                console.print_exception(show_locals=True)  # Log full stack trace
+                console.log(f"Error creating climate page: {e}")
+                return
+            return  # to skip the _detached_page reset below
         elif special_type == "reload":
             config.reload()
             update_all()

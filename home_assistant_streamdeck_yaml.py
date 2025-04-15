@@ -77,7 +77,8 @@ console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
 
 # Globals or context-level shared state
-is_network_connected : bool = False
+is_network_connected: bool = False
+
 
 class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     """Parent of Button and Dial."""
@@ -1903,6 +1904,7 @@ def update_dial(
         size_per_dial[1],
     )
 
+
 def update_key_image(
     deck: StreamDeck,
     *,
@@ -2500,10 +2502,11 @@ def update_all_key_images(
             key_pressed=False,
         )
 
+
 async def is_network_available(host="8.8.8.8", port=53, timeout=3) -> bool:
     try:
         reader, writer = await asyncio.wait_for(
-            asyncio.open_connection(host, port), timeout
+            asyncio.open_connection(host, port), timeout,
         )
         writer.close()
         await writer.wait_closed()
@@ -2511,19 +2514,27 @@ async def is_network_available(host="8.8.8.8", port=53, timeout=3) -> bool:
     except Exception:
         return False
 
-def show_connection_status_page(deck, config:Config):
+
+def show_connection_status_page(deck, config: Config):
     if "connection" in config.anonymous_pages:
         config.to_page("connection")
         return
-    else:
-        connection_buttons = [Button(special_type="network-status"), Button(special_type="ha-status")]
-        close_button = [Button(special_type="close-page")]
-        n_assigned_buttons = len(connection_buttons)+len(close_button)
-        empty_buttons=[Button(special_type="empty")] * (deck.key_count() - n_assigned_buttons)
-        page_buttons = connection_buttons + empty_buttons + close_button
-        config.anonymous_pages.append(Page(name="connection-auto", buttons=page_buttons))
-        config.to_page("connection-auto")
-        update_all_key_images(deck, config=config, complete_state=None) 
+    connection_buttons = [
+        Button(special_type="network-status"),
+        Button(special_type="ha-status"),
+    ]
+    close_button = [Button(special_type="close-page")]
+    n_assigned_buttons = len(connection_buttons) + len(close_button)
+    empty_buttons = [Button(special_type="empty")] * (
+        deck.key_count() - n_assigned_buttons
+    )
+    page_buttons = connection_buttons + empty_buttons + close_button
+    config.anonymous_pages.append(
+        Page(name="connection-auto", buttons=page_buttons),
+    )
+    config.to_page("connection-auto")
+    update_all_key_images(deck, config=config, complete_state=None)
+
 
 async def run(
     host: str,
@@ -2536,14 +2547,14 @@ async def run(
     """Main entry point for the Stream Deck integration, with retry logic."""
     deck = get_deck()
     attempt = 0
-    global is_network_connected 
-    global is_ha_connected 
-    
+    global is_network_connected
+    global is_ha_connected
+
     while retry_attempts == math.inf or attempt <= retry_attempts:
         try:
             async with setup_ws(host, token, protocol) as websocket:
                 is_network_connected = await is_network_available()
-                is_ha_connected = True 
+                is_ha_connected = True
                 attempt = 0  # Reset attempt counter on successful connect
                 try:
                     complete_state = await get_states(websocket)
@@ -2562,7 +2573,9 @@ async def run(
                     if deck.is_visual():
                         deck.set_touchscreen_callback_async(
                             _on_touchscreen_event_callback(
-                                websocket, complete_state, config,
+                                websocket,
+                                complete_state,
+                                config,
                             ),
                         )
                     deck.set_brightness(config.brightness)
@@ -2577,11 +2590,11 @@ async def run(
 
         except (
             websockets.exceptions.ConnectionClosedError,
-            OSError, 
+            OSError,
             asyncio.TimeoutError,
         ) as e:
             is_network_connected = await is_network_available()
-            is_ha_connected = False 
+            is_ha_connected = False
             show_connection_status_page(deck, config)
             attempt += 1
             console.log(f"[WARNING] WebSocket connection failed: {e}")
@@ -2746,9 +2759,11 @@ def main() -> None:
     config = Config.load(args.config, yaml_encoding=args.yaml_encoding)
 
     final_retry_attempts = parse_retry_attempts(
-        args.connection_retry_attempts
-        if args.connection_retry_attempts is not None
-        else 0,
+        (
+            args.connection_retry_attempts
+            if args.connection_retry_attempts is not None
+            else 0
+        ),
     )
 
     final_retry_delay = (

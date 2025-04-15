@@ -237,7 +237,8 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             "turn-off",
             "light-control",
             "reload",
-            "network-status"
+            "network-status",
+            "ha-status",
         ]
         | None
     ) = Field(
@@ -255,7 +256,8 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " If `light-control`, the button will control a light, and the `special_type_data`"
         " can be a dictionary, see its description."
         " If `reload`, the button will reload the configuration file when pressed."
-        " If `network-status`, but button will show the connection status to the network",
+        " If `network-status`, but button will show the connection status to the network"
+        " If `ha-status`, the button will show the status of Home Assistant.",
     )
     special_type_data: Any | None = Field(
         default=None,
@@ -383,8 +385,11 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             icon_mdi = button.icon_mdi or "arrow-u-left-bottom-bold"
         elif button.special_type == "network-status":
             connected = is_network_connected
-            console.log(f"network connected: {connected}")
             text = "Network\n" + ("OK" if connected else "ERROR")
+            text_color = "green" if connected else "red"
+        elif button.special_type == "ha-status":
+            connected = is_ha_connected
+            text = "Home\nAssistant\n" + ("OK" if connected else "ERROR")
             text_color = "green" if connected else "red"
         elif button.special_type == "turn-off":
             text = button.text or "Turn off"
@@ -2511,7 +2516,7 @@ def show_connection_status_page(deck, config:Config):
         config.to_page("connection")
         return
     else:
-        connection_buttons = [Button(special_type="network-status")]
+        connection_buttons = [Button(special_type="network-status"), Button(special_type="ha-status")]
         close_button = [Button(special_type="close-page")]
         n_assigned_buttons = len(connection_buttons)+len(close_button)
         empty_buttons=[Button(special_type="empty")] * (deck.key_count() - n_assigned_buttons)
@@ -2532,11 +2537,13 @@ async def run(
     deck = get_deck()
     attempt = 0
     global is_network_connected 
-
+    global is_ha_connected 
+    
     while retry_attempts == math.inf or attempt <= retry_attempts:
         try:
             async with setup_ws(host, token, protocol) as websocket:
                 is_network_connected = await is_network_available()
+                is_ha_connected = True 
                 attempt = 0  # Reset attempt counter on successful connect
                 try:
                     complete_state = await get_states(websocket)
@@ -2574,6 +2581,7 @@ async def run(
             asyncio.TimeoutError,
         ) as e:
             is_network_connected = await is_network_available()
+            is_ha_connected = False 
             show_connection_status_page(deck, config)
             attempt += 1
             console.log(f"[WARNING] WebSocket connection failed: {e}")

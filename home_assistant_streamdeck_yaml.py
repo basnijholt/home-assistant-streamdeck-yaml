@@ -81,6 +81,57 @@ press_start_times: Dict[int, float] = (
 console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
 
+# Globals or context-level shared state
+is_network_connected: bool = False
+
+def get_climate_icon_text_and_color(mode: str) -> tuple[str, str, str]:
+    cool_color = "cyan"
+    cool_text = "cool"
+    cool_icon = "snowflake"
+    heat_color = "#FFA500"
+    heat_icon = "fire"
+    heat_text = "heat"
+    auto_color = "#00FF00"
+    auto_icon = "sun-snowflake"
+    auto_text = "auto"
+    off_text = "OFF"
+    off_icon = None
+    off_color = None 
+    unknown_icon = "help"
+    unknown_text = "UNKNOWN"
+    unknown_color = None
+    
+    match mode.lower():
+        case "cool":
+            return cool_icon, cool_text, cool_color     
+        case "heat":
+            return heat_icon, heat_text, heat_color
+        case "auto" | "heat_cool":
+            return auto_icon, auto_text, auto_color
+        case "off":
+            return off_icon, off_text, off_color
+        case _:
+            return unknown_icon, unknown_text, unknown_color
+       
+class Climate_button_helper():
+    """Climate class."""
+    
+    temperature_setting: str = Field(
+        description="The temperature setting for the climate control button."
+        "This will display the current temperature if no mode set, "
+        "or current_temperature -> temperature_setting if mode set.",     
+    )
+    text_color: str | None = Field(
+        default=None,
+        description="Color of the text."
+    )
+    icon_mdi: str | None = Field(
+        default=None,
+        description="The name of the icon to display"
+    )
+    name: str = Field(
+        description="The name to display on the button, e.g. 'Living Room'."
+    )
 
 class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     """Parent of Button and Dial."""
@@ -474,6 +525,30 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                 image = _draw_percentage_ring(pct, size)
 
         icon_convert_to_grayscale = False
+        
+        if button.text:
+            text = button.text
+        else:
+            match button.special_type:
+                case "climate-control":
+                    text = safe_load_yaml(
+                        f"""
+                        {{% if is_state('{entity_id}', 'heat') %}}
+                        {heat_color}
+                        {{% elif is_state('{entity_id}', 'cool') %}}
+                        {cool_color}
+                        {{% elif is_state('{entity_id}', 'heat_cool') or is_state('{entity_id}', 'auto') %}}
+                        {auto_color}
+                        {{% elif is_state('{entity_id}', 'off') %}}
+                        {off_color}
+                        {{% else %}}
+                        {unknown_color}
+                        {{% endif %}}"""
+                )
+                case _:
+                    text = None
+                    
+        
         text = button.text
         text_color = button.text_color or "white"
         icon_mdi = button.icon_mdi
@@ -671,14 +746,14 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             )
         return v
 
-        @classmethod
-        def templatable(cls: type[Button]) -> set[str]:
-            """Return if an attribute is templatable, which is if the type-annotation is str."""
-            schema = cls.schema()
-            properties = schema["properties"]
-            return {k for k, v in properties.items() if v["allow_template"]} | {
-                "long_press",
-            }
+    @classmethod
+    def templatable(cls: type[Button]) -> set[str]:
+        """Return if an attribute is templatable, which is if the type-annotation is str."""
+        schema = cls.schema()
+        properties = schema["properties"]
+        return {k for k, v in properties.items() if v["allow_template"]} | {
+            "long_press",
+        }
 
     def maybe_start_or_cancel_timer(
         self,
@@ -1543,44 +1618,13 @@ def _climate_page(
         "MISSING",
     )
     
-    cool_color = "cyan"
-    cool_text = "cool"
-    cool_icon = "snowflake"
-    heat_color = "#FFA500"
-    heat_icon = "fire"
-    heat_text = "heat"
-    auto_color = "#00FF00"
-    auto_icon = "sun-snowflake"
-    auto_text = "auto"
-    off_text = "OFF"
-    off_icon = None
-    off_color = None 
-    unknown_icon = "help"
-    unknown_text = "UNKNOWN"
-    unknown_color = None
-    
     def format_temp(temp: float | None) -> str:
         if temp is None:
             return "?"
         return f"{temp:.2f}".rstrip('0').rstrip('.')
-    
-    current_mode : str | None = state.get("state", None)
-    def get_icon_text_and_color(mode: str) -> tuple[str, str, str]:
-        match mode.lower():
-            case "cool":
-                return cool_icon, cool_text, cool_color     
-            case "heat":
-                return heat_icon, heat_text, heat_color
-            case "auto" | "heat_cool":
-                return auto_icon, auto_text, auto_color
-            case "off":
-                return off_icon, off_text, off_color
-            case _:
-                return unknown_icon, unknown_text, unknown_color
-            
-            
+                 
     def mode_button(mode: str) -> Button:
-        icon_mdi, text, text_color = get_icon_text_and_color(mode)
+        icon_mdi, text, text_color = get_climate_icon_text_and_color(mode)
         return Button(
             service="climate.set_hvac_mode",
             service_data={
@@ -1592,21 +1636,15 @@ def _climate_page(
             icon_mdi=icon_mdi,
         )
       
-    current_temperature = state.get("attributes", {}).get("temperature")
-    current_mode_icon_mdi, _, current_mode_text_color = get_icon_text_and_color(current_mode)
-    
-    button_status = [
-        Button(
-            text=(name + "\n" if name else "") 
-            + format_temp(current_temperature) 
-            + (f" -> {format_temp(current_temperature)}" if current_mode.lower() != 'off' and current_temperature else "") 
-            + "°C\n"
-            + current_mode.capitalize(),
-            text_offset = -12,
-            text_color = current_mode_text_color,
-            icon_mdi=current_mode_icon_mdi,
-        ),
-    ]
+    button_status = [Button.climate_control_with_status(
+        entity_id=entity_id,
+        complete_state=complete_state,
+        display_climate_string=False,
+        display_mode=True,
+        open_climate_page_on_press=False,
+        name=name,
+        special_type_data=None,
+    )]
     buttons_temperatures = [
         Button(
             service="climate.set_temperature",
@@ -2552,13 +2590,10 @@ async def _handle_key_press(
             update_all()
             return  # to skip the _detached_page reset below
         elif special_type == "climate-control":
-            console.log("calling climate page")
             assert isinstance(special_type_data, dict) or special_type_data is None
-            console.log(f"special_data: {special_type_data}")
             temperatures = special_type_data.get("temperatures", None)
             hvac_modes = special_type_data.get("hvac_modes", None)
             name = special_type_data.get("name", None)  # Pass name explicitly
-            console.log(f"temperatures: {temperatures}, hvac_modes: {hvac_modes}, name: {name}")
             try:
                 if entity_id not in complete_state:
                     console.log(f"Error: entity_id {entity_id} not found in complete_state")

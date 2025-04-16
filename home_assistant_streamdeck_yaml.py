@@ -2507,7 +2507,8 @@ def update_all_key_images(
 async def is_network_available(host="8.8.8.8", port=53, timeout=3) -> bool:
     try:
         reader, writer = await asyncio.wait_for(
-            asyncio.open_connection(host, port), timeout,
+            asyncio.open_connection(host, port),
+            timeout,
         )
         writer.close()
         await writer.wait_closed()

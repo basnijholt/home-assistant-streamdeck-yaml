@@ -257,7 +257,8 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " If `light-control`, the button will control a light, and the `special_type_data`"
         " can be a dictionary, see its description."
         " If `climate-control`, the button will control climate, and the `special_type_data`"
-        " can be a dictionary, see its description."
+        " can be a dictionary, see its description. The climage control page shown is meant to "
+        " be temporary, and will not update values dynamically."
         " If `reload`, the button will reload the configuration file when pressed.",
     )
     special_type_data: Any | None = Field(
@@ -272,7 +273,13 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html)"
         " can be used. This requires the `matplotlib` package to be installed. If no"
         " list of `colors` or `colormap` is specified, 10 equally spaced colors are used."
-        " If `climate-control`, the data should optionally be a dictionary."# FILL IN MORE, 
+        " If `climate-control`, the data should optionally be a dictionary."
+        " The dictionary can contain the following keys:"
+        " The `temperatures` key and a value a list of max (`n_keys_on_streamdeck - 5`) temperatures in Celsius."
+        " The `name` key and a value a name for the climate control page."
+        " The `hvac_modes` key and a value a list of HVAC modes to display on the dial."
+        " The maximum number of temperatures + hvac_modes should be less than the number of keys on the Streamdeck minus 2."
+        " If no list of `temperatures` is specified, 10 equally spaced temperatures are used.",
     )
     long_press: dict[str, Any] | None = Field(
         default=None,
@@ -1446,10 +1453,63 @@ def _climate_page(
         "current_temperature",
         "MISSING",
     )
+    
+    cool_color = "cyan"
+    cool_text = "cool"
+    cool_icon = "snowflake"
+    heat_color = "#FFA500"
+    heat_icon = "fire"
+    heat_text = "heat"
+    auto_color = "green"
+    auto_icon = "sun-snowflake"
+    auto_text = "auto"
+    off_text = "OFF"
+    off_icon = None
+    off_color = None 
+    unknown_icon = "help"
+    unknown_text = "UNKNOWN"
+    unknown_color = None
+    
+    
+    current_mode : str | None = state.get("state", None)
+    def get_icon_text_and_color(mode: str) -> tuple[str, str, str]:
+        match mode.lower():
+            case "cool":
+                return cool_icon, cool_text, cool_color     
+            case "heat":
+                return heat_icon, heat_text, heat_color
+            case "auto" | "heat_cool":
+                return auto_icon, auto_text, auto_color
+            case "off":
+                return off_icon, off_text, off_color
+            case _:
+                return unknown_icon, unknown_text, unknown_color
+            
+            
+    def mode_button(mode: str) -> Button:
+        icon_mdi, text, text_color = get_icon_text_and_color(mode)
+        return Button(
+            service="climate.set_hvac_mode",
+            service_data={
+                "entity_id": entity_id,
+                "hvac_mode": mode,
+            },
+            text=mode,
+            text_color=text_color,
+            icon_mdi=icon_mdi,
+        )
 
+            
+    current_temperature = state.get("attributes", {}).get("temperature")
+    
+    current_mode_icon_mdi, _, current_mode_text_color = get_icon_text_and_color(current_mode)
+    
     button_status = [
         Button(
-            text=(name + "\n" if name else "") + str(current_temperature) + "°C",
+            text=(name + "\n" if name else "") + str(int(current_temperature)) + (f" -> {int(current_temperature)}" if current_temperature else "") + "°C",
+            text_offset = -12,
+            text_color = current_mode_text_color,
+            icon_mdi=current_mode_icon_mdi,
         ),
     ]
     buttons_temperatures = [
@@ -1464,14 +1524,7 @@ def _climate_page(
         for temperature in (temperatures or ())
     ]
     buttons_hvac_modes = [
-        Button(
-            service="climate.set_hvac_mode",
-            service_data={
-                "entity_id": entity_id,
-                "hvac_mode": mode,
-            },
-            text=mode,
-        )
+        mode_button(mode)
         for mode in (hvac_modes or [])
     ]
     button_back = [
@@ -1488,7 +1541,7 @@ def _climate_page(
     ]
     return Page(
         name="Climate",
-        buttons=button_1
+        buttons=button_status
         + buttons_temperatures
         + buttons_hvac_modes
         + button_off

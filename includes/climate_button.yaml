@@ -1,7 +1,7 @@
 entity_id: ${entity_id}
 special_type: climate-control
 special_type_data:
-  temperatures: [20,21,22,23,24]
+  temperatures: [18,19,20,21,22,23,24,25,26]
   name: ${room}
   hvac_modes: [heat, cool, heat_cool]
 text: "${name}\n{{state_attr('${entity_id}','current_temperature')|int }}{%if states('${entity_id}')  != 'off' %} -> {{state_attr('${entity_id}','temperature')|int }} {% endif %} \u00B0C"

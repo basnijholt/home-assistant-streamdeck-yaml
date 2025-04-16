@@ -278,7 +278,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " The `temperatures` key and a value a list of max (`n_keys_on_streamdeck - 5`) temperatures in Celsius."
         " The `name` key and a value a name for the climate control page."
         " The `hvac_modes` key and a value a list of HVAC modes to display on the dial."
-        " The maximum number of temperatures + hvac_modes should be less than the number of keys on the Streamdeck minus 2."
+        " The maximum number of temperatures + hvac_modes should be less than the number of keys on the Streamdeck minus 3."
         " If no list of `temperatures` is specified, 10 equally spaced temperatures are used.",
     )
     long_press: dict[str, Any] | None = Field(
@@ -1444,6 +1444,7 @@ def _climate_page(
     temperatures: tuple[int, ...] | None,
     hvac_modes: list[str] | None,
     name: str | None,
+    deck_key_count: int,
 ) -> Page:
     """Return a page of buttons for controlling lights."""
     console.log(f"Creating climate page for {entity_id}")
@@ -1460,7 +1461,7 @@ def _climate_page(
     heat_color = "#FFA500"
     heat_icon = "fire"
     heat_text = "heat"
-    auto_color = "green"
+    auto_color = "#00FF00"
     auto_icon = "sun-snowflake"
     auto_text = "auto"
     off_text = "OFF"
@@ -1470,6 +1471,10 @@ def _climate_page(
     unknown_text = "UNKNOWN"
     unknown_color = None
     
+    def format_temp(temp: float | None) -> str:
+        if temp is None:
+            return "?"
+        return f"{temp:.2f}".rstrip('0').rstrip('.')
     
     current_mode : str | None = state.get("state", None)
     def get_icon_text_and_color(mode: str) -> tuple[str, str, str]:
@@ -1494,7 +1499,7 @@ def _climate_page(
                 "entity_id": entity_id,
                 "hvac_mode": mode,
             },
-            text=mode,
+            text=f"Set\n{text.capitalize()}",
             text_color=text_color,
             icon_mdi=icon_mdi,
         )
@@ -1506,7 +1511,7 @@ def _climate_page(
     
     button_status = [
         Button(
-            text=(name + "\n" if name else "") + str(int(current_temperature)) + (f" -> {int(current_temperature)}" if current_temperature else "") + "°C",
+            text=(name + "\n" if name else "") + format_temp(current_temperature) + (f" -> {format_temp(current_temperature)}" if current_temperature else "") + "°C",
             text_offset = -12,
             text_color = current_mode_text_color,
             icon_mdi=current_mode_icon_mdi,
@@ -1519,7 +1524,7 @@ def _climate_page(
                 "entity_id": entity_id,
                 "temperature": temperature,
             },
-            text=str(temperature),
+            text=format_temp(temperature) + "°C",
         )
         for temperature in (temperatures or ())
     ]
@@ -1539,13 +1544,25 @@ def _climate_page(
             service_data={"entity_id": entity_id},
         ),
     ]
+    buttons_before_temperatures = button_status + button_off + buttons_hvac_modes
+    buttons_after_temperatures_and_empty = button_back
+    n_empty_buttons = deck_key_count - len(buttons_before_temperatures) - len(buttons_temperatures) - len(buttons_after_temperatures_and_empty)
+    if n_empty_buttons < 0:
+        console.log(
+            f"Too many buttons in the climate page. Some might not be shown. The deck has {abs(n_empty_buttons)} too many buttons. Remove some temperatures or hvac modes.",
+            style="red",
+        )
+        n_empty_buttons = 0
+    # Create empty buttons to fill the remaining space, so that the close button is in the usual place.
+    buttons_empty = [Button(special_type="empty")] * n_empty_buttons
+        
+    
     return Page(
         name="Climate",
-        buttons=button_status
+        buttons=buttons_before_temperatures
         + buttons_temperatures
-        + buttons_hvac_modes
-        + button_off
-        + button_back,
+        + buttons_empty
+        + buttons_after_temperatures_and_empty,
     )
 
 
@@ -2462,6 +2479,7 @@ async def _handle_key_press(
                     temperatures=temperatures,
                     hvac_modes=hvac_modes,
                     name=name,
+                    deck_key_count=deck.key_count(),
                 )
                 console.log(f"got detached page {page}")
                 config._detached_page = page

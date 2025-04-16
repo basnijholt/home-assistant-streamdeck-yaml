@@ -2263,15 +2263,19 @@ async def _handle_key_press(
             await _sync_input_boolean(config.state_entity_id, websocket, "off")
         elif special_type == "light-control":
             assert isinstance(special_type_data, dict)
-            page = _light_page(
-                entity_id=entity_id,
-                n_colors=10,
-                colormap=special_type_data.get("colormap", None),
-                colors=special_type_data.get("colors", None),
-                color_temp_kelvin=special_type_data.get("color_temp_kelvin", None),
-            )
-            config._detached_page = page
-            update_all()
+            try:
+                page = _light_page(
+                    entity_id=entity_id,
+                    n_colors=10,
+                    colormap=special_type_data.get("colormap", None),
+                    colors=special_type_data.get("colors", None),
+                    color_temp_kelvin=special_type_data.get("color_temp_kelvin", None),
+                )
+                config._detached_page = page
+                update_all()
+            except Exception as e:
+                console.print_exception(show_locals=True)
+                console.log(f"Error while creating light page: {e}")
             return  # to skip the _detached_page reset below
         elif special_type == "reload":
             config.reload()

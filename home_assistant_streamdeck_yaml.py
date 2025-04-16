@@ -1325,7 +1325,10 @@ def _light_page(
         buttons_brightness.append(button)
     buttons_back = [Button(special_type="close-page")]
     number_of_buttons_except_close_and_empty = (
-        len(buttons_colors) + len(buttons_color_temp_kelvin) + len(buttons_brightness) + len(buttons_back)
+        len(buttons_colors)
+        + len(buttons_color_temp_kelvin)
+        + len(buttons_brightness)
+        + len(buttons_back)
     )
     number_of_empty_buttons = deck_key_count - number_of_buttons_except_close_and_empty
     if number_of_empty_buttons > 0:
@@ -1340,7 +1343,7 @@ def _light_page(
             color_temp_kelvin: {color_temp_kelvin}
             colormap: {colormap}
             brightness: {brightness}
-            """
+            """,
         )
         buttons_empty = []
 

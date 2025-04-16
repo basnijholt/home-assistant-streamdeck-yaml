@@ -33,6 +33,7 @@ from home_assistant_streamdeck_yaml import (
     _is_state_attr,
     _keys,
     _light_page,
+    _climate_page,
     _named_to_hex,
     _on_press_callback,
     _render_jinja,
@@ -474,6 +475,20 @@ def test_light_page() -> None:
     )
     buttons = page.buttons
 
+def test_climate_page() -> None:
+    """Test climate page."""
+    deck_key_count = 15
+    page = _climate_page(
+        entity_id="dummy_entity_id",
+        name="dummy_name",
+        complete_state={},
+        temperatures = range (20,24),
+        hvac_modes=["off", "heat", "cool", "auto"],
+        deck_key_count=deck_key_count,
+        )
+    buttons = page.buttons
+    assert len(page.buttons) == deck_key_count
+    
 
 def test_url_to_filename() -> None:
     """Test url_to_filename."""

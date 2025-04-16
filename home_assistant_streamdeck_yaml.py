@@ -1609,7 +1609,7 @@ def _climate_page(
 ) -> Page:
     """Return a page of buttons for controlling lights."""
     console.log(f"Creating climate page for {entity_id}")
-    state = complete_state[entity_id]
+    state = complete_state.get(entity_id, {})
 
     current_temperature = state.get("attributes", {}).get(
         "current_temperature",

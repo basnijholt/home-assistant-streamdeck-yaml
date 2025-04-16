@@ -9,7 +9,6 @@
       - "#81ADFF"  # from default HA options
       - "#D797FF"  # from default HA options
       - "#FF9FF2"  # from default HA options
-      - "#FF7056"  # from default HA options
       - "#0000FF"  # blue
       - "#FF0000"  # red
     color_temp_kelvin:

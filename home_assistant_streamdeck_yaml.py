@@ -1275,6 +1275,7 @@ def _max_contrast_color(hex_color: str) -> str:
 def _light_page(
     entity_id: str,
     n_colors: int,
+    deck_key_count: int,
     colors: tuple[str, ...] | None,
     color_temp_kelvin: tuple[int, ...] | None,
     colormap: str | None,
@@ -1323,12 +1324,34 @@ def _light_page(
         )
         buttons_brightness.append(button)
     buttons_back = [Button(special_type="close-page")]
+    number_of_buttons_except_close_and_empty = (
+        len(buttons_colors) + len(buttons_color_temp_kelvin) + len(buttons_brightness) + len(buttons_back)
+    )
+    number_of_empty_buttons = deck_key_count - number_of_buttons_except_close_and_empty
+    if number_of_empty_buttons > 0:
+        buttons_empty = [Button(special_type="empty")] * number_of_empty_buttons
+    else:
+        console.log(
+            f"""
+            Too many buttons on light page. Not showing everything"
+            Deck key count: {deck_key_count}
+            Number of defined buttons: {number_of_buttons_except_close_and_empty}
+            colors: {colors}
+            color_temp_kelvin: {color_temp_kelvin}
+            colormap: {colormap}
+            brightness: {brightness}
+            """
+        )
+        buttons_empty = []
+
     return Page(
         name="Lights",
         buttons=buttons_colors
         + buttons_color_temp_kelvin
+        + buttons_empty
         + buttons_brightness
         + buttons_back,
+        dials=[],
     )
 
 
@@ -2213,6 +2236,7 @@ async def _handle_key_press(
             colors=button.special_type_data.get("colors", None),
             color_temp_kelvin=button.special_type_data.get("color_temp_kelvin", None),
             brightness=button.special_type_data.get("brightness", None),
+            deck_key_count=deck.key_count(),
         )
         config._detached_page = page
         update_all()

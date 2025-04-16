@@ -2286,7 +2286,7 @@ async def _handle_key_press(
             else:
                 service_data = service_data
             assert service is not None  # for mypy
-            await call_service(websocket, button.service, service_data, button.target)
+            await call_service(websocket, service, service_data, target)
 
         if config._detached_page:
             config._detached_page = None

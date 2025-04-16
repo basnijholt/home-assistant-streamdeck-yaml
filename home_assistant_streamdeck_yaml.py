@@ -78,6 +78,7 @@ StateDict: TypeAlias = dict[str, dict[str, Any]]
 
 # Globals or context-level shared state
 is_network_connected: bool = False
+is_ha_connected: bool = False
 
 
 class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]

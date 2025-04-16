@@ -1503,15 +1503,17 @@ def _climate_page(
             text_color=text_color,
             icon_mdi=icon_mdi,
         )
-
-            
+      
     current_temperature = state.get("attributes", {}).get("temperature")
-    
     current_mode_icon_mdi, _, current_mode_text_color = get_icon_text_and_color(current_mode)
     
     button_status = [
         Button(
-            text=(name + "\n" if name else "") + format_temp(current_temperature) + (f" -> {format_temp(current_temperature)}" if current_temperature else "") + "°C",
+            text=(name + "\n" if name else "") 
+            + format_temp(current_temperature) 
+            + (f" -> {format_temp(current_temperature)}" if current_mode.lower() != 'off' and current_temperature else "") 
+            + "°C\n"
+            + current_mode.capitalize(),
             text_offset = -12,
             text_color = current_mode_text_color,
             icon_mdi=current_mode_icon_mdi,

@@ -84,6 +84,7 @@ StateDict: TypeAlias = dict[str, dict[str, Any]]
 # Globals or context-level shared state
 is_network_connected: bool = False
 
+# Gets the climate icon, text, and text color for climate modes
 def get_climate_icon_text_and_color(mode: str) -> tuple[str, str, str]:
     cool_color = "cyan"
     cool_text = "cool"

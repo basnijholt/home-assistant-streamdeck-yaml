@@ -5,4 +5,4 @@ special_type_data:
   name: ${room}
   hvac_modes: [heat, cool, heat_cool]
 long_press:
-  service: climate.toggle 
+  service: climate.toggle

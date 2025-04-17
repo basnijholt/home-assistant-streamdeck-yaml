@@ -123,7 +123,8 @@ class Climate_button_helper:
     )
     text_color: str | None = Field(default=None, description="Color of the text.")
     icon_mdi: str | None = Field(
-        default=None, description="The name of the icon to display",
+        default=None,
+        description="The name of the icon to display",
     )
     name: str = Field(
         description="The name to display on the button, e.g. 'Living Room'.",

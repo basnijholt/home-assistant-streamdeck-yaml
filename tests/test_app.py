@@ -1268,8 +1268,8 @@ async def test_return_to_home(
     # We need to have a release otherwise it will be timing for a long press
     async def press_and_release(key: int) -> None:
         press = _on_press_callback(inactivity_state, websocket_mock, state, config)
-        await press(mock_deck, key, key_pressed=True)
-        await press(mock_deck, key, key_pressed=False)
+        await press(mock_deck, key, True)  # noqa: FBT003
+        await press(mock_deck, key, False)  # noqa: FBT003
 
     assert config._current_page_index == 0
     assert config._detached_page is None

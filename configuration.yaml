@@ -2,9 +2,6 @@ brightness: 100
 auto_reload: true
 state_entity_id: input_boolean.streamdeck
 long_press_duration: 0.5
-return_to_home_after_no_presses: 
-  home_page: Home
-  duration: 5
 pages:
   - name: Home
     buttons: !include includes/home.yaml

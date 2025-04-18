@@ -17,6 +17,7 @@ from home_assistant_streamdeck_yaml import (
     Button,
     Config,
     Dial,
+    InactivityState,
     Page,
     TouchscreenEventType,
     _on_dial_event_callback,
@@ -269,8 +270,13 @@ async def test_streamdeck_plus(
     assert dial_state is not None
     # Fires dial event and increments state by 1
     config.current_page().sort_dials()
-
-    dial_event = _on_dial_event_callback(websocket_mock, state, config)
+    inactivity_state = InactivityState()
+    dial_event = _on_dial_event_callback(
+        inactivity_state,
+        websocket_mock,
+        state,
+        config,
+    )
     await dial_event(mock_deck_plus, 0, DialEventType.TURN, 1)
     # Test update state
     _update_state(state, state_change_msg, config, mock_deck_plus)
@@ -309,9 +315,14 @@ async def test_touchscreen(
     config = Config(pages=[home, page_1], anonymous_pages=[page_anon])
     assert config._current_page_index == 0
     assert config.current_page() == home
-
+    inactivity_state = InactivityState()
     # Check if you can change page using Touchscreen.
-    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
+    touch_event = _on_touchscreen_event_callback(
+        inactivity_state,
+        websocket_mock,
+        state,
+        config,
+    )
     await touch_event(
         mock_deck_plus,
         TouchscreenEventType.DRAG,
@@ -329,7 +340,12 @@ async def test_touchscreen(
     dial = config.dial(0)
     assert dial is not None
 
-    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
+    touch_event = _on_touchscreen_event_callback(
+        inactivity_state,
+        websocket_mock,
+        state,
+        config,
+    )
     await touch_event(
         mock_deck_plus,
         TouchscreenEventType.LONG,
@@ -342,7 +358,12 @@ async def test_touchscreen(
     assert attributes["state"] == attributes["max"]
 
     # Check if you can set min using touchscreen.
-    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
+    touch_event = _on_touchscreen_event_callback(
+        inactivity_state,
+        websocket_mock,
+        state,
+        config,
+    )
     await touch_event(
         mock_deck_plus,
         TouchscreenEventType.SHORT,
@@ -359,7 +380,12 @@ async def test_touchscreen(
     assert dial is not None
     assert dial.allow_touchscreen_events is not True
 
-    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
+    touch_event = _on_touchscreen_event_callback(
+        inactivity_state,
+        websocket_mock,
+        state,
+        config,
+    )
     await touch_event(
         mock_deck_plus,
         TouchscreenEventType.SHORT,

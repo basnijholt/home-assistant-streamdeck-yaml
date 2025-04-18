@@ -1125,3 +1125,8 @@ async def test_anonymous_page(
     # Should now be the button on the first page
     button = config.button(0)
     assert button.special_type == "go-to-page"
+    assert config.current_page() == home
+    config.load_page_as_detached(anon)
+    assert config.current_page() == anon
+    config.close_detached_page() 
+    assert config.current_page() == home 

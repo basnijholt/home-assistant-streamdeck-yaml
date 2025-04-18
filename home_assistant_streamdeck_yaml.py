@@ -400,10 +400,11 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         display_mode: bool,
         open_climate_page_on_press: bool,
     ) -> Button:
-        """Return a climate control button, preserving base_button attributes 
-        
-        Note: 
+        """Return a climate control button, preserving base_button attributes
+
+        Note:
         Text_offset is not preserved, it is calculated based on the text size and number of lines.
+
         """
         state = complete_state.get(entity_id, {})
 

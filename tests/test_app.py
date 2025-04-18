@@ -1244,6 +1244,6 @@ async def test_anonymous_page(
 
     # Back to anon page to test that the close button works properly
     assert config.to_page("anon") == anon
-    await press(mock_deck, 2, key_pressed=True)
+    await press_and_release(2)
     assert config._detached_page is None
     assert config.current_page() == home

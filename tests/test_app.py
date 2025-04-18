@@ -515,7 +515,14 @@ async def test_handle_key_press_toggle_light(
     """Test handle_key_press toggle light."""
     button = config.button(0)
     assert button is not None
-    await _handle_key_press(websocket_mock, state, config, button, mock_deck)
+    await _handle_key_press(
+        websocket_mock,
+        state,
+        config,
+        button,
+        mock_deck,
+        is_long_press=False,
+    )
 
     websocket_mock.send.assert_called_once()
     send_call_args = websocket_mock.send.call_args.args[0]
@@ -536,7 +543,14 @@ async def test_handle_key_press_next_page(
     """Test handle_key_press next page."""
     button = config.button(14)
     assert button is not None
-    await _handle_key_press(websocket_mock, state, config, button, mock_deck)
+    await _handle_key_press(
+        websocket_mock,
+        state,
+        config,
+        button,
+        mock_deck,
+        is_long_press=False,
+    )
 
     # No service should be called
     websocket_mock.send.assert_not_called()
@@ -561,7 +575,14 @@ async def test_button_with_target(
     _button = config.button(0)
     assert _button is not None
     assert _button.service == "media_player.join"
-    await _handle_key_press(websocket_mock, {}, config, _button, mock_deck)
+    await _handle_key_press(
+        websocket_mock,
+        {},
+        config,
+        _button,
+        mock_deck,
+        is_long_press=False,
+    )
     # Check that the send method was called with the correct payload
     called_payload = json.loads(websocket_mock.send.call_args.args[0])
     expected_payload = {
@@ -1085,6 +1106,7 @@ async def test_long_press(
     websocket_mock: Mock,
     state: dict[str, dict[str, Any]],
 ) -> None:
+    """Test long press."""
     long_press_threshold = 0.5
     short_press_time = 0.0
     assert short_press_time < long_press_threshold
@@ -1121,9 +1143,9 @@ async def test_long_press(
     press = _on_press_callback(inactivity_state, websocket_mock, state, config)
 
     async def press_and_release(key: int, seconds: float) -> None:
-        await press(mock_deck, key, key_pressed=True)
+        await press(mock_deck, key, True)  # noqa: FBT003
         await asyncio.sleep(seconds)
-        await press(mock_deck, key, key_pressed=False)
+        await press(mock_deck, key, False)  # noqa: FBT003
 
     await press_and_release(0, short_press_time)
     assert config.current_page() == short
@@ -1163,7 +1185,6 @@ async def test_anonymous_page(
     assert button.text == "yolo"
     inactivity_state = InactivityState()
     press = _on_press_callback(inactivity_state, websocket_mock, state, config)
-    
 
     # We need to have a release otherwise it will be timing for a long press
     async def press_and_release(key: int) -> None:
@@ -1194,6 +1215,14 @@ async def test_anonymous_page(
     button = config.button(0)
     assert button.special_type == "go-to-page"
 
+    # Test load_page_as_detached and close_detached_page methods
+    assert config.current_page() == home
+    config.load_page_as_detached(anon)
+    assert config.current_page() == anon
+    config.close_detached_page()
+    assert config.current_page() == home
+
+
 async def test_return_to_home(
     mock_deck: Mock,
     websocket_mock: Mock,
@@ -1208,13 +1237,15 @@ async def test_return_to_home(
     longer_than_return_to_home_after = return_to_home_after + 0.1
     assert longer_than_return_to_home_after > return_to_home_after
     assert longer_than_return_to_home_after > 0.0
-    longer_and_shorter_delta = longer_than_return_to_home_after - shorter_than_return_to_home_after
+    longer_and_shorter_delta = (
+        longer_than_return_to_home_after - shorter_than_return_to_home_after
+    )
     home = Page(
         name="home",
         buttons=[
             Button(special_type="go-to-page", special_type_data="anon"),
             Button(special_type="go-to-page", special_type_data="second"),
-            ],
+        ],
     )
     second = Page(
         name="second",
@@ -1225,51 +1256,58 @@ async def test_return_to_home(
         buttons=[Button(text="yolo"), Button(text="foo", delay=0.1)],
     )
     config = Config(
-        pages=[home,second], 
-        anonymous_pages=[anon], 
+        pages=[home, second],
+        anonymous_pages=[anon],
         return_to_home_after_no_presses={
-            "home_page": "home", 
+            "home_page": "home",
             "duration": return_to_home_after,
-            }
-        )
+        },
+    )
     inactivity_state = InactivityState()
-    
+
     # We need to have a release otherwise it will be timing for a long press
     async def press_and_release(key: int) -> None:
         press = _on_press_callback(inactivity_state, websocket_mock, state, config)
         await press(mock_deck, key, key_pressed=True)
         await press(mock_deck, key, key_pressed=False)
-        
+
     assert config._current_page_index == 0
     assert config._detached_page is None
-    await(press_and_release(0))
+    await press_and_release(0)
     assert config._detached_page is not None
     assert config.current_page() == anon
-    await asyncio.sleep(longer_than_return_to_home_after)  # longer than delay should then switch to home
+    await asyncio.sleep(
+        longer_than_return_to_home_after,
+    )  # longer than delay should then switch to home
     # Should now be on the home page, with the anon page closed automatically
     assert config._detached_page is None
     assert config.current_page() == home
     # Check that the logic also works on non detached pages
-    await(press_and_release(1))
+    await press_and_release(1)
     assert config._detached_page is None
     assert config.current_page() == second
-    await asyncio.sleep(shorter_than_return_to_home_after)  # shorter than delay should stay on page
+    await asyncio.sleep(
+        shorter_than_return_to_home_after,
+    )  # shorter than delay should stay on page
     assert config._detached_page is None
     assert config.current_page() == second
     await asyncio.sleep(longer_and_shorter_delta)
     assert config._detached_page is None
-    assert config.current_page() == home    
+    assert config.current_page() == home
     # Check that multiple button presses delay the return to home
-    # We have to use a non-detached page for these, as these close 
+    # We have to use a non-detached page for these, as these close
     # When pressed
-    await(press_and_release(1))    
-    assert config._detached_page is None
-    assert config.current_page() == second   
-    await asyncio.sleep(shorter_than_return_to_home_after)  # shorter than delay should stay on page
+    await press_and_release(1)
     assert config._detached_page is None
     assert config.current_page() == second
-    await(press_and_release(0))
-    await asyncio.sleep(shorter_than_return_to_home_after)  # shorter than delay, should still remain on page
+    await asyncio.sleep(
+        shorter_than_return_to_home_after,
+    )  # shorter than delay should stay on page
     assert config._detached_page is None
-    assert config.current_page() == second   
-    
+    assert config.current_page() == second
+    await press_and_release(0)
+    await asyncio.sleep(
+        shorter_than_return_to_home_after,
+    )  # shorter than delay, should still remain on page
+    assert config._detached_page is None
+    assert config.current_page() == second

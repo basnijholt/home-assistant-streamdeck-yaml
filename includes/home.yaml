@@ -1,5 +1,4 @@
 - entity_id: light.living_room_lights
-  service: light.toggle
   text: |
     Living room
     lights

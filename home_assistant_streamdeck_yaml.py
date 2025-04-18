@@ -987,11 +987,11 @@ class Config(BaseModel):
                 return p
         console.log(f"Could find page {page}, staying on current page")
         return self.current_page()
-    
+
     def load_page_as_detached(self, page: Page) -> None:
         """Load a page as detached."""
         self._detached_page = page
-        
+
     def close_detached_page(self) -> None:
         """Close the detached page."""
         self._detached_page = None

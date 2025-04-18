@@ -1128,5 +1128,5 @@ async def test_anonymous_page(
     assert config.current_page() == home
     config.load_page_as_detached(anon)
     assert config.current_page() == anon
-    config.close_detached_page() 
-    assert config.current_page() == home 
+    config.close_detached_page()
+    assert config.current_page() == home

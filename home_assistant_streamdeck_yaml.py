@@ -328,7 +328,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             )
             return _generate_failed_icon(size)
 
-    def render_icon(  # noqa: PLR0912 PLR0915
+    def render_icon(  # noqa: PLR0912 PLR0915 C901
         self,
         complete_state: StateDict,
         *,
@@ -2168,7 +2168,7 @@ def _on_dial_event_callback(
     return dial_event_callback
 
 
-async def _handle_key_press(
+async def _handle_key_press(  # noqa: PLR0912
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
     config: Config,
@@ -2588,7 +2588,7 @@ def safe_load_yaml(
 
             loaded_data = yaml.load(
                 filepath.read_text(encoding=encoding),
-                IncludeLoader,
+                IncludeLoader,  # noqa: S506
             )
             assert loaded_data is not None
             assert variables is not None

@@ -492,7 +492,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
 
         return cls(**button_kwargs)
 
-    def render_icon(  # noqa: PLR0912 PLR0915
+    def render_icon(  # noqa: PLR0912 PLR0915 C901
         self,
         complete_state: StateDict,
         *,
@@ -2534,7 +2534,7 @@ def _on_dial_event_callback(
     return dial_event_callback
 
 
-async def _handle_key_press(
+async def _handle_key_press(  # noqa: PLR0912
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
     config: Config,

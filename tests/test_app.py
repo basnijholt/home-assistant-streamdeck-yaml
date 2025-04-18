@@ -1143,7 +1143,10 @@ async def test_retry_logic_called_correct_number_of_times() -> None:
             side_effect=OSError("Network is down"),
         ) as mock_setup_ws,
         patch("asyncio.sleep", return_value=None) as mock_sleep,
+        patch("home_assistant_streamdeck_yaml.get_deck") as mock_get_deck,
     ):
+        mock_get_deck.return_value = Mock()
+
         # Run the function with retry_attempts = 2 to simulate retry logic
         await run(
             host="localhost",

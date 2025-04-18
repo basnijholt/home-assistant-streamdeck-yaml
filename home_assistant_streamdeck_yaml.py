@@ -830,6 +830,22 @@ class Page(BaseModel):
             if dial in dial_list[i]:
                 return i
         return None
+    
+    def connection_page(deck: StreamDeck) -> Page:
+        connection_buttons = [
+            Button(special_type="network-status"),
+            Button(special_type="ha-status"),
+        ]
+        close_button = [Button(special_type="close-page")]
+        n_assigned_buttons = len(connection_buttons) + len(close_button)
+        empty_buttons = [Button(special_type="empty")] * (
+            deck.key_count() - n_assigned_buttons
+        )
+        buttons = connection_buttons + empty_buttons + close_button
+        return Page(
+            name="Connection-auto",
+            buttons=buttons,
+        )
 
     @classmethod
     def to_pandas_table(cls: type[Page]) -> pd.DataFrame:
@@ -1019,6 +1035,11 @@ class Config(BaseModel):
         """Close the current page."""
         self._detached_page = None
         self._current_page_index = self._parent_page_index
+        return self.current_page()
+    
+    def load_page_as_detached(self, page: Page) -> Page:
+        """Load a page."""
+        self._detached_page = page
         return self.current_page()
 
 
@@ -2516,28 +2537,6 @@ async def is_network_available(host="8.8.8.8", port=53, timeout=3) -> bool:
     except Exception:
         return False
 
-
-def show_connection_status_page(deck, config: Config):
-    if "connection" in config.anonymous_pages:
-        config.to_page("connection")
-        return
-    connection_buttons = [
-        Button(special_type="network-status"),
-        Button(special_type="ha-status"),
-    ]
-    close_button = [Button(special_type="close-page")]
-    n_assigned_buttons = len(connection_buttons) + len(close_button)
-    empty_buttons = [Button(special_type="empty")] * (
-        deck.key_count() - n_assigned_buttons
-    )
-    page_buttons = connection_buttons + empty_buttons + close_button
-    config.anonymous_pages.append(
-        Page(name="connection-auto", buttons=page_buttons),
-    )
-    config.to_page("connection-auto")
-    update_all_key_images(deck, config=config, complete_state=None)
-
-
 async def run(
     host: str,
     token: str,
@@ -2551,12 +2550,26 @@ async def run(
     attempt = 0
     global is_network_connected
     global is_ha_connected
+    network_page = Page.network_page(deck)
+    network_page_opened_by_self = False
+    
+
+    
 
     while retry_attempts == math.inf or attempt <= retry_attempts:
         try:
             async with setup_ws(host, token, protocol) as websocket:
                 is_network_connected = await is_network_available()
                 is_ha_connected = True
+                
+                # Close the network page if network is OK, and network page 
+                # was opened by this script and is still open.
+                if (is_network_connected 
+                    and is_ha_connected 
+                    and network_page_opened_by_self
+                    and Config.current_page() == network_page):
+                        Config.close_page()
+
                 attempt = 0  # Reset attempt counter on successful connect
                 try:
                     complete_state = await get_states(websocket)
@@ -2597,7 +2610,10 @@ async def run(
         ) as e:
             is_network_connected = await is_network_available()
             is_ha_connected = False
-            show_connection_status_page(deck, config)
+            
+
+            Config.load_page_as_detached(Page.connection_page(deck))
+            update_all_key_images(deck, config=config, complete_state=None)
             attempt += 1
             console.log(f"[WARNING] WebSocket connection failed: {e}")
             if retry_attempts != math.inf and attempt > retry_attempts:

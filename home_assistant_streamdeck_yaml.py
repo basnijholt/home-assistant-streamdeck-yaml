@@ -830,7 +830,7 @@ class Page(BaseModel):
             if dial in dial_list[i]:
                 return i
         return None
-    
+
     def connection_page(deck: StreamDeck) -> Page:
         connection_buttons = [
             Button(special_type="network-status"),
@@ -1036,7 +1036,7 @@ class Config(BaseModel):
         self._detached_page = None
         self._current_page_index = self._parent_page_index
         return self.current_page()
-    
+
     def load_page_as_detached(self, page: Page) -> Page:
         """Load a page."""
         self._detached_page = page
@@ -2537,6 +2537,7 @@ async def is_network_available(host="8.8.8.8", port=53, timeout=3) -> bool:
     except Exception:
         return False
 
+
 async def run(
     host: str,
     token: str,
@@ -2552,23 +2553,22 @@ async def run(
     global is_ha_connected
     network_page = Page.network_page(deck)
     network_page_opened_by_self = False
-    
-
-    
 
     while retry_attempts == math.inf or attempt <= retry_attempts:
         try:
             async with setup_ws(host, token, protocol) as websocket:
                 is_network_connected = await is_network_available()
                 is_ha_connected = True
-                
-                # Close the network page if network is OK, and network page 
+
+                # Close the network page if network is OK, and network page
                 # was opened by this script and is still open.
-                if (is_network_connected 
-                    and is_ha_connected 
+                if (
+                    is_network_connected
+                    and is_ha_connected
                     and network_page_opened_by_self
-                    and Config.current_page() == network_page):
-                        Config.close_page()
+                    and Config.current_page() == network_page
+                ):
+                    Config.close_page()
 
                 attempt = 0  # Reset attempt counter on successful connect
                 try:
@@ -2610,7 +2610,6 @@ async def run(
         ) as e:
             is_network_connected = await is_network_available()
             is_ha_connected = False
-            
 
             Config.load_page_as_detached(Page.connection_page(deck))
             update_all_key_images(deck, config=config, complete_state=None)

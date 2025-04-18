@@ -84,6 +84,7 @@ StateDict: TypeAlias = dict[str, dict[str, Any]]
 
 # Gets the climate icon, text, and text color for climate modes
 def get_climate_icon_text_and_color(mode: str) -> tuple[str, str, str]:
+    """Gets the climate icon, text, and text color for climate modes."""
     cool_color = "cyan"
     cool_text = "cool"
     cool_icon = "snowflake"
@@ -111,24 +112,6 @@ def get_climate_icon_text_and_color(mode: str) -> tuple[str, str, str]:
             return off_icon, off_text, off_color
         case _:
             return unknown_icon, unknown_text, unknown_color
-
-
-class Climate_button_helper:
-    """Climate class."""
-
-    temperature_setting: str = Field(
-        description="The temperature setting for the climate control button."
-        "This will display the current temperature if no mode set, "
-        "or current_temperature -> temperature_setting if mode set.",
-    )
-    text_color: str | None = Field(default=None, description="Color of the text.")
-    icon_mdi: str | None = Field(
-        default=None,
-        description="The name of the icon to display",
-    )
-    name: str = Field(
-        description="The name to display on the button, e.g. 'Living Room'.",
-    )
 
 
 class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
@@ -409,14 +392,19 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         cls: type[Button],
         entity_id: str,
         complete_state: StateDict,
-        display_climate_string: bool,
-        display_mode: bool,
-        open_climate_page_on_press: bool,
         name: str | None = None,
         special_type_data: Any | None = None,
         base_button: Button | None = None,
+        *,
+        display_climate_string: bool,
+        display_mode: bool,
+        open_climate_page_on_press: bool,
     ) -> Button:
-        """Return a climate control button, preserving base_button attributes except special_type, special_type_data, and always setting text_offset."""
+        """Return a climate control button, preserving base_button attributes 
+        
+        Note: 
+        Text_offset is not preserved, it is calculated based on the text size and number of lines.
+        """
         state = complete_state.get(entity_id, {})
 
         def format_temp(temp: float | None) -> str:
@@ -553,29 +541,6 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                 image = _draw_percentage_ring(pct, size)
 
         icon_convert_to_grayscale = False
-
-        if button.text:
-            text = button.text
-        else:
-            match button.special_type:
-                case "climate-control":
-                    text = safe_load_yaml(
-                        f"""
-                        {{% if is_state('{entity_id}', 'heat') %}}
-                        {heat_color}
-                        {{% elif is_state('{entity_id}', 'cool') %}}
-                        {cool_color}
-                        {{% elif is_state('{entity_id}', 'heat_cool') or is_state('{entity_id}', 'auto') %}}
-                        {auto_color}
-                        {{% elif is_state('{entity_id}', 'off') %}}
-                        {off_color}
-                        {{% else %}}
-                        {unknown_color}
-                        {{% endif %}}""",
-                    )
-                case _:
-                    text = None
-
         text = button.text
         text_color = button.text_color or "white"
         icon_mdi = button.icon_mdi

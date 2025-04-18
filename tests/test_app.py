@@ -514,7 +514,14 @@ async def test_handle_key_press_toggle_light(
     """Test handle_key_press toggle light."""
     button = config.button(0)
     assert button is not None
-    await _handle_key_press(websocket_mock, state, config, button, mock_deck)
+    await _handle_key_press(
+        websocket_mock,
+        state,
+        config,
+        button,
+        mock_deck,
+        is_long_press=False,
+    )
 
     websocket_mock.send.assert_called_once()
     send_call_args = websocket_mock.send.call_args.args[0]
@@ -535,7 +542,14 @@ async def test_handle_key_press_next_page(
     """Test handle_key_press next page."""
     button = config.button(14)
     assert button is not None
-    await _handle_key_press(websocket_mock, state, config, button, mock_deck)
+    await _handle_key_press(
+        websocket_mock,
+        state,
+        config,
+        button,
+        mock_deck,
+        is_long_press=False,
+    )
 
     # No service should be called
     websocket_mock.send.assert_not_called()
@@ -560,7 +574,14 @@ async def test_button_with_target(
     _button = config.button(0)
     assert _button is not None
     assert _button.service == "media_player.join"
-    await _handle_key_press(websocket_mock, {}, config, _button, mock_deck)
+    await _handle_key_press(
+        websocket_mock,
+        {},
+        config,
+        _button,
+        mock_deck,
+        is_long_press=False,
+    )
     # Check that the send method was called with the correct payload
     called_payload = json.loads(websocket_mock.send.call_args.args[0])
     expected_payload = {
@@ -1084,6 +1105,7 @@ async def test_long_press(
     websocket_mock: Mock,
     state: dict[str, dict[str, Any]],
 ) -> None:
+    """Test long press."""
     long_press_threshold = 0.5
     short_press_time = 0.0
     assert short_press_time < long_press_threshold
@@ -1119,9 +1141,9 @@ async def test_long_press(
     press = _on_press_callback(websocket_mock, state, config)
 
     async def press_and_release(key: int, seconds: float) -> None:
-        await press(mock_deck, key, key_pressed=True)
+        await press(mock_deck, key, True)  # noqa: FBT003
         await asyncio.sleep(seconds)
-        await press(mock_deck, key, key_pressed=False)
+        await press(mock_deck, key, False)  # noqa: FBT003
 
     await press_and_release(0, short_press_time)
     assert config.current_page() == short

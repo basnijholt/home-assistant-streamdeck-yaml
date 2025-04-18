@@ -1066,6 +1066,14 @@ class Config(BaseModel):
                 return p
         console.log(f"Could find page {page}, staying on current page")
         return self.current_page()
+    
+    def load_page_as_detached(self, page: Page) -> None:
+        """Load a page as detached."""
+        self._detached_page = page
+        
+    def close_detached_page(self) -> None:
+        """Close the detached page."""
+        self._detached_page = None
 
 
 def _next_id() -> int:
@@ -2271,7 +2279,7 @@ async def _handle_key_press(
                     colors=special_type_data.get("colors", None),
                     color_temp_kelvin=special_type_data.get("color_temp_kelvin", None),
                 )
-                config._detached_page = page
+                config.load_page_as_detached(page)
                 update_all()
             except Exception as e:
                 console.print_exception(show_locals=True)
@@ -2293,7 +2301,7 @@ async def _handle_key_press(
             await call_service(websocket, service, service_data, target)
 
         if config._detached_page:
-            config._detached_page = None
+            config.close_detached_page()
             update_all()
 
     if is_long_press:

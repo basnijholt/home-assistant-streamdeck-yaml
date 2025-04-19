@@ -2800,11 +2800,12 @@ async def run(
 ) -> None:
     """Main entry point for the Stream Deck integration."""
     deck = get_deck()
+    inactivity_state = InactivityState()
     async with setup_ws(host, token, protocol) as websocket:
         try:
             complete_state = await get_states(websocket)
             # Initialize shared inactivity state
-            inactivity_state = InactivityState()
+
             deck.set_brightness(config.brightness)
             # Turn on state entity boolean on home assistant
             await _sync_input_boolean(config.state_entity_id, websocket, "on")

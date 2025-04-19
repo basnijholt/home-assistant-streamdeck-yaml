@@ -23,6 +23,7 @@ from home_assistant_streamdeck_yaml import (
     Button,
     Config,
     IconWarning,
+    InactivityState,
     Page,
     _download_and_save_mdi,
     _download_spotify_image,
@@ -527,7 +528,14 @@ async def test_handle_key_press_toggle_light(
     """Test handle_key_press toggle light."""
     button = config.button(0)
     assert button is not None
-    await _handle_key_press(websocket_mock, state, config, button, mock_deck)
+    await _handle_key_press(
+        websocket_mock,
+        state,
+        config,
+        button,
+        mock_deck,
+        is_long_press=False,
+    )
 
     websocket_mock.send.assert_called_once()
     send_call_args = websocket_mock.send.call_args.args[0]
@@ -548,7 +556,14 @@ async def test_handle_key_press_next_page(
     """Test handle_key_press next page."""
     button = config.button(14)
     assert button is not None
-    await _handle_key_press(websocket_mock, state, config, button, mock_deck)
+    await _handle_key_press(
+        websocket_mock,
+        state,
+        config,
+        button,
+        mock_deck,
+        is_long_press=False,
+    )
 
     # No service should be called
     websocket_mock.send.assert_not_called()
@@ -573,7 +588,14 @@ async def test_button_with_target(
     _button = config.button(0)
     assert _button is not None
     assert _button.service == "media_player.join"
-    await _handle_key_press(websocket_mock, {}, config, _button, mock_deck)
+    await _handle_key_press(
+        websocket_mock,
+        {},
+        config,
+        _button,
+        mock_deck,
+        is_long_press=False,
+    )
     # Check that the send method was called with the correct payload
     called_payload = json.loads(websocket_mock.send.call_args.args[0])
     expected_payload = {
@@ -1092,6 +1114,66 @@ def test_to_markdown_table() -> None:
     assert isinstance(table, str)
 
 
+async def test_long_press(
+    mock_deck: Mock,
+    websocket_mock: Mock,
+    state: dict[str, dict[str, Any]],
+) -> None:
+    """Test long press."""
+    long_press_threshold = 0.5
+    short_press_time = 0.0
+    assert short_press_time < long_press_threshold
+    long_press_time = long_press_threshold + 0.1
+    assert long_press_time > long_press_threshold
+    inactivity_state = InactivityState()
+
+    home = Page(
+        name="home",
+        buttons=[
+            Button(
+                special_type="go-to-page",
+                special_type_data="short",
+                long_press={"special_type": "go-to-page", "special_type_data": "long"},
+            ),
+            Button(special_type="go-to-page", special_type_data="short"),
+        ],
+    )
+    short = Page(
+        name="short",
+        buttons=[
+            Button(text="short", special_type="go-to-page", special_type_data="home"),
+        ],
+    )
+    long = Page(
+        name="long",
+        buttons=[
+            Button(text="long", special_type="go-to-page", special_type_data="home"),
+        ],
+    )
+    config = Config(pages=[home, short, long], long_press_duration=long_press_threshold)
+    assert config._current_page_index == 0
+    assert config.current_page() == home
+    press = _on_press_callback(inactivity_state, websocket_mock, state, config)
+
+    async def press_and_release(key: int, seconds: float) -> None:
+        await press(mock_deck, key, True)  # noqa: FBT003
+        await asyncio.sleep(seconds)
+        await press(mock_deck, key, False)  # noqa: FBT003
+
+    await press_and_release(0, short_press_time)
+    assert config.current_page() == short
+    await press_and_release(0, short_press_time)
+    assert config.current_page() == home
+    await press_and_release(0, long_press_time)
+    assert config.current_page() == long
+    await press_and_release(0, short_press_time)
+    assert config.current_page() == home
+    await press_and_release(1, long_press_time)
+    assert (
+        config.current_page() == home
+    )  # shouldn't do anything as no long action is configured
+
+
 async def test_anonymous_page(
     mock_deck: Mock,
     websocket_mock: Mock,
@@ -1118,9 +1200,16 @@ async def test_anonymous_page(
     assert config.current_page() == anon
     button = config.button(0)
     assert button.text == "yolo"
-    press = _on_press_callback(websocket_mock, state, config)
+    inactivity_state = InactivityState()
+    press = _on_press_callback(inactivity_state, websocket_mock, state, config)
+
+    # We need to have a release otherwise it will be timing for a long press
+    async def press_and_release(key: int) -> None:
+        await press(mock_deck, key, key_pressed=True)
+        await press(mock_deck, key, key_pressed=False)
+
     # Click the button
-    await press(mock_deck, 0, key_pressed=True)
+    await press_and_release(0)
     # Should now be the button on the first page
     button = config.button(0)
     assert button.special_type == "go-to-page"
@@ -1129,7 +1218,7 @@ async def test_anonymous_page(
     # Click the delay button
     button = config.button(1)
     assert button.text == "foo"
-    await press(mock_deck, 1, key_pressed=True)
+    await press_and_release(1)
     # Should now still be the button because of the delay
     assert button.text == "foo"
     assert config._detached_page is not None
@@ -1152,7 +1241,7 @@ async def test_anonymous_page(
 
     # Back to anon page to test that the close button works properly
     assert config.to_page("anon") == anon
-    await press(mock_deck, 2, key_pressed=True)
+    await press_and_release(2)  # close page button
     assert config._detached_page is None
     assert config.current_page() == home
 

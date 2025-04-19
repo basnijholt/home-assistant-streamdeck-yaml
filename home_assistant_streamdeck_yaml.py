@@ -336,7 +336,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             )
             return _generate_failed_icon(size)
 
-    def render_icon(  # noqa: PLR0912 PLR0915
+    def render_icon(  # noqa: PLR0912 PLR0915 C901
         self,
         complete_state: StateDict,
         *,
@@ -831,7 +831,9 @@ class Page(BaseModel):
                 return i
         return None
 
+    @staticmethod
     def connection_page(deck: StreamDeck) -> Page:
+        """Returns a page showing connection to network and homeassistant."""
         connection_buttons = [
             Button(special_type="network-status"),
             Button(special_type="ha-status"),
@@ -2202,7 +2204,7 @@ def _on_dial_event_callback(
     return dial_event_callback
 
 
-async def _handle_key_press(
+async def _handle_key_press( # noqa: PLR0912
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
     config: Config,
@@ -2525,17 +2527,19 @@ def update_all_key_images(
         )
 
 
-async def is_network_available(host="8.8.8.8", port=53, timeout=3) -> bool:
+async def is_network_available(host: str = "8.8.8.8", port: int = 53, timeout: int = 3) -> bool:
+    """Check if the network is available by trying to connect to a host."""
     try:
         reader, writer = await asyncio.wait_for(
             asyncio.open_connection(host, port),
             timeout,
         )
+    except (OSError, asyncio.TimeoutError):
+        return False
+    else:
         writer.close()
         await writer.wait_closed()
         return True
-    except Exception:
-        return False
 
 
 async def run(
@@ -2610,7 +2614,7 @@ async def run(
         ) as e:
             is_network_connected = await is_network_available()
             is_ha_connected = False
-
+            network_page_opened_by_self = True
             Config.load_page_as_detached(Page.connection_page(deck))
             update_all_key_images(deck, config=config, complete_state=None)
             attempt += 1

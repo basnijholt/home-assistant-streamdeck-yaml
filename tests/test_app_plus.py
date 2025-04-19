@@ -423,6 +423,7 @@ async def test_return_to_home(  # noqa: PLR0915
         buttons=[
             Button(special_type="go-to-page", special_type_data="anon"),
             Button(special_type="go-to-page", special_type_data="second"),
+            Button(special_type="go-to-page", special_type_data="stay-on"),
         ],
     )
     second = Page(
@@ -434,9 +435,14 @@ async def test_return_to_home(  # noqa: PLR0915
         name="anon",
         buttons=[Button(text="yolo"), Button(text="foo", delay=0.1)],
     )
+    stay_on = Page(
+        name="stay-on",
+        buttons=[Button(text="close")],
+        close_on_inactivity_timer=False,
+    )
     config = Config(
         pages=[home, second],
-        anonymous_pages=[anon],
+        anonymous_pages=[anon, stay_on],
         return_to_home_after_no_presses={
             "home_page": "home",
             "duration": return_to_home_after,
@@ -521,4 +527,12 @@ async def test_return_to_home(  # noqa: PLR0915
     assert config.current_page() == second
 
     await asyncio.sleep(longer_than_return_to_home_after)
+    assert config.current_page() == home
+
+    # Check that the stay on page works as expected
+    await press_and_release(2)
+    assert config.current_page() == stay_on
+    await asyncio.sleep(longer_than_return_to_home_after)
+    assert config.current_page() == stay_on
+    await press_and_release(0)
     assert config.current_page() == home

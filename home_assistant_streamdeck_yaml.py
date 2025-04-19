@@ -862,6 +862,14 @@ class Page(BaseModel):
         description="A list of dials on the page.",
     )
 
+    close_on_inactivity_timer: bool = Field(
+        default=True,
+        description=(
+            "If False, the page won't close when the inactivity timer"
+            " would normally trigger a return to home."
+        ),
+    )
+
     _dials_sorted: list[Dial] = PrivateAttr([])
 
     def sort_dials(self) -> list[tuple[Dial, Dial | None]]:
@@ -1114,6 +1122,14 @@ class Config(BaseModel):
     def close_detached_page(self) -> None:
         """Close the detached page."""
         self._detached_page = None
+
+    def return_to_home_on_inactivity_is_allowed(self) -> bool:
+        """Returns if the current page allows return to home on inactivity.
+
+        By default, pages close on inactivity (True), but some configurations
+        may set `close_on_inactivity_timer` to False to prevent this.
+        """
+        return self.current_page().close_on_inactivity_timer
 
 
 def _next_id() -> int:
@@ -2110,7 +2126,10 @@ class InactivityState:
                 duration = return_config["duration"]
                 home_page = return_config["home_page"]
                 await asyncio.sleep(duration)
-                if time.time() - self.last_interaction_time >= duration:
+                if (
+                    time.time() - self.last_interaction_time >= duration
+                    and config.return_to_home_on_inactivity_is_allowed()
+                ):
                     console.log(
                         f"No activity for {duration}s, returning to {home_page}",
                     )

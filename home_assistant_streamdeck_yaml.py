@@ -2204,7 +2204,7 @@ def _on_dial_event_callback(
     return dial_event_callback
 
 
-async def _handle_key_press( # noqa: PLR0912
+async def _handle_key_press(  # noqa: PLR0912
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
     config: Config,
@@ -2527,7 +2527,9 @@ def update_all_key_images(
         )
 
 
-async def is_network_available(host: str = "8.8.8.8", port: int = 53, timeout: int = 3) -> bool:
+async def is_network_available(
+    host: str = "8.8.8.8", port: int = 53, timeout: int = 3,
+) -> bool:
     """Check if the network is available by trying to connect to a host."""
     try:
         reader, writer = await asyncio.wait_for(

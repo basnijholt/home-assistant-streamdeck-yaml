@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 from typing import Any
@@ -17,9 +18,11 @@ from home_assistant_streamdeck_yaml import (
     Button,
     Config,
     Dial,
+    InactivityState,
     Page,
     TouchscreenEventType,
     _on_dial_event_callback,
+    _on_press_callback,
     _on_touchscreen_event_callback,
     _update_state,
     update_dial,
@@ -269,8 +272,13 @@ async def test_streamdeck_plus(
     assert dial_state is not None
     # Fires dial event and increments state by 1
     config.current_page().sort_dials()
-
-    dial_event = _on_dial_event_callback(websocket_mock, state, config)
+    inactivity_state = InactivityState()
+    dial_event = _on_dial_event_callback(
+        inactivity_state,
+        websocket_mock,
+        state,
+        config,
+    )
     await dial_event(mock_deck_plus, 0, DialEventType.TURN, 1)
     # Test update state
     _update_state(state, state_change_msg, config, mock_deck_plus)
@@ -309,9 +317,14 @@ async def test_touchscreen(
     config = Config(pages=[home, page_1], anonymous_pages=[page_anon])
     assert config._current_page_index == 0
     assert config.current_page() == home
-
+    inactivity_state = InactivityState()
     # Check if you can change page using Touchscreen.
-    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
+    touch_event = _on_touchscreen_event_callback(
+        inactivity_state,
+        websocket_mock,
+        state,
+        config,
+    )
     await touch_event(
         mock_deck_plus,
         TouchscreenEventType.DRAG,
@@ -329,7 +342,12 @@ async def test_touchscreen(
     dial = config.dial(0)
     assert dial is not None
 
-    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
+    touch_event = _on_touchscreen_event_callback(
+        inactivity_state,
+        websocket_mock,
+        state,
+        config,
+    )
     await touch_event(
         mock_deck_plus,
         TouchscreenEventType.LONG,
@@ -342,7 +360,12 @@ async def test_touchscreen(
     assert attributes["state"] == attributes["max"]
 
     # Check if you can set min using touchscreen.
-    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
+    touch_event = _on_touchscreen_event_callback(
+        inactivity_state,
+        websocket_mock,
+        state,
+        config,
+    )
     await touch_event(
         mock_deck_plus,
         TouchscreenEventType.SHORT,
@@ -359,7 +382,12 @@ async def test_touchscreen(
     assert dial is not None
     assert dial.allow_touchscreen_events is not True
 
-    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
+    touch_event = _on_touchscreen_event_callback(
+        inactivity_state,
+        websocket_mock,
+        state,
+        config,
+    )
     await touch_event(
         mock_deck_plus,
         TouchscreenEventType.SHORT,
@@ -370,3 +398,141 @@ async def test_touchscreen(
     )
     attributes = dial.get_attributes()
     assert attributes["state"] is not attributes["min"]
+
+
+async def test_return_to_home(  # noqa: PLR0915
+    mock_deck_plus: Mock,
+    websocket_mock: Mock,
+    state: dict[str, dict[str, Any]],
+    dials: list[Dial],
+) -> None:
+    """Test that the return to home works."""
+    return_to_home_after = 0.8
+    assert return_to_home_after
+    shorter_than_return_to_home_after = return_to_home_after - 0.1
+    assert shorter_than_return_to_home_after < return_to_home_after
+    assert shorter_than_return_to_home_after > 0.0
+    longer_than_return_to_home_after = return_to_home_after + 0.1
+    assert longer_than_return_to_home_after > return_to_home_after
+    assert longer_than_return_to_home_after > 0.0
+    longer_and_shorter_delta = (
+        longer_than_return_to_home_after - shorter_than_return_to_home_after
+    )
+    home = Page(
+        name="home",
+        buttons=[
+            Button(special_type="go-to-page", special_type_data="anon"),
+            Button(special_type="go-to-page", special_type_data="second"),
+            Button(special_type="go-to-page", special_type_data="stay-on"),
+        ],
+    )
+    second = Page(
+        name="second",
+        buttons=[Button(special_type="empty")],
+        dials=dials,
+    )
+    anon = Page(
+        name="anon",
+        buttons=[Button(text="yolo"), Button(text="foo", delay=0.1)],
+    )
+    stay_on = Page(
+        name="stay-on",
+        buttons=[Button(text="close")],
+        close_on_inactivity_timer=False,
+    )
+    config = Config(
+        pages=[home, second],
+        anonymous_pages=[anon, stay_on],
+        return_to_home_after_no_presses={
+            "home_page": "home",
+            "duration": return_to_home_after,
+        },
+    )
+    inactivity_state = InactivityState()
+
+    # We need to have a release otherwise it will be timing for a long press
+    async def press_and_release(key: int) -> None:
+        press = _on_press_callback(inactivity_state, websocket_mock, state, config)
+        await press(mock_deck_plus, key, True)  # noqa: FBT003
+        await press(mock_deck_plus, key, False)  # noqa: FBT003
+
+    assert config._current_page_index == 0
+    assert config._detached_page is None
+    await press_and_release(0)
+    assert config._detached_page is not None
+    assert config.current_page() == anon
+    await asyncio.sleep(
+        longer_than_return_to_home_after,
+    )  # longer than delay should then switch to home
+    # Should now be on the home page, with the anon page closed automatically
+    assert config._detached_page is None
+    assert config.current_page() == home
+    # Check that the logic also works on non detached pages
+    await press_and_release(1)
+    assert config._detached_page is None
+    assert config.current_page() == second
+    await asyncio.sleep(
+        shorter_than_return_to_home_after,
+    )  # shorter than delay should stay on page
+    assert config._detached_page is None
+    assert config.current_page() == second
+    await asyncio.sleep(longer_and_shorter_delta)
+    assert config._detached_page is None
+    assert config.current_page() == home
+    # Check that multiple button presses delay the return to home
+    # We have to use a non-detached page for these, as these close
+    # When pressed
+    await press_and_release(1)
+    assert config._detached_page is None
+    assert config.current_page() == second
+    await asyncio.sleep(
+        shorter_than_return_to_home_after,
+    )  # shorter than delay should stay on page
+    assert config._detached_page is None
+    assert config.current_page() == second
+    await press_and_release(0)
+    await asyncio.sleep(
+        shorter_than_return_to_home_after,
+    )  # shorter than delay, should still remain on page
+    assert config._detached_page is None
+    assert config.current_page() == second
+
+    # Check that dial events also reset the timer
+    async def dial_something() -> None:
+        dial = _on_dial_event_callback(inactivity_state, websocket_mock, state, config)
+        await dial(mock_deck_plus, 0, DialEventType.TURN, 1)
+
+    await dial_something()
+    await asyncio.sleep(
+        shorter_than_return_to_home_after,
+    )  # shorter than delay, should still remain on page
+    assert config._detached_page is None
+    assert config.current_page() == second
+
+    # Check that dial events also reset the timer
+    async def touch_something() -> None:
+        touch = _on_touchscreen_event_callback(
+            inactivity_state,
+            websocket_mock,
+            state,
+            config,
+        )
+        await touch(mock_deck_plus, TouchscreenEventType.SHORT, {"x": 0, "y": 0})
+
+    await touch_something()
+    await asyncio.sleep(
+        shorter_than_return_to_home_after,
+    )  # shorter than delay, should still remain on page
+    assert config._detached_page is None
+    assert config.current_page() == second
+
+    await asyncio.sleep(longer_than_return_to_home_after)
+    assert config.current_page() == home
+
+    # Check that the stay on page works as expected
+    await press_and_release(2)
+    assert config.current_page() == stay_on
+    await asyncio.sleep(longer_than_return_to_home_after)
+    assert config.current_page() == stay_on
+    await press_and_release(0)
+    assert config.current_page() == home

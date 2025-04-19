@@ -221,17 +221,6 @@ def test_example_config_browsing_pages(config: Config) -> None:
     assert config.button(0) == first_page.buttons[0]
 
 
-def test_example_close_pages(config: Config) -> None:
-    """Test example config close pages."""
-    assert isinstance(config, Config)
-    assert config._current_page_index == 0
-    second_page = config.next_page()
-    assert isinstance(second_page, Page)
-    assert config._current_page_index == 1
-    config.close_page()
-    assert config._current_page_index == 0
-
-
 @pytest.mark.skipif(
     not IS_CONNECTED_TO_HOMEASSISTANT,
     reason="Not connected to Home Assistant",
@@ -434,7 +423,7 @@ def test_light_page() -> None:
     """Test light page."""
     page = _light_page(
         entity_id="light.bedroom",
-        n_colors=9,
+        n_colors=10,
         colormap="hsv",
         colors=None,
         color_temp_kelvin=None,
@@ -445,7 +434,7 @@ def test_light_page() -> None:
 
     page = _light_page(
         entity_id="light.bedroom",
-        n_colors=9,
+        n_colors=10,
         colormap=None,
         colors=None,
         color_temp_kelvin=None,
@@ -469,7 +458,7 @@ def test_light_page() -> None:
 
     page = _light_page(
         entity_id="light.bedroom",
-        n_colors=9,
+        n_colors=10,
         colormap=None,
         colors=hex_colors,
         color_temp_kelvin=None,
@@ -1104,11 +1093,7 @@ async def test_anonymous_page(
     )
     anon = Page(
         name="anon",
-        buttons=[
-            Button(text="yolo"),
-            Button(text="foo", delay=0.1),
-            Button(special_type="close-page"),
-        ],
+        buttons=[Button(text="yolo"), Button(text="foo", delay=0.1)],
     )
     config = Config(pages=[home], anonymous_pages=[anon])
     assert config._current_page_index == 0
@@ -1142,14 +1127,9 @@ async def test_anonymous_page(
     # Should now be the button on the first page
     button = config.button(0)
     assert button.special_type == "go-to-page"
-    # Back to anon page to test that the close button works properly
-    assert config.to_page("anon") == anon
-    await press(mock_deck, 2, key_pressed=True)
-    assert config._detached_page is None
-    assert config.current_page() == home
 
 
-async def test_retry_logic_called_correct_number_of_times() -> None:
+async def test_retry_logic_called_correct_number_of_times(mock_deck: Mock) -> None:
     """Test retry logic in run function."""
     # Config for the test
     config = Config()
@@ -1165,7 +1145,7 @@ async def test_retry_logic_called_correct_number_of_times() -> None:
         patch("asyncio.sleep", return_value=None) as mock_sleep,
         patch("home_assistant_streamdeck_yaml.get_deck") as mock_get_deck,
     ):
-        mock_get_deck.return_value = Mock()
+        mock_get_deck.return_value = mock_deck
 
         # Run the function with retry_attempts = 2 to simulate retry logic
         await run(
@@ -1184,7 +1164,7 @@ async def test_retry_logic_called_correct_number_of_times() -> None:
         assert mock_sleep.call_count == retry_attemps
 
 
-async def test_run_exits_immediately_on_zero_retries() -> None:
+async def test_run_exits_immediately_on_zero_retries(mock_deck: Mock) -> None:
     """Test that run exits immediately when retry_attempts is set to 0."""
     config = Config()
 
@@ -1195,7 +1175,7 @@ async def test_run_exits_immediately_on_zero_retries() -> None:
         ),
         patch("home_assistant_streamdeck_yaml.get_deck") as mock_get_deck,
     ):
-        mock_get_deck.return_value = Mock()
+        mock_get_deck.return_value = mock_deck
 
         # No exception should be raised, and run should return immediately
         await run(

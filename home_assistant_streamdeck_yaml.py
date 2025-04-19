@@ -840,8 +840,9 @@ class Page(BaseModel):
         ]
         close_button = [Button(special_type="close-page")]
         n_assigned_buttons = len(connection_buttons) + len(close_button)
+        deck_key_count: int = deck.key_count()
         empty_buttons = [Button(special_type="empty")] * (
-            deck.key_count() - n_assigned_buttons
+            deck_key_count - n_assigned_buttons
         )
         buttons = connection_buttons + empty_buttons + close_button
         return Page(
@@ -2559,8 +2560,8 @@ async def run(
     attempt = 0
     global is_network_connected
     global is_ha_connected
-    network_page = Page.network_page(deck)
-    network_page_opened_by_self = False
+    connection_page = Page.connection_page(deck)
+    connection_page_opened_by_self = False
 
     while retry_attempts == math.inf or attempt <= retry_attempts:
         try:
@@ -2573,8 +2574,8 @@ async def run(
                 if (
                     is_network_connected
                     and is_ha_connected
-                    and network_page_opened_by_self
-                    and config.current_page() == network_page
+                    and connection_page_opened_by_self
+                    and config.current_page() == connection_page
                 ):
                     config.close_page()
 
@@ -2618,7 +2619,7 @@ async def run(
         ) as e:
             is_network_connected = await is_network_available()
             is_ha_connected = False
-            network_page_opened_by_self = True
+            connection_page_opened_by_self = True
             config.load_page_as_detached(Page.connection_page(deck))
             update_all_key_images(deck, config=config, complete_state={})
             attempt += 1

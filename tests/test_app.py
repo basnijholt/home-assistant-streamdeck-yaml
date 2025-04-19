@@ -219,6 +219,17 @@ def test_example_config_browsing_pages(config: Config) -> None:
     assert config.button(0) == first_page.buttons[0]
 
 
+def test_example_close_pages(config: Config) -> None:
+    """Test example config close pages."""
+    assert isinstance(config, Config)
+    assert config._current_page_index == 0
+    second_page = config.next_page()
+    assert isinstance(second_page, Page)
+    assert config._current_page_index == 1
+    config.close_page()
+    assert config._current_page_index == 0
+
+
 @pytest.mark.skipif(
     not IS_CONNECTED_TO_HOMEASSISTANT,
     reason="Not connected to Home Assistant",
@@ -421,7 +432,7 @@ def test_light_page() -> None:
     """Test light page."""
     page = _light_page(
         entity_id="light.bedroom",
-        n_colors=10,
+        n_colors=9,
         colormap="hsv",
         colors=None,
         color_temp_kelvin=None,
@@ -432,7 +443,7 @@ def test_light_page() -> None:
 
     page = _light_page(
         entity_id="light.bedroom",
-        n_colors=10,
+        n_colors=9,
         colormap=None,
         colors=None,
         color_temp_kelvin=None,
@@ -456,7 +467,7 @@ def test_light_page() -> None:
 
     page = _light_page(
         entity_id="light.bedroom",
-        n_colors=10,
+        n_colors=9,
         colormap=None,
         colors=hex_colors,
         color_temp_kelvin=None,
@@ -1091,7 +1102,11 @@ async def test_anonymous_page(
     )
     anon = Page(
         name="anon",
-        buttons=[Button(text="yolo"), Button(text="foo", delay=0.1)],
+        buttons=[
+            Button(text="yolo"),
+            Button(text="foo", delay=0.1),
+            Button(special_type="close-page"),
+        ],
     )
     config = Config(pages=[home], anonymous_pages=[anon])
     assert config._current_page_index == 0
@@ -1125,3 +1140,16 @@ async def test_anonymous_page(
     # Should now be the button on the first page
     button = config.button(0)
     assert button.special_type == "go-to-page"
+
+    # Test load_page_as_detached and close_detached_page methods
+    assert config.current_page() == home
+    config.load_page_as_detached(anon)
+    assert config.current_page() == anon
+    config.close_detached_page()
+    assert config.current_page() == home
+
+    # Back to anon page to test that the close button works properly
+    assert config.to_page("anon") == anon
+    await press(mock_deck, 2, key_pressed=True)
+    assert config._detached_page is None
+    assert config.current_page() == home

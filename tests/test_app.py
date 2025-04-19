@@ -1128,6 +1128,19 @@ async def test_anonymous_page(
     button = config.button(0)
     assert button.special_type == "go-to-page"
 
+    # Test load_page_as_detached and close_detached_page methods
+    assert config.current_page() == home
+    config.load_page_as_detached(anon)
+    assert config.current_page() == anon
+    config.close_detached_page()
+    assert config.current_page() == home
+
+    # Back to anon page to test that the close button works properly
+    assert config.to_page("anon") == anon
+    await press(mock_deck, 2, key_pressed=True)
+    assert config._detached_page is None
+    assert config.current_page() == home
+
 
 async def test_retry_logic_called_correct_number_of_times(mock_deck: Mock) -> None:
     """Test retry logic in run function."""

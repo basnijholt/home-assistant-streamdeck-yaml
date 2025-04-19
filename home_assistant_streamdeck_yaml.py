@@ -1034,15 +1034,18 @@ class Config(BaseModel):
         console.log(f"Could find page {page}, staying on current page")
         return self.current_page()
 
+    def load_page_as_detached(self, page: Page) -> None:
+        """Load a page as detached."""
+        self._detached_page = page
+
+    def close_detached_page(self) -> None:
+        """Close the detached page."""
+        self._detached_page = None
+
     def close_page(self) -> Page:
         """Close the current page."""
         self._detached_page = None
         self._current_page_index = self._parent_page_index
-        return self.current_page()
-
-    def load_page_as_detached(self, page: Page) -> Page:
-        """Load a page."""
-        self._detached_page = page
         return self.current_page()
 
 
@@ -2248,7 +2251,7 @@ async def _handle_key_press(  # noqa: PLR0912
             colors=button.special_type_data.get("colors", None),
             color_temp_kelvin=button.special_type_data.get("color_temp_kelvin", None),
         )
-        config._detached_page = page
+        config.load_page_as_detached(page)
         update_all()
         return  # to skip the _detached_page reset below
     elif button.special_type == "reload":
@@ -2268,7 +2271,7 @@ async def _handle_key_press(  # noqa: PLR0912
         await call_service(websocket, button.service, service_data, button.target)
 
     if config._detached_page:
-        config._detached_page = None
+        config.close_detached_page()
         update_all()
 
 

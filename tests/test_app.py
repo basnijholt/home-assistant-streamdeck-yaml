@@ -8,7 +8,7 @@ import sys
 import textwrap
 from pathlib import Path
 from typing import Any
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, call, patch
 
 import pytest
 import websockets
@@ -41,6 +41,7 @@ from home_assistant_streamdeck_yaml import (
     _url_to_filename,
     get_states,
     setup_ws,
+    update_all_key_images,
     update_key_image,
 )
 
@@ -49,16 +50,17 @@ sys.path.append(str(ROOT))
 TEST_STATE_FILENAME = ROOT / "tests" / "state.json"
 IS_CONNECTED_TO_HOMEASSISTANT = False
 BUTTONS_PER_PAGE = 15
+DEFAULT_CONFIG_ENCODING = "utf-8"
 
 
 def test_load_config() -> None:
     """Test Config.load."""
-    Config.load(DEFAULT_CONFIG)
+    Config.load(DEFAULT_CONFIG, yaml_encoding=DEFAULT_CONFIG_ENCODING)
 
 
 def test_reload_config() -> None:
     """Test Config.load."""
-    c = Config.load(DEFAULT_CONFIG)
+    c = Config.load(DEFAULT_CONFIG, yaml_encoding=DEFAULT_CONFIG_ENCODING)
     c.pages = []
     assert c.pages == []
     c.reload()
@@ -217,6 +219,17 @@ def test_example_config_browsing_pages(config: Config) -> None:
     first_page = config.to_page(first_page.name)
     assert config._current_page_index == 0
     assert config.button(0) == first_page.buttons[0]
+
+
+def test_example_close_pages(config: Config) -> None:
+    """Test example config close pages."""
+    assert isinstance(config, Config)
+    assert config._current_page_index == 0
+    second_page = config.next_page()
+    assert isinstance(second_page, Page)
+    assert config._current_page_index == 1
+    config.close_page()
+    assert config._current_page_index == 0
 
 
 @pytest.mark.skipif(
@@ -421,7 +434,7 @@ def test_light_page() -> None:
     """Test light page."""
     page = _light_page(
         entity_id="light.bedroom",
-        n_colors=10,
+        n_colors=9,
         colormap="hsv",
         colors=None,
         color_temp_kelvin=None,
@@ -434,7 +447,7 @@ def test_light_page() -> None:
 
     page = _light_page(
         entity_id="light.bedroom",
-        n_colors=10,
+        n_colors=9,
         colormap=None,
         colors=None,
         color_temp_kelvin=None,
@@ -460,7 +473,7 @@ def test_light_page() -> None:
 
     page = _light_page(
         entity_id="light.bedroom",
-        n_colors=10,
+        n_colors=9,
         colormap=None,
         colors=hex_colors,
         color_temp_kelvin=None,
@@ -1247,3 +1260,51 @@ async def test_anonymous_page(
     await press_and_release(2)
     assert config._detached_page is None
     assert config.current_page() == home
+
+
+def test_page_switch_clears_unused_keys(state: dict[str, dict[str, Any]]) -> None:
+    """Test that switching pages clears unused keys."""
+    # Setup pages: page1 has 2 buttons, page2 has only 1
+    page1 = Page(name="Page1", buttons=[Button(text="Btn1"), Button(text="Btn2")])
+    page2 = Page(name="Page2", buttons=[Button(text="Btn1 Only")])
+    config = Config(pages=[page1, page2])
+
+    # Patch dependencies: PILHelper for image conversion and DeviceManager to avoid needing a real deck
+    with (
+        patch(
+            "home_assistant_streamdeck_yaml.PILHelper.to_native_format",
+            return_value="mock_image_data",
+        ),
+        patch("home_assistant_streamdeck_yaml.DeviceManager") as mock_device_manager,
+    ):
+        # Configure the mock StreamDeck instance
+        mock_deck_instance = mock_device_manager().enumerate()[0]
+        mock_deck_instance.key_count.return_value = 2
+        mock_deck_instance.key_image_format.return_value = {"size": (72, 72)}
+        # Use MagicMock to easily track calls to set_key_image
+        mock_deck_instance.set_key_image = MagicMock()
+
+        # Start on the first page (page1)
+        assert config._current_page_index == 0
+
+        # Simulate switching to the second page (page2) which has fewer buttons
+        config.to_page(1)
+        assert config._current_page_index == 1
+
+        # Trigger the image update process for the current page
+        # This function should now handle clearing keys not defined on page2
+        update_all_key_images(mock_deck_instance, config, state)
+
+        # Verify that set_key_image was called correctly:
+        # - Key 0 should receive the image for the button on page2.
+        # - Key 1, which had a button on page1 but not page2, should be cleared (sent None).
+        expected_calls = [
+            call(0, "mock_image_data"),
+            call(1, None),
+        ]
+        mock_deck_instance.set_key_image.assert_has_calls(
+            expected_calls,
+            any_order=False,
+        )
+        # Ensure exactly these two calls were made for the 2-key mock deck
+        assert mock_deck_instance.set_key_image.call_count == 2  # noqa: PLR2004

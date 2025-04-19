@@ -2508,7 +2508,6 @@ async def _run_connection_session(
         try:
             complete_state = await get_states(websocket)
 
-            deck.set_brightness(config.brightness)
             # Turn on state entity boolean on home assistant
             await _sync_input_boolean(config.state_entity_id, websocket, "on")
             update_all_key_images(deck, config, complete_state)
@@ -2524,7 +2523,6 @@ async def _run_connection_session(
                 deck.set_touchscreen_callback_async(
                     _on_touchscreen_event_callback(websocket, complete_state, config),
                 )
-            deck.set_brightness(config.brightness)
 
             await subscribe_state_changes(websocket)
             await handle_changes(websocket, complete_state, deck, config)
@@ -2543,6 +2541,7 @@ async def run(
 ) -> None:
     """Main entry point for the Stream Deck integration, with retry logic."""
     deck = get_deck()
+    deck.set_brightness(config.brightness)
     attempt = 0
 
     while retry_attempts == math.inf or attempt <= retry_attempts:

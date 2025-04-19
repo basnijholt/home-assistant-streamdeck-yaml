@@ -2528,7 +2528,9 @@ def update_all_key_images(
 
 
 async def is_network_available(
-    host: str = "8.8.8.8", port: int = 53, timeout: int = 3,
+    host: str = "8.8.8.8",
+    port: int = 53,
+    timeout: int = 3,
 ) -> bool:
     """Check if the network is available by trying to connect to a host."""
     try:
@@ -2572,9 +2574,9 @@ async def run(
                     is_network_connected
                     and is_ha_connected
                     and network_page_opened_by_self
-                    and Config.current_page() == network_page
+                    and config.current_page() == network_page
                 ):
-                    Config.close_page()
+                    config.close_page()
 
                 attempt = 0  # Reset attempt counter on successful connect
                 try:
@@ -2617,8 +2619,8 @@ async def run(
             is_network_connected = await is_network_available()
             is_ha_connected = False
             network_page_opened_by_self = True
-            Config.load_page_as_detached(Page.connection_page(deck))
-            update_all_key_images(deck, config=config, complete_state=None)
+            config.load_page_as_detached(Page.connection_page(deck))
+            update_all_key_images(deck, config=config, complete_state={})
             attempt += 1
             console.log(f"[WARNING] WebSocket connection failed: {e}")
             if retry_attempts != math.inf and attempt > retry_attempts:
@@ -2690,7 +2692,7 @@ def safe_load_yaml(
 
             loaded_data = yaml.load(
                 filepath.read_text(encoding=encoding),
-                IncludeLoader,
+                IncludeLoader,  # noqa: S506
             )
             assert loaded_data is not None
             assert variables is not None

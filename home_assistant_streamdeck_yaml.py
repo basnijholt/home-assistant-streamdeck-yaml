@@ -2549,7 +2549,7 @@ async def run(
     token: str,
     protocol: Literal["wss", "ws"],
     config: Config,
-    retry_attempts: Union[int, float] = 0,
+    retry_attempts: float = 0,
     retry_delay: int = 0,
 ) -> None:
     """Main entry point for the Stream Deck integration, with retry logic."""
@@ -2606,7 +2606,7 @@ async def run(
                 finally:
                     await _sync_input_boolean(config.state_entity_id, websocket, "off")
                     deck.reset()
-                # If we got here, we successfully ran until shutdown – exit loop
+                # If we got here, we successfully ran until shutdown. Exit loop
                 break
 
         except (
@@ -2716,17 +2716,6 @@ def _help() -> str:
         return ""
 
 
-def parse_retry_attempts(val):
-    if val is None:
-        return 0
-    if isinstance(val, str) and val.lower() == "inf":
-        return math.inf
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return 0
-
-
 def main() -> None:
     """Start the Stream Deck integration."""
     import argparse
@@ -2739,6 +2728,16 @@ def main() -> None:
     # Get the system default encoding
     system_encoding = locale.getpreferredencoding()
     yaml_encoding = os.getenv("YAML_ENCODING", system_encoding)
+
+    def parse_retry_attempts_arg(val: str) -> float:
+        if val is None:
+            return 0
+        if isinstance(val, str) and val.lower() == "inf":
+            return math.inf
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return 0
 
     parser = argparse.ArgumentParser(
         epilog=_help(),
@@ -2764,9 +2763,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--connection-retry-attempts",
-        type=str,
-        default=os.getenv("CONNECTION_RETRY_ATTEMPTS"),
-        help="Maximum number of connection retry attempts (-1 for infinite)",
+        type=parse_retry_attempts_arg,
+        default=os.getenv("CONNECTION_RETRY_ATTEMPTS", "0"),
+        help="Maximum number of connection retry attempts ('inf' for infinite)",
     )
     parser.add_argument(
         "--connection-retry-delay",
@@ -2781,13 +2780,7 @@ def main() -> None:
     )
     config = Config.load(args.config, yaml_encoding=args.yaml_encoding)
 
-    final_retry_attempts = parse_retry_attempts(
-        (
-            args.connection_retry_attempts
-            if args.connection_retry_attempts is not None
-            else 0
-        ),
-    )
+    final_retry_attempts: float = args.connection_retry_attempts
 
     final_retry_delay = (
         int(args.connection_retry_delay)

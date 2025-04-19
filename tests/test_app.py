@@ -16,6 +16,7 @@ from dotenv import dotenv_values
 from PIL import Image
 from pydantic import ValidationError
 from StreamDeck.Devices.StreamDeckOriginal import StreamDeckOriginal
+from websockets.exceptions import ConnectionClosedError  # noqa: F401
 
 from home_assistant_streamdeck_yaml import (
     ASSETS_PATH,
@@ -40,6 +41,7 @@ from home_assistant_streamdeck_yaml import (
     _to_filename,
     _url_to_filename,
     get_states,
+    run,
     setup_ws,
     update_key_image,
 )
@@ -1145,3 +1147,65 @@ async def test_anonymous_page(
     await press(mock_deck, 2, key_pressed=True)
     assert config._detached_page is None
     assert config.current_page() == home
+
+
+async def test_retry_logic_called_correct_number_of_times() -> None:
+    """Test retry logic in run function."""
+    # Config for the test
+    config = Config()
+
+    retry_attemps = 2
+
+    # Patch setup_ws to simulate a network failure, and patch asyncio.sleep to avoid delays
+    with (
+        patch(
+            "home_assistant_streamdeck_yaml.setup_ws",
+            side_effect=OSError("Network is down"),
+        ) as mock_setup_ws,
+        patch("asyncio.sleep", return_value=None) as mock_sleep,
+        patch("home_assistant_streamdeck_yaml.get_deck") as mock_get_deck,
+    ):
+        mock_get_deck.return_value = Mock()
+
+        # Run the function with retry_attempts = 2 to simulate retry logic
+        await run(
+            host="localhost",
+            token="",
+            protocol="ws",
+            config=config,
+            retry_attempts=retry_attemps,
+            retry_delay=0,
+        )
+
+        # Check that setup_ws was called 3 times (1 initial try + 2 retries)
+        assert mock_setup_ws.call_count == retry_attemps + 1
+
+        # Check that asyncio.sleep was called the same number of times as retries
+        assert mock_sleep.call_count == retry_attemps
+
+
+async def test_run_exits_immediately_on_zero_retries() -> None:
+    """Test that run exits immediately when retry_attempts is set to 0."""
+    config = Config()
+
+    with (
+        patch(
+            "home_assistant_streamdeck_yaml.setup_ws",
+            side_effect=OSError("Network is down"),
+        ),
+        patch("home_assistant_streamdeck_yaml.get_deck") as mock_get_deck,
+    ):
+        mock_get_deck.return_value = Mock()
+
+        # No exception should be raised, and run should return immediately
+        await run(
+            host="localhost",
+            token="",
+            protocol="ws",
+            config=config,
+            retry_attempts=0,
+            retry_delay=0,
+        )
+
+        # If setup_ws is called once, it means the retry logic did not retry
+        assert mock_get_deck.called

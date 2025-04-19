@@ -1093,7 +1093,11 @@ async def test_anonymous_page(
     )
     anon = Page(
         name="anon",
-        buttons=[Button(text="yolo"), Button(text="foo", delay=0.1)],
+        buttons=[
+            Button(text="yolo"),
+            Button(text="foo", delay=0.1),
+            Button(special_type="close-page"),
+        ],
     )
     config = Config(pages=[home], anonymous_pages=[anon])
     assert config._current_page_index == 0

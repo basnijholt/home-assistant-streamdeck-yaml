@@ -488,7 +488,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
 
         return cls(**button_kwargs)
 
-    def render_icon(  # noqa: PLR0912 PLR0915 C901
+    def render_icon(  # noqa: PLR0912, PLR0915, C901
         self,
         complete_state: StateDict,
         *,
@@ -1600,6 +1600,7 @@ def _light_page(
         )
         buttons_brightness.append(button)
     buttons_back = [Button(special_type="close-page")]
+    buttons_back = [Button(special_type="close-page")]
     return Page(
         name="Lights",
         buttons=buttons_colors
@@ -2277,9 +2278,15 @@ def update_key_image(
 ) -> None:
     """Update the image for a key."""
     button = config.button(key)
+
+    def clear_image() -> None:
+        deck.set_key_image(key, None)
+
     if button is None:
+        clear_image()
         return
     if button.special_type == "empty":
+        clear_image()
         return
     size = deck.key_image_format()["size"]
     image = button.try_render_icon(
@@ -2375,7 +2382,6 @@ def _on_touchscreen_event_callback(
             else:
                 console.log(f"Going to page {config.next_page_index}")
                 config.to_page(config.previous_page_index)
-            deck.reset()
             config.current_page().sort_dials()
             update_all_key_images(deck, config, complete_state)
             update_all_dials(deck, config, complete_state)
@@ -2552,7 +2558,6 @@ async def _handle_key_press(  # noqa: PLR0915 C901
         return
 
     def update_all() -> None:
-        deck.reset()
         config.current_page().sort_dials()
         update_all_key_images(deck, config, complete_state)
         update_all_dials(deck, config, complete_state)

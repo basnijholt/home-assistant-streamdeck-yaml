@@ -2240,7 +2240,7 @@ def _on_dial_event_callback(
     return dial_event_callback
 
 
-async def _handle_key_press(  # noqa: PLR0915
+async def _handle_key_press(  # noqa: PLR0912, PLR0915
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
     config: Config,
@@ -2259,91 +2259,77 @@ async def _handle_key_press(  # noqa: PLR0915
         update_all_key_images(deck, config, complete_state)
         update_all_dials(deck, config, complete_state)
 
-    async def handle_press(
-        button: Button,
-        entity_id: str | None = None,
-        service: str | None = None,
-        service_data: dict[str, Any] | None = None,
-        target: dict[str, Any] | None = None,
-        special_type: str | None = None,
-        special_type_data: str | None = None,
-    ) -> None:
-        if special_type == "next-page":
-            config.next_page()
-            update_all()
-        elif special_type == "previous-page":
-            config.previous_page()
-            update_all()
-        elif button.special_type == "close-page":
-            config.close_page()
-            update_all()
-        elif special_type == "go-to-page":
-            assert isinstance(special_type_data, (str, int))
-            config.to_page(special_type_data)  # type: ignore[arg-type]
-            update_all()
-            return  # to skip the _detached_page reset below
-        elif special_type == "turn-off":
-            turn_off(config, deck)
-            await _sync_input_boolean(config.state_entity_id, websocket, "off")
-        elif special_type == "light-control":
-            assert isinstance(special_type_data, dict)
-            try:
-                page = _light_page(
-                    entity_id=entity_id,
-                    n_colors=10,
-                    colormap=special_type_data.get("colormap", None),
-                    colors=special_type_data.get("colors", None),
-                    color_temp_kelvin=special_type_data.get("color_temp_kelvin", None),
-                )
-                config.load_page_as_detached(page)
-                update_all()
-            except Exception as e:
-                console.print_exception(show_locals=True)
-                console.log(f"Error while creating light page: {e}")
-                raise
-            return  # to skip the _detached_page reset below
-        elif special_type == "reload":
-            config.reload()
-            update_all()
-            return
-        elif service is not None:
-            button = button.rendered_template_button(complete_state)
-            if service_data is None:
-                service_data = {}
-                if entity_id is not None:
-                    service_data["entity_id"] = entity_id
-            assert service is not None  # for mypy
-            await call_service(websocket, service, service_data, target)
-
-        if config._detached_page:
-            config.close_detached_page()
-            update_all()
-
     if is_long_press:
         if button.long_press:
-            await handle_press(
-                entity_id=button.long_press.get("entity_id", button.entity_id),
-                service=button.long_press.get("service"),
-                service_data=button.long_press.get("service_data"),
-                target=button.long_press.get("target", button.target),
-                special_type=button.long_press.get("special_type"),
-                special_type_data=button.long_press.get("special_type_data"),
-                button=button,
-            )
+            entity_id = button.long_press.get("entity_id", button.entity_id)
+            service = button.long_press.get("service")
+            service_data = button.long_press.get("service_data")
+            target = button.long_press.get("target", button.target)
+            special_type = button.long_press.get("special_type")
+            special_type_data = button.long_press.get("special_type_data")
         else:
             console.log(
                 f"Long press detected, but no long press action defined for {button.entity_id}",
             )
+            return
+    else:
+        entity_id = button.entity_id
+        service = button.service
+        service_data = button.service_data
+        target = button.target
+        special_type = button.special_type
+        special_type_data = button.special_type_data
+
+    if special_type == "next-page":
+        config.next_page()
+        update_all()
+    elif special_type == "previous-page":
+        config.previous_page()
+        update_all()
+    elif button.special_type == "close-page":
+        config.close_page()
+        update_all()
+    elif special_type == "go-to-page":
+        assert isinstance(special_type_data, (str, int))
+        config.to_page(special_type_data)  # type: ignore[arg-type]
+        update_all()
+        return  # to skip the _detached_page reset below
+    elif special_type == "turn-off":
+        turn_off(config, deck)
+        await _sync_input_boolean(config.state_entity_id, websocket, "off")
+    elif special_type == "light-control":
+        assert isinstance(special_type_data, dict)
+        try:
+            page = _light_page(
+                entity_id=entity_id,
+                n_colors=10,
+                colormap=special_type_data.get("colormap", None),
+                colors=special_type_data.get("colors", None),
+                color_temp_kelvin=special_type_data.get("color_temp_kelvin", None),
+            )
+            config.load_page_as_detached(page)
+            update_all()
+        except Exception as e:
+            console.print_exception(show_locals=True)
+            console.log(f"Error while creating light page: {e}")
+            raise
+        return  # to skip the _detached_page reset below
+    elif special_type == "reload":
+        config.reload()
+        update_all()
         return
-    await handle_press(
-        entity_id=button.entity_id,
-        service=button.service,
-        service_data=button.service_data,
-        target=button.target,
-        special_type=button.special_type,
-        special_type_data=button.special_type_data,
-        button=button,
-    )
+    elif service is not None:
+        button = button.rendered_template_button(complete_state)
+        if service_data is None:
+            service_data = {}
+            if entity_id is not None:
+                service_data["entity_id"] = entity_id
+        assert service is not None  # for mypy
+        await call_service(websocket, service, service_data, target)
+
+    if config._detached_page:
+        config.close_detached_page()
+        update_all()
 
 
 def _on_press_callback(  # noqa: PLR0915

@@ -2469,19 +2469,18 @@ def update_all_key_images(
         )
 
 
-async def run(
+async def _run_connection_session(
     host: str,
     token: str,
     protocol: Literal["wss", "ws"],
     config: Config,
+    deck: StreamDeck,
 ) -> None:
-    """Main entry point for the Stream Deck integration."""
-    deck = get_deck()
+    """Handles a single connection session with Home Assistant."""
     async with setup_ws(host, token, protocol) as websocket:
         try:
             complete_state = await get_states(websocket)
 
-            deck.set_brightness(config.brightness)
             # Turn on state entity boolean on home assistant
             await _sync_input_boolean(config.state_entity_id, websocket, "on")
             update_all_key_images(deck, config, complete_state)
@@ -2497,12 +2496,62 @@ async def run(
                 deck.set_touchscreen_callback_async(
                     _on_touchscreen_event_callback(websocket, complete_state, config),
                 )
-            deck.set_brightness(config.brightness)
+
             await subscribe_state_changes(websocket)
             await handle_changes(websocket, complete_state, deck, config)
         finally:
+            console.log("Cleaning up connection session...")
             await _sync_input_boolean(config.state_entity_id, websocket, "off")
-            deck.reset()
+
+
+async def run(
+    host: str,
+    token: str,
+    protocol: Literal["wss", "ws"],
+    config: Config,
+    retry_attempts: int = 0,
+    retry_delay: float = 0.0,
+) -> None:
+    """Main entry point for the Stream Deck integration, with retry logic."""
+    deck = get_deck()
+    deck.set_brightness(config.brightness)
+    attempt = 0
+
+    while retry_attempts == math.inf or attempt <= retry_attempts:
+        try:
+            console.log(f"Attempting connection (attempt {attempt + 1})...")
+            await _run_connection_session(host, token, protocol, config, deck)
+            console.log("Connection session ended cleanly.")
+            break
+
+        except (
+            websockets.exceptions.ConnectionClosed,
+            websockets.exceptions.InvalidURI,
+            websockets.exceptions.InvalidHandshake,
+            OSError,  # Catches socket errors etc.
+            asyncio.TimeoutError,  # If setup_ws implements timeouts
+            ConnectionRefusedError,
+        ) as e:
+            attempt += 1
+            console.log(
+                f"[WARNING] WebSocket connection failed: {type(e).__name__}: {e}",
+            )
+            if retry_attempts != math.inf and attempt > retry_attempts:
+                console.log("[ERROR] Max retry attempts reached, giving up.")
+                break
+            console.log(
+                f"[INFO] Retrying in {retry_delay} seconds... (attempt {attempt + 1})",
+            )
+            await asyncio.sleep(retry_delay)
+        except Exception as e:  # noqa: BLE001
+            console.log(
+                f"[ERROR] An unexpected error occurred during connection/session: {type(e).__name__}: {e}",
+            )
+            console.print_exception(show_locals=True)
+            break  # Exit loop on unexpected errors
+
+    console.log("Exiting application. Resetting deck.")
+    deck.reset()
 
 
 def _rich_table_str(df: pd.DataFrame) -> str:
@@ -2602,6 +2651,16 @@ def main() -> None:
     system_encoding = locale.getpreferredencoding()
     yaml_encoding = os.getenv("YAML_ENCODING", system_encoding)
 
+    def parse_retry_attempts_arg(val: str) -> float:
+        if val is None:
+            return 0
+        if isinstance(val, str) and val.lower() == "inf":
+            return math.inf
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return 0
+
     parser = argparse.ArgumentParser(
         epilog=_help(),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -2624,18 +2683,33 @@ def main() -> None:
         default=os.environ.get("WEBSOCKET_PROTOCOL", "wss"),
         choices=["wss", "ws"],
     )
+    parser.add_argument(
+        "--connection-retry-attempts",
+        type=parse_retry_attempts_arg,
+        default=int(os.getenv("CONNECTION_RETRY_ATTEMPTS", "0")),
+        help="Maximum number of connection retry attempts ('inf' for infinite)",
+    )
+    parser.add_argument(
+        "--connection-retry-delay",
+        type=int,
+        default=float(os.getenv("CONNECTION_RETRY_DELAY", "0")),
+        help="Delay between connection retry attempts in seconds",
+    )
     args = parser.parse_args()
     console.log(f"Using version {__version__} of the Home Assistant Stream Deck.")
     console.log(
         f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}",
     )
     config = Config.load(args.config, yaml_encoding=args.yaml_encoding)
+
     asyncio.run(
         run(
             host=args.host,
             token=args.token,
             protocol=args.protocol,
             config=config,
+            retry_attempts=args.connection_retry_attempts,
+            retry_delay=args.connection_retry_delay,
         ),
     )
 

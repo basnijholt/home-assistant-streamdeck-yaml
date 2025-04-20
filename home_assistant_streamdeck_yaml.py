@@ -510,7 +510,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             "special_type",
             "special_type_data",
         }
-        invalid_keys = set(v.keys()) - allowed_keys
+        invalid_keys = v.keys() - allowed_keys
         if invalid_keys:
             msg = f"Invalid keys in long_press: {invalid_keys}. Allowed: {allowed_keys}"
             raise AssertionError(msg)
@@ -541,9 +541,8 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         """Return if an attribute is templatable, which is if the type-annotation is str."""
         schema = cls.schema()
         properties = schema["properties"]
-        return {k for k, v in properties.items() if v["allow_template"]} | {
-            "long_press",
-        }
+        allowed_keys = {k for k, v in properties.items() if v["allow_template"]}
+        return allowed_keys | {"long_press"}
 
     def maybe_start_or_cancel_timer(
         self,
@@ -2335,17 +2334,16 @@ async def _handle_key_press(  # noqa: PLR0915
             console.log(
                 f"Long press detected, but no long press action defined for {button.entity_id}",
             )
-            return
-    else:
-        await handle_press(
-            entity_id=button.entity_id,
-            service=button.service,
-            service_data=button.service_data,
-            target=button.target,
-            special_type=button.special_type,
-            special_type_data=button.special_type_data,
-            button=button,
-        )
+        return
+    await handle_press(
+        entity_id=button.entity_id,
+        service=button.service,
+        service_data=button.service_data,
+        target=button.target,
+        special_type=button.special_type,
+        special_type_data=button.special_type_data,
+        button=button,
+    )
 
 
 def _on_press_callback(  # noqa: PLR0915

@@ -23,6 +23,7 @@ from home_assistant_streamdeck_yaml import (
     DEFAULT_CONFIG,
     Button,
     Config,
+    ConnectionState,
     IconWarning,
     Page,
     _download_and_save_mdi,
@@ -266,6 +267,7 @@ def save_and_extract_relevant_state(
 
 def test_buttons(buttons: list[Button], state: dict[str, dict[str, Any]]) -> None:
     """Test buttons."""
+    connection_state = ConnectionState(deck_key_count=15)
     page = Page(name="Home", buttons=buttons)
     config = Config(pages=[page])
     first_page = config.to_page(0)
@@ -275,7 +277,7 @@ def test_buttons(buttons: list[Button], state: dict[str, dict[str, Any]]) -> Non
 
     b = rendered_buttons[0]  # LIGHT
     assert b.domain == "light"
-    icon = b.render_icon(state)
+    icon = b.render_icon(state, connection_state)
     assert isinstance(icon, Image.Image)
 
     b = rendered_buttons[1]  # VOLUME_DOWN
@@ -288,14 +290,14 @@ def test_buttons(buttons: list[Button], state: dict[str, dict[str, Any]]) -> Non
     assert float(b.service_data["volume_level"]) == volume - 0.05
 
     b = rendered_buttons[3]  # SCRIPT_WITH_TEXT_AND_ICON
-    icon = b.render_icon(state)
+    icon = b.render_icon(state, connection_state)
     assert isinstance(icon, Image.Image)
 
     b = rendered_buttons[4]  # INPUT_SELECT_WITH_TEMPLATE
     assert b.text == "Sleep off"
 
     b = rendered_buttons[6]  # SPOTIFY_PLAYLIST
-    icon = b.render_icon(state)
+    icon = b.render_icon(state, connection_state)
     assert b.icon is not None
     # render_icon should create a file
     filename = _to_filename(b.icon, ".jpeg")
@@ -379,11 +381,24 @@ def test_update_key_image(
     state: dict[str, dict[str, Any]],
 ) -> None:
     """Test update_key_image with MockDeck."""
-    update_key_image(mock_deck, key=0, config=config, complete_state=state)
+    connection_state = ConnectionState(mock_deck.key_count())
+    update_key_image(
+        mock_deck,
+        key=0,
+        config=config,
+        complete_state=state,
+        connection_state=connection_state,
+    )
     page = config.current_page()
     assert config._current_page_index == 0
     for key, _ in enumerate(page.buttons):
-        update_key_image(mock_deck, key=key, config=config, complete_state=state)
+        update_key_image(
+            mock_deck,
+            key=key,
+            config=config,
+            complete_state=state,
+            connection_state=connection_state,
+        )
 
     key_empty = next(
         (i for i, b in enumerate(page.buttons) if b.special_type == "empty"),
@@ -527,9 +542,17 @@ async def test_handle_key_press_toggle_light(
     config: Config,
 ) -> None:
     """Test handle_key_press toggle light."""
+    connection_state = ConnectionState(mock_deck.key_count())
     button = config.button(0)
     assert button is not None
-    await _handle_key_press(websocket_mock, state, config, button, mock_deck)
+    await _handle_key_press(
+        websocket_mock,
+        state,
+        connection_state,
+        config,
+        button,
+        mock_deck,
+    )
 
     websocket_mock.send.assert_called_once()
     send_call_args = websocket_mock.send.call_args.args[0]
@@ -548,9 +571,17 @@ async def test_handle_key_press_next_page(
     config: Config,
 ) -> None:
     """Test handle_key_press next page."""
+    connection_state = ConnectionState(mock_deck.key_count())
     button = config.button(14)
     assert button is not None
-    await _handle_key_press(websocket_mock, state, config, button, mock_deck)
+    await _handle_key_press(
+        websocket_mock,
+        state,
+        connection_state,
+        config,
+        button,
+        mock_deck,
+    )
 
     # No service should be called
     websocket_mock.send.assert_not_called()
@@ -564,6 +595,7 @@ async def test_button_with_target(
     mock_deck: Mock,
 ) -> None:
     """Test button with target."""
+    connection_state = ConnectionState(mock_deck.key_count())
     button = Button(
         service="media_player.join",
         service_data={
@@ -575,7 +607,14 @@ async def test_button_with_target(
     _button = config.button(0)
     assert _button is not None
     assert _button.service == "media_player.join"
-    await _handle_key_press(websocket_mock, {}, config, _button, mock_deck)
+    await _handle_key_press(
+        websocket_mock,
+        {},
+        connection_state,
+        config,
+        _button,
+        mock_deck,
+    )
     # Check that the send method was called with the correct payload
     called_payload = json.loads(websocket_mock.send.call_args.args[0])
     expected_payload = {
@@ -1056,26 +1095,28 @@ def test_render_jinja2_from_my_config_and_example_config() -> None:
     assert int(_render_jinja(template_str, {})) == 10  # noqa: PLR2004
 
 
-def test_icon_failed_icon() -> None:
+def test_icon_failed_icon(mock_deck: Mock) -> None:
     """Test icon function with failed icon."""
+    connection_state = ConnectionState(mock_deck.key_count())
     button = Button(icon_mdi="non-existing-icon-yolo")
 
     # Test that ValueError is raised when rendering the icon
     with pytest.raises(ValueError, match="404"):
-        button.render_icon({})
+        button.render_icon({}, connection_state)
 
     # Test that IconWarning is issued when trying to render the icon
     with pytest.warns(IconWarning):
-        button.try_render_icon({})
+        button.try_render_icon({}, connection_state)
 
-    icon = button.try_render_icon({}, size=(100, 100))
+    icon = button.try_render_icon({}, connection_state, size=(100, 100))
     assert icon is not None
     assert isinstance(icon, Image.Image)
     assert icon.size == (100, 100)
 
 
-async def test_delay() -> None:
+async def test_delay(mock_deck: Mock) -> None:
     """Test the delay."""
+    connection_state = ConnectionState(mock_deck.key_count())
     button = Button(delay=0.1)
     assert not button.is_sleeping()
     assert button.maybe_start_or_cancel_timer()
@@ -1083,7 +1124,7 @@ async def test_delay() -> None:
     assert button._timer is not None
     assert button._timer.is_sleeping
     assert button.is_sleeping()
-    _ = button.render_icon({})
+    _ = button.render_icon({}, connection_state)
     await asyncio.sleep(0.1)
     assert not button.is_sleeping()
 
@@ -1100,6 +1141,7 @@ async def test_anonymous_page(
     state: dict[str, dict[str, Any]],
 ) -> None:
     """Test that the anonymous page works."""
+    connection_state = ConnectionState(mock_deck.key_count())
     home = Page(
         name="home",
         buttons=[Button(special_type="go-to-page", special_type_data="anon")],
@@ -1120,7 +1162,7 @@ async def test_anonymous_page(
     assert config.current_page() == anon
     button = config.button(0)
     assert button.text == "yolo"
-    press = _on_press_callback(websocket_mock, state, config)
+    press = _on_press_callback(websocket_mock, state, connection_state, config)
     # Click the button
     await press(mock_deck, 0, key_pressed=True)
     # Should now be the button on the first page
@@ -1221,8 +1263,12 @@ async def test_run_exits_immediately_on_zero_retries(mock_deck: Mock) -> None:
         assert mock_get_deck.called
 
 
-def test_page_switch_clears_unused_keys(state: dict[str, dict[str, Any]]) -> None:
+def test_page_switch_clears_unused_keys(
+    state: dict[str, dict[str, Any]],
+    mock_deck: Mock,
+) -> None:
     """Test that switching pages clears unused keys."""
+    connection_state = ConnectionState(mock_deck.key_count())
     # Setup pages: page1 has 2 buttons, page2 has only 1
     page1 = Page(name="Page1", buttons=[Button(text="Btn1"), Button(text="Btn2")])
     page2 = Page(name="Page2", buttons=[Button(text="Btn1 Only")])
@@ -1252,7 +1298,7 @@ def test_page_switch_clears_unused_keys(state: dict[str, dict[str, Any]]) -> Non
 
         # Trigger the image update process for the current page
         # This function should now handle clearing keys not defined on page2
-        update_all_key_images(mock_deck_instance, config, state)
+        update_all_key_images(mock_deck_instance, config, state, connection_state)
 
         # Verify that set_key_image was called correctly:
         # - Key 0 should receive the image for the button on page2.

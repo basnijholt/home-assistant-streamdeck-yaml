@@ -975,7 +975,7 @@ class Page(BaseModel):
         """Returns a page showing connection to network and homeassistant."""
         connection_buttons = [
             Button(special_type="network-status"),
-            Button(special_type="ha-status"),
+            Button(special_type="ha-status", text_offset=-7),
         ]
         close_button = [Button(special_type="close-page")]
         n_assigned_buttons = len(connection_buttons) + len(close_button)

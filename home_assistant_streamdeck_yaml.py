@@ -443,14 +443,12 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                 "If special_type is go-to-page, special_type_data must be an int or str"
             )
             raise AssertionError(msg)
-
         if (
             special_type in {"next-page", "previous-page", "empty", "turn-off"}
             and v is not None
         ):
             msg = f"special_type_data needs to be empty with {special_type=}"
             raise AssertionError(msg)
-
         if special_type == "light-control":
             if v is None:
                 v = {}
@@ -460,7 +458,6 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                     f" be a dict, not '{v}'"
                 )
                 raise AssertionError(msg)
-
             allowed_keys = {"colors", "colormap", "color_temp_kelvin"}
             invalid_keys = v.keys() - allowed_keys
             if invalid_keys:
@@ -468,7 +465,6 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                     f"Invalid keys in 'special_type_data', only {allowed_keys} allowed"
                 )
                 raise AssertionError(msg)
-
             # If colors is present, it must be a list of strings
             if "colors" in v:
                 if not isinstance(v["colors"], (tuple, list)):
@@ -480,7 +476,6 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                         raise AssertionError(msg)  # noqa: TRY004
                 # Cast colors to tuple (to make it hashable)
                 v["colors"] = tuple(v["colors"])
-
             if "color_temp_kelvin" in v:
                 for kelvin in v["color_temp_kelvin"]:
                     if not isinstance(kelvin, int):
@@ -488,7 +483,6 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                         raise AssertionError(msg)  # noqa: TRY004
                 # Cast color_temp_kelvin to tuple (to make it hashable)
                 v["color_temp_kelvin"] = tuple(v["color_temp_kelvin"])
-
         return v
 
     @validator("special_type_data")
@@ -1780,7 +1774,6 @@ async def call_service(
     }
     if target is not None:
         subscribe_payload["target"] = target
-
     await websocket.send(json.dumps(subscribe_payload))
 
 

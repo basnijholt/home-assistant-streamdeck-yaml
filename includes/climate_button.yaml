@@ -1,0 +1,8 @@
+entity_id: ${entity_id}
+special_type: climate-control
+special_type_data:
+  temperatures: [18,19,20,21,22,23,24,25,26]
+  name: ${room}
+  hvac_modes: [heat, cool, heat_cool]
+long_press:
+  service: climate.toggle

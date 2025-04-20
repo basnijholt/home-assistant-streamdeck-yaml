@@ -22,8 +22,10 @@ from typing import (
     Any,
     Callable,
     Literal,
+    NamedTuple,
     TextIO,
     TypeAlias,
+    get_args,
 )
 
 import jinja2
@@ -57,6 +59,7 @@ SCRIPT_DIR = Path(__file__).parent
 ASSETS_PATH = SCRIPT_DIR / "assets"
 DEFAULT_CONFIG = SCRIPT_DIR / "configuration.yaml"
 DEFAULT_FONT: str = "Roboto-Regular.ttf"
+DEFAULT_TEXT_SIZE: int = 12
 DEFAULT_MDI_ICONS = {
     "light": "lightbulb",
     "switch": "power-socket-eu",
@@ -75,6 +78,33 @@ LCD_ICON_SIZE_Y = 100
 
 console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
+
+
+class HvacModeInfo(NamedTuple):
+    """Aggregates some data to draw buttons representing a hvac mode."""
+
+    icon_mdi: str | None
+    text: str
+    color: str | None
+
+
+def get_hvac_mode_info(mode: str) -> HvacModeInfo:
+    """Gets the HvacModeInfo for a given hvac mode."""
+    match mode.lower():
+        case "cool":
+            return HvacModeInfo(icon_mdi="snowflake", text="cool", color="cyan")
+        case "heat":
+            return HvacModeInfo(icon_mdi="fire", text="heat", color="#FFA500")
+        case "auto" | "heat_cool":
+            return HvacModeInfo(
+                icon_mdi="sun-snowflake",
+                text="auto",
+                color="#00FF00",
+            )
+        case "off":
+            return HvacModeInfo(icon_mdi=None, text="OFF", color=None)
+        case _:
+            return HvacModeInfo(icon_mdi="help", text="MODE UNK", color=None)
 
 
 class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
@@ -124,7 +154,7 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " which case the color is `amber` when the state is `on`, and `white` when it is `off`.",
     )
     text_size: int = Field(
-        default=12,
+        default=DEFAULT_TEXT_SIZE,
         allow_template=False,
         description="Integer size of the text.",
     )
@@ -222,22 +252,23 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         return cls.to_pandas_table().to_markdown(index=False)
 
 
+SpecialType: TypeAlias = Literal[
+    "next-page",
+    "previous-page",
+    "empty",
+    "go-to-page",
+    "close-page",
+    "turn-off",
+    "light-control",
+    "climate-control",
+    "reload",
+]
+
+
 class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
     """Button configuration."""
 
-    special_type: (
-        Literal[
-            "next-page",
-            "previous-page",
-            "empty",
-            "go-to-page",
-            "close-page",
-            "turn-off",
-            "light-control",
-            "reload",
-        ]
-        | None
-    ) = Field(
+    special_type: SpecialType | None = Field(
         default=None,
         allow_template=False,
         description="Special type of button."
@@ -251,6 +282,9 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " (either an `int` or `str` (name of the page))."
         " If `light-control`, the button will control a light, and the `special_type_data`"
         " can be a dictionary, see its description."
+        " If `climate-control`, the button will control climate, and the `special_type_data`"
+        " can be a dictionary, see its description. The climage control page shown is meant to "
+        " be temporary, and will not update values dynamically."
         " If `reload`, the button will reload the configuration file when pressed.",
     )
     special_type_data: Any | None = Field(
@@ -264,7 +298,25 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " The `color_temp_kelvin` key and a value a list of max (`n_keys_on_streamdeck - 5`) color temperatures in Kelvin."
         " The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html)"
         " can be used. This requires the `matplotlib` package to be installed. If no"
-        " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",
+        " list of `colors` or `colormap` is specified, 10 equally spaced colors are used."
+        " If `climate-control`, the data should optionally be a dictionary."
+        " The dictionary can contain the following keys:"
+        " The `temperatures` key and a value a list of max (`n_keys_on_streamdeck - 5`) temperatures in Celsius."
+        " The `name` key and a value a name for the climate control page."
+        " The `hvac_modes` key and a value a list of HVAC modes to display on the dial."
+        " The maximum number of temperatures + hvac_modes should be less than the number of keys on the Streamdeck minus 3."
+        " If no list of `temperatures` is specified, 10 equally spaced temperatures are used.",
+    )
+    long_press: dict[str, Any] | None = Field(
+        default=None,
+        allow_template=True,
+        description="Configuration for long press actions. Can include:"
+        " `service`: The service to call on long press (e.g., 'light.turn_off')."
+        " `service_data`: Data to pass to the service (e.g., {'brightness_pct': 10})."
+        " `entity_id`: The entity ID to target (e.g., 'light.living_room'), overriding the button's entity_id if specified."
+        " `special_type`: Special action for long press (e.g., 'next-page', 'light-control')."
+        " `special_type_data`: Data for the special type action (e.g., {'colors': ['#FF0000']})."
+        " If not specified, the default service or special_type action is used for both short and long presses.",
     )
 
     @classmethod
@@ -328,7 +380,106 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             )
             return _generate_failed_icon(size)
 
-    def render_icon(  # noqa: PLR0912 PLR0915 C901
+    @classmethod
+    def climate_control_with_status(
+        cls: type[Button],
+        entity_id: str,
+        complete_state: StateDict,
+        name: str | None = None,
+        special_type_data: Any | None = None,
+        base_button: Button | None = None,
+        *,
+        display_climate_string: bool,
+        display_mode: bool,
+        open_climate_page_on_press: bool,
+    ) -> Button:
+        """Return a climate control button, preserving base_button attributes.
+
+        Note:
+        Text_offset is not preserved, it is calculated based on the text size and number of lines.
+
+        """
+        state = complete_state.get(entity_id, {})
+
+        def format_temp(temp: float | None) -> str:
+            if temp is None:
+                return "?"
+            return f"{temp:.2f}".rstrip("0").rstrip(".")
+
+        # Compute climate-specific values for text, icon_mdi, and text_color
+        current_temperature = state.get("attributes", {}).get("temperature")
+        current_mode: str | None = state.get("state", None)
+        computed_text = (
+            ("Climate\n" if display_climate_string else "")
+            + (name + "\n" if name else "")
+            + format_temp(current_temperature)
+            + (
+                f" -> {format_temp(current_temperature)}"
+                if current_mode and current_mode.lower() != "off" and current_temperature
+                else ""
+            )
+            + "°C\n"
+            + (current_mode.capitalize() if display_mode and current_mode else "")
+        )
+        mode_info = get_hvac_mode_info(current_mode or "unknown")
+        computed_icon_mdi = mode_info.icon_mdi
+        computed_text_color = mode_info.color
+
+        # Initialize attributes
+        button_kwargs = {}
+
+        # If base_button is provided, copy its attributes
+        if base_button:
+            button_kwargs = base_button.dict(exclude_unset=True)
+
+        # Determine the text to use and count its lines
+        text = (
+            computed_text
+            if ("text" not in button_kwargs or button_kwargs["text"] is None)
+            else button_kwargs["text"]
+        )
+        lines = text.rstrip("\n").count("\n") + 1  # Add 1 for the last line (no trailing \n)
+
+        # Compute text_offset based on text_size (handle None explicitly)
+        text_size = button_kwargs.get("text_size", 12)
+        if text_size is None:
+            text_size = DEFAULT_TEXT_SIZE  # Fallback to default if explicitly None
+        computed_text_offset = -int(
+            max(0, lines - 2) * text_size,
+        )  # Adjusted multiplier for better spacing
+
+        # Set text, icon_mdi, and text_color only if not defined in base_button
+        # If text is not defined in base button, use the computed offset to center the
+        # generated text. This overrides the base button's text_offset.
+        if "text" not in button_kwargs or button_kwargs["text"] is None:
+            button_kwargs["text"] = computed_text
+            button_kwargs["text_offset"] = computed_text_offset
+        if "icon_mdi" not in button_kwargs or button_kwargs["icon_mdi"] is None:
+            button_kwargs["icon_mdi"] = computed_icon_mdi
+        if "text_color" not in button_kwargs or button_kwargs["text_color"] is None:
+            button_kwargs["text_color"] = computed_text_color
+
+        # Always set text_offset and override entity_id, special_type, special_type_data
+        button_kwargs.update(
+            {
+                "entity_id": entity_id,
+                "text_offset": computed_text_offset,
+                "special_type": ("climate-control" if open_climate_page_on_press else None),
+                "special_type_data": (
+                    special_type_data
+                    if special_type_data is not None
+                    else (
+                        base_button.special_type_data
+                        if base_button and base_button.special_type_data
+                        else None
+                    )
+                ),
+            },
+        )
+
+        return cls(**button_kwargs)
+
+    def render_icon(  # noqa: PLR0912, PLR0915, C901
         self,
         complete_state: StateDict,
         *,
@@ -341,7 +492,21 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         if self.is_sleeping():
             button, image = self.sleep_button_and_image(size)
         else:
-            button = self.rendered_template_button(complete_state)
+            rendered_button = self.rendered_template_button(complete_state)
+            if self.special_type == "climate-control" and self.entity_id:
+                # Create a climate control button using climate_control_with_status
+                button = Button.climate_control_with_status(
+                    entity_id=self.entity_id,
+                    complete_state=complete_state,
+                    display_climate_string=True,
+                    display_mode=False,
+                    open_climate_page_on_press=True,
+                    name=(self.special_type_data.get("name") if self.special_type_data else None),
+                    special_type_data=self.special_type_data,
+                    base_button=rendered_button,  # Pass self to preserve attributes
+                )
+            else:
+                button = rendered_button
             image = None
 
         if isinstance(button.icon, str) and ":" in button.icon:
@@ -418,21 +583,18 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         _add_text(
             image=image,
             font_filename=font_filename,
-            text_size=self.text_size,
+            text_size=button.text_size,
             text=text,
             text_color=text_color if not key_pressed else "green",
-            text_offset=self.text_offset,
+            text_offset=button.text_offset,
         )
         return image
 
-    @validator("special_type_data")
-    def _validate_special_type(  # noqa: PLR0912
-        cls: type[Button],
+    @staticmethod
+    def _validate_special_type_data(  # noqa: C901 PLR0912
+        special_type: str,
         v: Any,
-        values: dict[str, Any],
     ) -> Any:
-        """Validate the special_type_data."""
-        special_type = values["special_type"]
         if special_type == "go-to-page" and not isinstance(v, (int, str)):
             msg = "If special_type is go-to-page, special_type_data must be an int or str"
             raise AssertionError(msg)
@@ -445,7 +607,6 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             if not isinstance(v, dict):
                 msg = f"With 'light-control', 'special_type_data' must be a dict, not '{v}'"
                 raise AssertionError(msg)
-            # Can only have the following keys: colors and colormap
             allowed_keys = {"colors", "colormap", "color_temp_kelvin"}
             invalid_keys = v.keys() - allowed_keys
             if invalid_keys:
@@ -469,7 +630,86 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                         raise AssertionError(msg)  # noqa: TRY004
                 # Cast color_temp_kelvin to tuple (to make it hashable)
                 v["color_temp_kelvin"] = tuple(v["color_temp_kelvin"])
+        if special_type == "climate-control":
+            if v is None:
+                v = {}
+            if not isinstance(v, dict):
+                msg = f"With 'climate-control', 'special_type_data' must be a dict, not '{v}'"
+                raise AssertionError(msg)
+            # Can only have the following keys: temperatures and name
+            allowed_keys = {"temperatures", "name", "hvac_modes"}
+            invalid_keys = v.keys() - allowed_keys
+            if invalid_keys:
+                msg = f"Invalid keys in 'special_type_data', only {allowed_keys} allowed"
+                raise AssertionError(msg)
+            # If temperatures is present, it must be a list of integers
+            if "temperatures" in v:
+                for temp in v["temperatures"]:
+                    if not isinstance(temp, int):
+                        msg = "All temperatures must be integers"
+                        raise AssertionError(msg)  # noqa: TRY004
+                # Cast temperatures to tuple (to make it hashable)
+                v["temperatures"] = tuple(v["temperatures"])
+
         return v
+
+    @validator("special_type_data")
+    def _validate_special_type(
+        cls: type[Button],
+        v: Any,
+        values: dict[str, Any],
+    ) -> Any:
+        """Validate the special_type_data."""
+        special_type = values["special_type"]
+        return cls._validate_special_type_data(special_type, v)
+
+    @validator("long_press", pre=True)
+    def _validate_long_press(cls, v: Any) -> Any:
+        if v is None:
+            return None
+        if not isinstance(v, dict):
+            msg = "long_press must be a dictionary"
+            raise TypeError(msg)
+        allowed_keys = {
+            "service",
+            "service_data",
+            "entity_id",
+            "special_type",
+            "special_type_data",
+        }
+        invalid_keys = v.keys() - allowed_keys
+        if invalid_keys:
+            msg = f"Invalid keys in long_press: {invalid_keys}. Allowed: {allowed_keys}"
+            raise AssertionError(msg)
+        if "service" in v and not isinstance(v["service"], str):
+            msg = "long_press.service must be a string"
+            raise AssertionError(msg)
+        if "service_data" in v and not isinstance(v["service_data"], dict):
+            msg = "long_press.service_data must be a dictionary"
+            raise AssertionError(msg)
+        if "entity_id" in v and not isinstance(v["entity_id"], str):
+            msg = "long_press.entity_id must be a string"
+            raise AssertionError(msg)
+        if "special_type" in v:
+            allowed_special_types = get_args(SpecialType)
+            if v["special_type"] not in allowed_special_types:
+                msg = f"long_press.special_type must be one of {allowed_special_types} (got {v['special_type']})"
+                raise AssertionError(msg)
+        if "special_type_data" in v and "special_type" not in v:
+            msg = "long_press.special_type_data requires special_type to be set"
+            raise AssertionError(msg)
+        if "special_type" in v and "special_type_data" in v:
+            cls._validate_special_type_data(v["special_type"], v["special_type_data"])
+
+        return v
+
+    @classmethod
+    def templatable(cls: type[Button]) -> set[str]:
+        """Return if an attribute is templatable, which is if the type-annotation is str."""
+        schema = cls.schema()
+        properties = schema["properties"]
+        allowed_keys = {k for k, v in properties.items() if v["allow_template"]}
+        return allowed_keys | {"long_press"}
 
     def maybe_start_or_cancel_timer(
         self,
@@ -845,6 +1085,10 @@ class Config(BaseModel):
         default=False,
         description="If True, the configuration YAML file will automatically"
         " be reloaded when it is modified.",
+    )
+    long_press_duration: float = Field(
+        default=0.5,
+        description="The duration (in seconds) for a long press.",
     )
     _current_page_index: int = PrivateAttr(default=0)
     _parent_page_index: int = PrivateAttr(default=0)
@@ -1309,9 +1553,100 @@ def _light_page(
         )
         buttons_brightness.append(button)
     buttons_back = [Button(special_type="close-page")]
+    buttons_back = [Button(special_type="close-page")]
     return Page(
         name="Lights",
         buttons=buttons_colors + buttons_color_temp_kelvin + buttons_brightness + buttons_back,
+    )
+
+
+def _climate_page(
+    entity_id: str,
+    complete_state: StateDict,
+    temperatures: tuple[int, ...] | None,
+    hvac_modes: list[str] | None,
+    name: str | None,
+    deck_key_count: int,
+) -> Page:
+    """Return a page of buttons for controlling climate."""
+    console.log(f"Creating climate page for {entity_id}")
+
+    def format_temp(temp: float | None) -> str:
+        if temp is None:
+            return "?"
+        return f"{temp:.2f}".rstrip("0").rstrip(".")
+
+    def mode_button(mode: str) -> Button:
+        mode_info = get_hvac_mode_info(mode)
+        return Button(
+            service="climate.set_hvac_mode",
+            service_data={
+                "entity_id": entity_id,
+                "hvac_mode": mode,
+            },
+            text=f"Set\n{mode_info.text.capitalize()}",
+            text_color=mode_info.color,
+            icon_mdi=mode_info.icon_mdi,
+        )
+
+    button_status = [
+        Button.climate_control_with_status(
+            entity_id=entity_id,
+            complete_state=complete_state,
+            display_climate_string=False,
+            display_mode=True,
+            open_climate_page_on_press=False,
+            name=name,
+            special_type_data=None,
+        ),
+    ]
+    buttons_temperatures = [
+        Button(
+            service="climate.set_temperature",
+            service_data={
+                "entity_id": entity_id,
+                "temperature": temperature,
+            },
+            text=format_temp(temperature) + "°C",
+        )
+        for temperature in (temperatures or ())
+    ]
+    buttons_hvac_modes = [mode_button(mode) for mode in (hvac_modes or [])]
+    button_back = [
+        Button(special_type="close-page"),
+    ]
+    button_off = [
+        Button(
+            service="climate.turn_off",
+            text="OFF",
+            service_data={"entity_id": entity_id},
+        ),
+    ]
+    buttons_before_temperatures = button_status + button_off + buttons_hvac_modes
+    buttons_after_temperatures_and_empty = button_back
+    n_empty_buttons = (
+        deck_key_count
+        - len(buttons_before_temperatures)
+        - len(buttons_temperatures)
+        - len(buttons_after_temperatures_and_empty)
+    )
+    if n_empty_buttons < 0:
+        console.log(
+            "Too many buttons in the climate page. Some might not be shown.\n"
+            "The page configuration has has {abs(n_empty_buttons)} too many buttons."
+            "Remove some temperatures or hvac modes.",
+            style="red",
+        )
+        n_empty_buttons = 0
+    # Create empty buttons to fill the remaining space, so that the close button is in the usual place.
+    buttons_empty = [Button(special_type="empty")] * n_empty_buttons
+
+    return Page(
+        name="Climate",
+        buttons=buttons_before_temperatures
+        + buttons_temperatures
+        + buttons_empty
+        + buttons_after_temperatures_and_empty,
     )
 
 
@@ -2148,12 +2483,14 @@ def _on_dial_event_callback(
     return dial_event_callback
 
 
-async def _handle_key_press(  # noqa: PLR0912
+async def _handle_key_press(  # noqa: PLR0912, PLR0915
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
     config: Config,
     button: Button,
     deck: StreamDeck,
+    *,
+    is_long_press: bool,
 ) -> None:
     if not config._is_on:
         turn_on(config, deck, complete_state)
@@ -2165,50 +2502,92 @@ async def _handle_key_press(  # noqa: PLR0912
         update_all_key_images(deck, config, complete_state)
         update_all_dials(deck, config, complete_state)
 
-    if button.special_type == "next-page":
+    if is_long_press:
+        if button.long_press:
+            entity_id = button.long_press.get("entity_id", button.entity_id)
+            service = button.long_press.get("service")
+            service_data = button.long_press.get("service_data")
+            target = button.long_press.get("target", button.target)
+            special_type = button.long_press.get("special_type")
+            special_type_data = button.long_press.get("special_type_data")
+        else:
+            console.log(
+                f"Long press detected, but no long press action defined for {button.entity_id}",
+            )
+            return
+    else:
+        entity_id = button.entity_id
+        service = button.service
+        service_data = button.service_data
+        target = button.target
+        special_type = button.special_type
+        special_type_data = button.special_type_data
+
+    if special_type == "next-page":
         config.next_page()
         update_all()
-    elif button.special_type == "previous-page":
+    elif special_type == "previous-page":
         config.previous_page()
         update_all()
     elif button.special_type == "close-page":
         config.close_page()
         update_all()
-    elif button.special_type == "go-to-page":
-        assert isinstance(button.special_type_data, (str, int))
-        config.to_page(button.special_type_data)  # type: ignore[arg-type]
+    elif special_type == "go-to-page":
+        assert isinstance(special_type_data, (str, int))
+        config.to_page(special_type_data)  # type: ignore[arg-type]
         update_all()
         return  # to skip the _detached_page reset below
-    elif button.special_type == "turn-off":
+    elif special_type == "turn-off":
         turn_off(config, deck)
         await _sync_input_boolean(config.state_entity_id, websocket, "off")
-    elif button.special_type == "light-control":
-        assert isinstance(button.special_type_data, dict)
+    elif special_type == "light-control":
+        assert isinstance(special_type_data, dict)
         page = _light_page(
-            entity_id=button.entity_id,
+            entity_id=entity_id,
             n_colors=9,
-            colormap=button.special_type_data.get("colormap", None),
-            colors=button.special_type_data.get("colors", None),
-            color_temp_kelvin=button.special_type_data.get("color_temp_kelvin", None),
+            colormap=special_type_data.get("colormap", None),
+            colors=special_type_data.get("colors", None),
+            color_temp_kelvin=special_type_data.get("color_temp_kelvin", None),
         )
         config.load_page_as_detached(page)
         update_all()
         return  # to skip the _detached_page reset below
-    elif button.special_type == "reload":
+    elif special_type == "climate-control":
+        assert isinstance(special_type_data, dict) or special_type_data is None
+
+        if isinstance(special_type_data, dict):
+            temperatures = special_type_data.get("temperatures")
+            hvac_modes = special_type_data.get("hvac_modes")
+            name = special_type_data.get("name")
+        else:
+            temperatures = None
+            hvac_modes = None
+            name = None
+
+        page = _climate_page(
+            entity_id=entity_id,
+            complete_state=complete_state,
+            temperatures=temperatures,
+            hvac_modes=hvac_modes,
+            name=name,
+            deck_key_count=deck.key_count(),
+        )
+        config.load_page_as_detached(page)
+        update_all()
+
+        return  # to skip the _detached_page reset below
+    elif special_type == "reload":
         config.reload()
         update_all()
         return
-    elif button.service is not None:
+    elif service is not None:
         button = button.rendered_template_button(complete_state)
-        if button.service_data is None:
+        if service_data is None:
             service_data = {}
-            if button.entity_id is not None:
-                service_data["entity_id"] = button.entity_id
-        else:
-            service_data = button.service_data
-        console.log(f"Calling service {button.service} with data {service_data}")
-        assert button.service is not None  # for mypy
-        await call_service(websocket, button.service, service_data, button.target)
+            if entity_id is not None:
+                service_data["entity_id"] = entity_id
+        assert service is not None  # for mypy
+        await call_service(websocket, service, service_data, target)
 
     if config._detached_page:
         config.close_detached_page()
@@ -2220,6 +2599,10 @@ def _on_press_callback(
     complete_state: StateDict,
     config: Config,
 ) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:
+    press_tasks: dict[int, asyncio.Task] = {}  # Track ongoing press tasks
+    press_start_times: dict[int, float] = {}  # Track press start times
+    long_press_threshold = config.long_press_duration
+
     async def key_change_callback(
         deck: StreamDeck,
         key: int,
@@ -2228,32 +2611,136 @@ def _on_press_callback(
         console.log(f"Key {key} {'pressed' if key_pressed else 'released'}")
 
         button = config.button(key)
-        assert button is not None
-        if button is not None and key_pressed:
+        if button is None:
+            console.log(f"No button found for key {key}")
+            return
 
-            async def cb() -> None:
-                """Update the deck once more after the timer is over."""
-                assert button is not None  # for mypy
-                await _handle_key_press(websocket, complete_state, config, button, deck)
-
-            if button.maybe_start_or_cancel_timer(cb):
-                key_pressed = False  # do not click now
-
-        try:
+        if key_pressed:
+            press_start_times[key] = time.time()
+            console.log(
+                f"Key {key} pressed, starting long press monitor with threshold {long_press_threshold}s",
+            )
             update_key_image(
                 deck,
                 key=key,
                 config=config,
                 complete_state=complete_state,
-                key_pressed=key_pressed,
+                key_pressed=True,
             )
-            if key_pressed:
-                await _handle_key_press(websocket, complete_state, config, button, deck)
-        except Exception as e:  # noqa: BLE001
-            console.print_exception(show_locals=True)
-            console.log(f"key_change_callback failed with a {type(e)}: {e}")
+            coro = _monitor_long_press(
+                key=key,
+                press_start_times=press_start_times,
+                long_press_threshold=long_press_threshold,
+                websocket=websocket,
+                complete_state=complete_state,
+                config=config,
+                button=button,
+                deck=deck,
+            )
+            press_tasks[key] = asyncio.create_task(coro)
+            return
+
+        # Key released
+        if key in press_tasks:
+            # Cancel the long press task if it hasn't completed
+            press_tasks[key].cancel()
+            del press_tasks[key]
+
+        if key not in press_start_times:
+            return
+
+        # If still in press_start_times, it was a short press
+        press_duration = time.time() - press_start_times[key]
+        del press_start_times[key]
+
+        # Update the key image back to unpressed state
+        update_key_image(
+            deck,
+            key=key,
+            config=config,
+            complete_state=complete_state,
+            key_pressed=False,
+        )
+
+        console.log(f"Key {key} released after {press_duration:.2f}s")
+        if press_duration < long_press_threshold:
+            console.log(f"Handling short press for key {key}")
+
+            async def delay_short_press_callback() -> None:
+                """Update the deck once more after the timer is over."""
+                assert button is not None  # for mypy
+                try:
+                    await _handle_key_press(
+                        websocket,
+                        complete_state,
+                        config,
+                        button,
+                        deck,
+                        is_long_press=False,
+                    )
+                except Exception as e:
+                    console.log(f"Error in short press handling: {e}")
+                    raise
+
+            if button.maybe_start_or_cancel_timer(delay_short_press_callback):
+                console.log(f"Timer started for key {key}, delaying short press")
+                return
+
+            await _handle_key_press(
+                websocket,
+                complete_state,
+                config,
+                button,
+                deck,
+                is_long_press=False,
+            )
 
     return key_change_callback
+
+
+async def _monitor_long_press(
+    key: int,
+    press_start_times: dict[int, float],
+    long_press_threshold: float,
+    websocket: websockets.WebSocketClientProtocol,
+    complete_state: StateDict,
+    config: Config,
+    button: Button,
+    deck: StreamDeck,
+) -> None:
+    try:
+        await asyncio.sleep(long_press_threshold)
+        if key not in press_start_times:
+            return
+        # Button still pressed
+        console.log(f"Key {key} long press detected after {long_press_threshold}s")
+        try:
+            await _handle_key_press(
+                websocket,
+                complete_state,
+                config,
+                button,
+                deck,
+                is_long_press=True,
+            )
+        except Exception as e:
+            console.print_exception(show_locals=True)
+            console.log(f"Error in long press handling: {e}")
+            raise
+        # Update key image to unpressed state after long press
+        update_key_image(
+            deck,
+            key=key,
+            config=config,
+            complete_state=complete_state,
+            key_pressed=False,
+        )
+        del press_start_times[key]
+    except asyncio.CancelledError:
+        console.log(f"Long press monitor for key {key} was canceled")
+    except Exception as e:
+        console.log(f"Unexpected error in long press monitor for key {key}: {e}")
+        raise
 
 
 @ft.lru_cache(maxsize=128)

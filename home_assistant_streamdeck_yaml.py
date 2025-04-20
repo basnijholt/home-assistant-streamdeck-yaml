@@ -2372,37 +2372,47 @@ def _on_press_callback(
         console.log(f"Key {key} released after {press_duration:.2f}s")
         if press_duration < long_press_threshold:
             console.log(f"Handling short press for key {key}")
-
-            async def delay_short_press_callback() -> None:
-                """Update the deck once more after the timer is over."""
-                assert button is not None  # for mypy
-                try:
-                    await _handle_key_press(
-                        websocket,
-                        complete_state,
-                        config,
-                        button,
-                        deck,
-                        is_long_press=False,
-                    )
-                except Exception as e:
-                    console.log(f"Error in short press handling: {e}")
-                    raise
-
-            if button.maybe_start_or_cancel_timer(delay_short_press_callback):
-                console.log(f"Timer started for key {key}, delaying short press")
-                return
-
-            await _handle_key_press(
-                websocket,
-                complete_state,
-                config,
-                button,
-                deck,
+            cb = ft.partial(
+                _try_handle_key_press,
+                websocket=websocket,
+                complete_state=complete_state,
+                config=config,
+                button=button,
+                deck=deck,
                 is_long_press=False,
             )
+            if button.maybe_start_or_cancel_timer(cb):
+                console.log(f"Timer started for key {key}, delaying short press")
+            else:
+                await cb()
 
     return key_change_callback
+
+
+async def _try_handle_key_press(
+    websocket: websockets.WebSocketClientProtocol,
+    complete_state: StateDict,
+    config: Config,
+    button: Button,
+    deck: StreamDeck,
+    *,
+    is_long_press: bool,
+) -> None:
+    assert button is not None  # for mypy
+    try:
+        await _handle_key_press(
+            websocket,
+            complete_state,
+            config,
+            button,
+            deck,
+            is_long_press=is_long_press,
+        )
+    except Exception as e:
+        console.print_exception(show_locals=True)
+        which = "long" if is_long_press else "short"
+        console.log(f"Error in {which} press handling: {e}")
+        raise
 
 
 async def _monitor_long_press(
@@ -2421,19 +2431,14 @@ async def _monitor_long_press(
             return
         # Button still pressed
         console.log(f"Key {key} long press detected after {long_press_threshold}s")
-        try:
-            await _handle_key_press(
-                websocket,
-                complete_state,
-                config,
-                button,
-                deck,
-                is_long_press=True,
-            )
-        except Exception as e:
-            console.print_exception(show_locals=True)
-            console.log(f"Error in long press handling: {e}")
-            raise
+        await _try_handle_key_press(
+            websocket,
+            complete_state,
+            config,
+            button,
+            deck,
+            is_long_press=True,
+        )
         # Update key image to unpressed state after long press
         update_key_image(
             deck,

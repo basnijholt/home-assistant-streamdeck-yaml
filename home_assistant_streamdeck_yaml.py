@@ -1224,7 +1224,7 @@ def _generate_uniform_hex_colors(n_colors: int) -> tuple[str, ...]:
 
     def hsv_to_hex(hsv: tuple[float, float, float]) -> str:
         """Convert an HSV color tuple to a hex color string."""
-        rgb = tuple(int(round(x * 255)) for x in colorsys.hsv_to_rgb(*hsv))
+        rgb = tuple(round(x * 255) for x in colorsys.hsv_to_rgb(*hsv))
         return "#{:02x}{:02x}{:02x}".format(*rgb)
 
     hues = generate_hues(n_colors)

@@ -194,7 +194,7 @@ Here's an example `configuration.yaml` file to help
 brightness: 100  # Default brightness of the Stream Deck (0-100)
 state_entity_id: binary_sensor.anyone_home  # Entity to sync display state with
 auto_reload: true  # Automatically reload the configuration file when it changes
-long_press_duration: 0.5 # After 0.5s of a key press, trigger the long press action if defined.
+long_press_duration: 0.5  # After 0.5s of a key press, trigger the long press action if defined.
 pages:
   - name: Home
     buttons:
@@ -203,7 +203,7 @@ pages:
         text: |
           Bedroom
           lights
-        long_press: # On long press, instead of toggle, bring up the light control page
+        long_press:  # On long press, instead of toggle, bring up the light control page
           special_type: light-control
       - icon: netflix.png
         service: script.start_spotify

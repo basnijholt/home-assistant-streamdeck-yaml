@@ -1263,6 +1263,53 @@ async def test_run_exits_immediately_on_zero_retries(mock_deck: Mock) -> None:
         assert mock_get_deck.called
 
 
+@pytest.mark.asyncio
+async def test_network_page_open_and_closes_automatically(mock_deck: Mock) -> None:
+    """Test that the connection page opens and closes automatically."""
+    # Setup config and connection state
+    home = Page(name="Home", buttons=[Button(text="Home Button")])
+    config = Config(pages=[home])
+
+    @pytest.mark.parametrize(
+        (
+            "open_connection_page_when_disconnected",
+            "close_connection_page_when_reconnected",
+        ),
+        [
+            (True, True),
+            (True, False),
+            (False, True),
+            (False, False),
+        ],
+    )
+    async def test_correct_pages(
+        open_connection_page_when_disconnected: bool,  # noqa: FBT001
+        close_connection_page_when_reconnected: bool,  # noqa: FBT001
+    ) -> None:
+        connection_state = ConnectionState(
+            deck_key_count=mock_deck.key_count(),
+            open_connection_page_when_disconnected=open_connection_page_when_disconnected,
+            close_connection_page_when_reconnected=close_connection_page_when_reconnected,
+        )
+        connection_page = connection_state._connection_page
+        assert config.current_page() == home
+        await connection_state.set_disconnected_from_ha_and_maybe_open_connection_page(
+            config,
+        )
+        assert (
+            config.current_page() == connection_page
+            if open_connection_page_when_disconnected
+            else home
+        )
+        connection_state.set_connected_to_ha_and_maybe_close_connection_page(config)
+        assert (
+            config.current_page() == home
+            if close_connection_page_when_reconnected
+            else (connection_page if open_connection_page_when_disconnected else home)
+        )
+        config.to_page(home.name)
+
+
 def test_page_switch_clears_unused_keys(
     state: dict[str, dict[str, Any]],
     mock_deck: Mock,

@@ -77,42 +77,78 @@ console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
 
 
+# Default values for ConnectionState fields
+DEFAULT_TEST_HOST: str = "8.8.8.8"
+DEFAULT_TEST_PORT: int = 53
+DEFAULT_TEST_TIMEOUT: int = 3
+DEFAULT_OPEN_CONNECTION_PAGE_WHEN_DISCONNECTED: bool = True
+DEFAULT_CLOSE_CONNECTION_PAGE_WHEN_RECONNECTED: bool = True
+DEFAULT_CONNECTION_PAGE_NAME: str = "Connection-auto"
+
+
 class ConnectionState(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     """Helps keeping track of connection state."""
 
-    test_host: str = Field(
-        default="8.8.8.8",
+    connection_test_host: str = Field(
+        default=DEFAULT_TEST_HOST,
         description="The host to test the connection to.",
     )
-    test_port: int = Field(
-        default=53,
+    connection_test_port: int = Field(
+        default=DEFAULT_TEST_PORT,
         description="The port to test the connection to.",
     )
-    test_timeout: int = Field(
-        default=3,
+    connection_test_timeout: int = Field(
+        default=DEFAULT_TEST_TIMEOUT,
         description="The timeout for the connection test.",
     )
-    load_connection_page_when_disconnected: bool = Field(
-        default=True,
+    open_connection_page_when_disconnected: bool = Field(
+        default=DEFAULT_OPEN_CONNECTION_PAGE_WHEN_DISCONNECTED,
         description="Whether to load the connection page when disconnected.",
     )
     close_connection_page_when_reconnected: bool = Field(
-        default=False,
+        default=DEFAULT_CLOSE_CONNECTION_PAGE_WHEN_RECONNECTED,
         description="Whether to close the connection page when reconnected.",
     )
     connection_page_name: str = Field(
-        default="Connection-auto",
+        default=DEFAULT_CONNECTION_PAGE_NAME,
         description="The name of the connection page.",
     )
 
     _is_ha_connected: bool = PrivateAttr(default=False)
     _is_network_connected: bool = PrivateAttr(default=False)
-
     _connection_page: Page = PrivateAttr()
 
-    def __init__(self, deck_key_count: int) -> None:
-        """Initialize the connection state."""
-        super().__init__()
+    def __init__(
+        self,
+        deck_key_count: int,
+        *,
+        connection_test_host: str = DEFAULT_TEST_HOST,
+        connection_test_port: int = DEFAULT_TEST_PORT,
+        connection_test_timeout: int = DEFAULT_TEST_TIMEOUT,
+        open_connection_page_when_disconnected: bool = DEFAULT_OPEN_CONNECTION_PAGE_WHEN_DISCONNECTED,
+        close_connection_page_when_reconnected: bool = DEFAULT_CLOSE_CONNECTION_PAGE_WHEN_RECONNECTED,
+        connection_page_name: str = DEFAULT_CONNECTION_PAGE_NAME,
+    ) -> None:
+        """Initialize the connection state.
+
+        Args:
+            deck_key_count: Number of keys on the deck, used to create the connection page.
+            connection_test_host: Host to test network connectivity.
+            connection_test_port: Port to test network connectivity.
+            connection_test_timeout: Timeout for network test in seconds.
+            open_connection_page_when_disconnected: Whether to load the connection page when disconnected.
+            close_connection_page_when_reconnected: Whether to close the connection page when reconnected.
+            connection_page_name: Name of the connection page.
+
+        """
+        super().__init__(
+            connection_test_host=connection_test_host,
+            connection_test_port=connection_test_port,
+            connection_test_timeout=connection_test_timeout,
+            open_connection_page_when_disconnected=open_connection_page_when_disconnected,
+            close_connection_page_when_reconnected=close_connection_page_when_reconnected,
+            connection_page_name=connection_page_name,
+        )
         object.__setattr__(
             self,
             "_connection_page",
@@ -123,8 +159,11 @@ class ConnectionState(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         """Check if the network is available by trying to connect to a host."""
         try:
             reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(self.test_host, self.test_port),
-                self.test_timeout,
+                asyncio.open_connection(
+                    self.connection_test_host,
+                    self.connection_test_port,
+                ),
+                self.connection_test_timeout,
             )
         except (OSError, asyncio.TimeoutError):
             return False
@@ -142,10 +181,7 @@ class ConnectionState(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         return self._is_network_connected
 
     async def update_is_network_connected(self) -> bool:
-        """Return True if the network is connected. Assumes that if HA is connected, network is connected.
-
-        Checks if the network is connected. To avoid unecessarily connecting to a host, assumes that if HA is connected, network is connected.
-        """
+        """Return True if the network is connected."""
         if self._is_ha_connected:
             return True
         self._is_network_connected = await self.test_network_connected()
@@ -164,20 +200,20 @@ class ConnectionState(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         self,
         config: Config,
     ) -> None:
-        """Set the disconnected state for Home Assistant. Assumes that if HA is connected, network is connected."""
+        """Set the connected state for Home Assistant."""
         self._is_ha_connected = True
         self._is_network_connected = True
         if self.close_connection_page_when_reconnected:
             self.close_connection_page(config)
 
-    async def set_disconnected_from_ha_and_maybe_load_connection_page(
+    async def set_disconnected_from_ha_and_maybe_open_connection_page(
         self,
         config: Config,
     ) -> None:
-        """Set the disconnected state for Home Assistant, and opens connection page if configured to do so."""
+        """Set the disconnected state for Home Assistant."""
         self._is_ha_connected = False
         await self.update_is_network_connected()
-        if self.load_connection_page_when_disconnected:
+        if self.open_connection_page_when_disconnected:
             self.load_connection_page(config)
 
 
@@ -2745,15 +2781,30 @@ async def run(
     config: Config,
     retry_attempts: int = 0,
     retry_delay: float = 0.0,
+    *,
+    connection_test_host: str = DEFAULT_TEST_HOST,
+    connection_test_port: int = DEFAULT_TEST_PORT,
+    connection_test_timeout: int = DEFAULT_TEST_TIMEOUT,
+    connection_page_name: str = DEFAULT_CONNECTION_PAGE_NAME,
+    open_connection_page_when_disconnected: bool = DEFAULT_OPEN_CONNECTION_PAGE_WHEN_DISCONNECTED,
+    close_connection_page_when_reconnected: bool = DEFAULT_CLOSE_CONNECTION_PAGE_WHEN_RECONNECTED,
 ) -> None:
     """Main entry point for the Stream Deck integration, with retry logic."""
     deck = get_deck()
     deck.set_brightness(config.brightness)
     attempt = 0
-    connection_state = ConnectionState(deck_key_count=deck.key_count())
+    connection_state = ConnectionState(
+        deck_key_count=deck.key_count(),
+        open_connection_page_when_disconnected=open_connection_page_when_disconnected,
+        close_connection_page_when_reconnected=close_connection_page_when_reconnected,
+        connection_test_host=connection_test_host,
+        connection_test_port=connection_test_port,
+        connection_test_timeout=connection_test_timeout,
+        connection_page_name=connection_page_name,
+    )
 
     async def set_disconnected() -> None:
-        await connection_state.set_disconnected_from_ha_and_maybe_load_connection_page(
+        await connection_state.set_disconnected_from_ha_and_maybe_open_connection_page(
             config,
         )
         update_all_visuals(
@@ -2951,6 +3002,50 @@ def main() -> None:
         default=float(os.getenv("CONNECTION_RETRY_DELAY", "0")),
         help="Delay between connection retry attempts in seconds",
     )
+    parser.add_argument(
+        "--connection-test-host",
+        default=os.environ.get("CONNECTION_TEST_HOST", DEFAULT_TEST_HOST),
+        help="The host to test the connection to",
+    )
+    parser.add_argument(
+        "--connection-test-port",
+        type=int,
+        default=int(os.getenv("CONNECTION_TEST_PORT", DEFAULT_TEST_PORT)),
+        help="The port to test the connection to",
+    )
+    parser.add_argument(
+        "--connection-test-timeout",
+        type=float,
+        default=float(os.getenv("CONNECTION_TEST_TIMEOUT", DEFAULT_TEST_TIMEOUT)),
+        help="The timeout for the connection test",
+    )
+    parser.add_argument(
+        "--connection-page-name",
+        default=os.environ.get("CONNECTION_PAGE_NAME", DEFAULT_CONNECTION_PAGE_NAME),
+        help="The name of the connection page",
+    )
+    parser.add_argument(
+        "--open-connection-page-when-disconnected",
+        type=str,
+        default=str(
+            os.getenv(
+                "OPEN_CONNECTION_PAGE_WHEN_DISCONNECTED",
+                str(DEFAULT_OPEN_CONNECTION_PAGE_WHEN_DISCONNECTED),
+            ),
+        ),
+        help="Open the connection page when disconnected from Home Assistant",
+    )
+    parser.add_argument(
+        "--close-connection-page-when-reconnected",
+        type=str,
+        default=str(
+            os.getenv(
+                "CLOSE_CONNECTION_PAGE_WHEN_RECONNECTED",
+                str(DEFAULT_CLOSE_CONNECTION_PAGE_WHEN_RECONNECTED),
+            ),
+        ),
+        help="Close the connection page when reconnected to Home Assistant",
+    )
     args = parser.parse_args()
     console.log(f"Using version {__version__} of the Home Assistant Stream Deck.")
     console.log(
@@ -2966,6 +3061,12 @@ def main() -> None:
             config=config,
             retry_attempts=args.connection_retry_attempts,
             retry_delay=args.connection_retry_delay,
+            connection_test_host=args.connection_test_host,
+            connection_test_port=args.connection_test_port,
+            connection_test_timeout=args.connection_test_timeout,
+            connection_page_name=args.connection_page_name,
+            open_connection_page_when_disconnected=args.open_connection_page_when_disconnected,
+            close_connection_page_when_reconnected=args.close_connection_page_when_reconnected,
         ),
     )
 

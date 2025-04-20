@@ -2327,7 +2327,7 @@ async def _handle_key_press(  # noqa: PLR0912, PLR0915
         update_all()
 
 
-def _on_press_callback(  # noqa: PLR0915
+def _on_press_callback(
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
     config: Config,
@@ -2360,45 +2360,17 @@ def _on_press_callback(  # noqa: PLR0915
                 complete_state=complete_state,
                 key_pressed=True,
             )
-
-            async def monitor_long_press() -> None:
-                try:
-                    await asyncio.sleep(long_press_threshold)
-                    if key in press_start_times:  # Button still pressed
-                        console.log(
-                            f"Key {key} long press detected after {long_press_threshold}s",
-                        )
-                        try:
-                            await _handle_key_press(
-                                websocket,
-                                complete_state,
-                                config,
-                                button,
-                                deck,
-                                is_long_press=True,
-                            )
-                        except Exception as e:
-                            console.print_exception(show_locals=True)
-                            console.log(f"Error in long press handling: {e}")
-                            raise
-                        # Update key image to unpressed state after long press
-                        update_key_image(
-                            deck,
-                            key=key,
-                            config=config,
-                            complete_state=complete_state,
-                            key_pressed=False,
-                        )
-                        del press_start_times[key]
-                except asyncio.CancelledError:
-                    console.log(f"Long press monitor for key {key} was canceled")
-                except Exception as e:
-                    console.log(
-                        f"Unexpected error in long press monitor for key {key}: {e}",
-                    )
-                    raise
-
-            press_tasks[key] = asyncio.create_task(monitor_long_press())
+            coro = _monitor_long_press(
+                key=key,
+                press_start_times=press_start_times,
+                long_press_threshold=long_press_threshold,
+                websocket=websocket,
+                complete_state=complete_state,
+                config=config,
+                button=button,
+                deck=deck,
+            )
+            press_tasks[key] = asyncio.create_task(coro)
 
         else:  # Key released
             if key in press_tasks:
@@ -2456,6 +2428,49 @@ def _on_press_callback(  # noqa: PLR0915
                     )
 
     return key_change_callback
+
+
+async def _monitor_long_press(
+    key: int,
+    press_start_times: dict[int, float],
+    long_press_threshold: float,
+    websocket: websockets.WebSocketClientProtocol,
+    complete_state: StateDict,
+    config: Config,
+    button: Button,
+    deck: StreamDeck,
+) -> None:
+    try:
+        await asyncio.sleep(long_press_threshold)
+        if key in press_start_times:  # Button still pressed
+            console.log(f"Key {key} long press detected after {long_press_threshold}s")
+            try:
+                await _handle_key_press(
+                    websocket,
+                    complete_state,
+                    config,
+                    button,
+                    deck,
+                    is_long_press=True,
+                )
+            except Exception as e:
+                console.print_exception(show_locals=True)
+                console.log(f"Error in long press handling: {e}")
+                raise
+            # Update key image to unpressed state after long press
+            update_key_image(
+                deck,
+                key=key,
+                config=config,
+                complete_state=complete_state,
+                key_pressed=False,
+            )
+            del press_start_times[key]
+    except asyncio.CancelledError:
+        console.log(f"Long press monitor for key {key} was canceled")
+    except Exception as e:
+        console.log(f"Unexpected error in long press monitor for key {key}: {e}")
+        raise
 
 
 @ft.lru_cache(maxsize=128)

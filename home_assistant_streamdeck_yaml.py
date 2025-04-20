@@ -231,6 +231,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             "previous-page",
             "empty",
             "go-to-page",
+            "close-page",
             "turn-off",
             "light-control",
             "reload",
@@ -245,6 +246,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " If `previous-page`, the button will go to the previous page."
         " If `turn-off`, the button will turn off the SteamDeck until any button is pressed."
         " If `empty`, the button will be empty."
+        " If `close-page`, the button will close the current page and return to the previous one."
         " If `go-to-page`, the button will go to the page specified by `special_type_data`"
         " (either an `int` or `str` (name of the page))."
         " If `light-control`, the button will control a light, and the `special_type_data`"
@@ -326,7 +328,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             )
             return _generate_failed_icon(size)
 
-    def render_icon(  # noqa: PLR0912 PLR0915
+    def render_icon(  # noqa: PLR0912 PLR0915 C901
         self,
         complete_state: StateDict,
         *,
@@ -372,6 +374,9 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             page = button.special_type_data
             text = button.text or f"Go to\nPage\n{page}"
             icon_mdi = button.icon_mdi or "book-open-page-variant"
+        elif button.special_type == "close-page":
+            text = button.text or "Close\nPage"
+            icon_mdi = button.icon_mdi or "arrow-u-left-bottom-bold"
         elif button.special_type == "turn-off":
             text = button.text or "Turn off"
             icon_mdi = button.icon_mdi or "power"
@@ -778,6 +783,8 @@ class Page(BaseModel):
         description="A list of dials on the page.",
     )
 
+    _parent_page_index: int = PrivateAttr([])
+
     _dials_sorted: list[Dial] = PrivateAttr([])
 
     def sort_dials(self) -> list[tuple[Dial, Dial | None]]:
@@ -853,6 +860,7 @@ class Config(BaseModel):
         " be reloaded when it is modified.",
     )
     _current_page_index: int = PrivateAttr(default=0)
+    _parent_page_index: int = PrivateAttr(default=0)
     _is_on: bool = PrivateAttr(default=True)
     _detached_page: Page | None = PrivateAttr(default=None)
     _configuration_file: Path | None = PrivateAttr(default=None)
@@ -925,6 +933,7 @@ class Config(BaseModel):
 
     def next_page(self) -> Page:
         """Go to the next page."""
+        self._parent_page_index = self._current_page_index
         self._current_page_index = self.next_page_index
         return self.pages[self._current_page_index]
 
@@ -940,6 +949,7 @@ class Config(BaseModel):
 
     def previous_page(self) -> Page:
         """Go to the previous page."""
+        self._parent_page_index = self._current_page_index
         self._current_page_index = self.previous_page_index
         return self.pages[self._current_page_index]
 
@@ -973,6 +983,7 @@ class Config(BaseModel):
     def to_page(self, page: int | str) -> Page:
         """Go to a page based on the page name or index."""
         if isinstance(page, int):
+            self._parent_page_index = self._current_page_index
             self._current_page_index = page
             return self.current_page()
 
@@ -986,6 +997,20 @@ class Config(BaseModel):
                 self._detached_page = p
                 return p
         console.log(f"Could find page {page}, staying on current page")
+        return self.current_page()
+
+    def load_page_as_detached(self, page: Page) -> None:
+        """Load a page as detached."""
+        self._detached_page = page
+
+    def close_detached_page(self) -> None:
+        """Close the detached page."""
+        self._detached_page = None
+
+    def close_page(self) -> Page:
+        """Close the current page."""
+        self._detached_page = None
+        self._current_page_index = self._parent_page_index
         return self.current_page()
 
 
@@ -1296,9 +1321,13 @@ def _light_page(
             },
         )
         buttons_brightness.append(button)
+    buttons_back = [Button(special_type="close-page")]
     return Page(
         name="Lights",
-        buttons=buttons_colors + buttons_color_temp_kelvin + buttons_brightness,
+        buttons=buttons_colors
+        + buttons_color_temp_kelvin
+        + buttons_brightness
+        + buttons_back,
     )
 
 
@@ -1878,9 +1907,15 @@ def update_key_image(
 ) -> None:
     """Update the image for a key."""
     button = config.button(key)
+
+    def clear_image() -> None:
+        deck.set_key_image(key, None)
+
     if button is None:
+        clear_image()
         return
     if button.special_type == "empty":
+        clear_image()
         return
     size = deck.key_image_format()["size"]
     image = button.try_render_icon(
@@ -1976,7 +2011,6 @@ def _on_touchscreen_event_callback(
             else:
                 console.log(f"Going to page {config.next_page_index}")
                 config.to_page(config.previous_page_index)
-            deck.reset()
             config.current_page().sort_dials()
             update_all_key_images(deck, config, complete_state)
             update_all_dials(deck, config, complete_state)
@@ -2138,7 +2172,7 @@ def _on_dial_event_callback(
     return dial_event_callback
 
 
-async def _handle_key_press(
+async def _handle_key_press(  # noqa: PLR0912
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
     config: Config,
@@ -2151,7 +2185,6 @@ async def _handle_key_press(
         return
 
     def update_all() -> None:
-        deck.reset()
         config.current_page().sort_dials()
         update_all_key_images(deck, config, complete_state)
         update_all_dials(deck, config, complete_state)
@@ -2161,6 +2194,9 @@ async def _handle_key_press(
         update_all()
     elif button.special_type == "previous-page":
         config.previous_page()
+        update_all()
+    elif button.special_type == "close-page":
+        config.close_page()
         update_all()
     elif button.special_type == "go-to-page":
         assert isinstance(button.special_type_data, (str, int))
@@ -2174,12 +2210,12 @@ async def _handle_key_press(
         assert isinstance(button.special_type_data, dict)
         page = _light_page(
             entity_id=button.entity_id,
-            n_colors=10,
+            n_colors=9,
             colormap=button.special_type_data.get("colormap", None),
             colors=button.special_type_data.get("colors", None),
             color_temp_kelvin=button.special_type_data.get("color_temp_kelvin", None),
         )
-        config._detached_page = page
+        config.load_page_as_detached(page)
         update_all()
         return  # to skip the _detached_page reset below
     elif button.special_type == "reload":
@@ -2199,7 +2235,7 @@ async def _handle_key_press(
         await call_service(websocket, button.service, service_data, button.target)
 
     if config._detached_page:
-        config._detached_page = None
+        config.close_detached_page()
         update_all()
 
 

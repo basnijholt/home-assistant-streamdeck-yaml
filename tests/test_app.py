@@ -268,9 +268,7 @@ def test_buttons(buttons: list[Button], state: dict[str, dict[str, Any]]) -> Non
     page = Page(name="Home", buttons=buttons)
     config = Config(pages=[page])
     first_page = config.to_page(0)
-    rendered_buttons = [
-        button.rendered_template_button(state) for button in first_page.buttons
-    ]
+    rendered_buttons = [button.rendered_template_button(state) for button in first_page.buttons]
 
     b = rendered_buttons[0]  # LIGHT
     assert b.domain == "light"
@@ -1183,9 +1181,7 @@ async def test_long_press(
     await press_and_release(0, short_press_time)
     assert config.current_page() == home
     await press_and_release(1, long_press_time)
-    assert (
-        config.current_page() == home
-    )  # shouldn't do anything as no long action is configured
+    assert config.current_page() == home  # shouldn't do anything as no long action is configured
 
 
 async def test_anonymous_page(
@@ -1254,7 +1250,7 @@ async def test_anonymous_page(
 
     # Back to anon page to test that the close button works properly
     assert config.to_page("anon") == anon
-    await press_and_release(2)
+    await press_and_release(2)  # close page button
     assert config._detached_page is None
     assert config.current_page() == home
 

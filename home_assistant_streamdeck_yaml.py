@@ -2397,7 +2397,7 @@ def _on_press_callback(
             if press_duration < long_press_threshold:
                 console.log(f"Handling short press for key {key}")
 
-                async def cb() -> None:
+                async def delay_short_press_callback() -> None:
                     """Update the deck once more after the timer is over."""
                     assert button is not None  # for mypy
                     try:
@@ -2413,7 +2413,7 @@ def _on_press_callback(
                         console.log(f"Error in short press handling: {e}")
                         raise
 
-                if button.maybe_start_or_cancel_timer(cb):
+                if button.maybe_start_or_cancel_timer(delay_short_press_callback):
                     console.log(f"Timer started for key {key}, delaying short press")
                     return
 

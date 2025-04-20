@@ -202,7 +202,7 @@ pages:
         text: |
           Bedroom
           lights
-        long_press: # On long press, isntead of toggle, bring up the light control page
+        long_press: # On long press, instead of toggle, bring up the light control page
           special_type: light-control
       - icon: netflix.png
         service: script.start_spotify

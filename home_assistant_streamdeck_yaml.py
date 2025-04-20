@@ -2358,8 +2358,7 @@ def _on_press_callback(
             return
 
         # If still in press_start_times, it was a short press
-        press_duration = time.time() - press_start_times[key]
-        del press_start_times[key]
+        press_duration = time.time() - press_start_times.pop(key)
 
         # Update the key image back to unpressed state
         update_key_image(

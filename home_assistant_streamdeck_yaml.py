@@ -2396,7 +2396,6 @@ async def _try_handle_key_press(
     *,
     is_long_press: bool,
 ) -> None:
-    assert button is not None  # for mypy
     try:
         await _handle_key_press(
             websocket,

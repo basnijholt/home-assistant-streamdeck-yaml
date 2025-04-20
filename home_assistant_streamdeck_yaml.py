@@ -73,10 +73,6 @@ LCD_PIXELS_Y = 100
 LCD_ICON_SIZE_X = 200
 LCD_ICON_SIZE_Y = 100
 
-press_start_times: dict[int, float] = (
-    {}
-)  # Dictionary to store press start times per key.
-
 console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
 

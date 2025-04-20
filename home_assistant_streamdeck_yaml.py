@@ -2350,7 +2350,7 @@ def _on_press_callback(
             if button.maybe_start_or_cancel_timer(cb):
                 console.log(f"Timer started for key {key}, delaying short press")
             else:
-                await cb()
+                await cb(is_long_press=False)
         else:
             console.log(f"Handling long press for key {key}")
             await cb(is_long_press=True)

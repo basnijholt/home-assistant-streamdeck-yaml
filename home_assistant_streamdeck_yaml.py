@@ -2309,7 +2309,6 @@ def _on_press_callback(
 ) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:
     press_tasks: dict[int, asyncio.Task] = {}  # Track ongoing press tasks
     press_start_times: dict[int, float] = {}  # Track press start times
-    long_press_threshold = config.long_press_duration
 
     async def key_change_callback(
         deck: StreamDeck,
@@ -2324,7 +2323,7 @@ def _on_press_callback(
         if key_pressed:
             press_start_times[key] = time.time()
             console.log(
-                f"Key {key} pressed, starting long press monitor with threshold {long_press_threshold}s",
+                f"Key {key} pressed, starting long press monitor with threshold {config.long_press_duration}s",
             )
             update_key_image(
                 deck,
@@ -2336,7 +2335,6 @@ def _on_press_callback(
             coro = _monitor_long_press(
                 key=key,
                 press_start_times=press_start_times,
-                long_press_threshold=long_press_threshold,
                 websocket=websocket,
                 complete_state=complete_state,
                 config=config,
@@ -2368,7 +2366,7 @@ def _on_press_callback(
         )
 
         console.log(f"Key {key} released after {press_duration:.2f}s")
-        if press_duration < long_press_threshold:
+        if press_duration < config.long_press_duration:
             console.log(f"Handling short press for key {key}")
             cb = ft.partial(
                 _try_handle_key_press,
@@ -2415,7 +2413,6 @@ async def _try_handle_key_press(
 async def _monitor_long_press(
     key: int,
     press_start_times: dict[int, float],
-    long_press_threshold: float,
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
     config: Config,
@@ -2423,11 +2420,11 @@ async def _monitor_long_press(
     deck: StreamDeck,
 ) -> None:
     try:
-        await asyncio.sleep(long_press_threshold)
+        await asyncio.sleep(config.long_press_duration)
         if key not in press_start_times:
             return
         # Button still pressed
-        console.log(f"Key {key} long press detected after {long_press_threshold}s")
+        console.log(f"Key {key} long press detected after {config.long_press_duration}s")
         await _try_handle_key_press(
             websocket,
             complete_state,

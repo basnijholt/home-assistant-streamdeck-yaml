@@ -24,6 +24,7 @@ from typing import (
     Literal,
     TextIO,
     TypeAlias,
+    get_args,
 )
 
 import jinja2
@@ -222,22 +223,22 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         return cls.to_pandas_table().to_markdown(index=False)
 
 
+SpecialType: TypeAlias = Literal[
+    "next-page",
+    "previous-page",
+    "empty",
+    "go-to-page",
+    "close-page",
+    "turn-off",
+    "light-control",
+    "reload",
+]
+
+
 class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
     """Button configuration."""
 
-    special_type: (
-        Literal[
-            "next-page",
-            "previous-page",
-            "empty",
-            "go-to-page",
-            "close-page",
-            "turn-off",
-            "light-control",
-            "reload",
-        ]
-        | None
-    ) = Field(
+    special_type: SpecialType | None = Field(
         default=None,
         allow_template=False,
         description="Special type of button."
@@ -523,17 +524,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             msg = "long_press.entity_id must be a string"
             raise AssertionError(msg)
         if "special_type" in v:
-            allowed_special_types = {
-                "next-page",
-                "previous-page",
-                "empty",
-                "go-to-page",
-                "close-page",
-                "turn-off",
-                "light-control",
-                "climate-control",
-                "reload",
-            }
+            allowed_special_types = get_args(SpecialType)
             if v["special_type"] not in allowed_special_types:
                 msg = f"long_press.special_type must be one of {allowed_special_types} (got {v['special_type']})"
                 raise AssertionError(msg)

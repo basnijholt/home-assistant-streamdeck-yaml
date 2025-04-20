@@ -2301,8 +2301,7 @@ def _on_press_callback(
     complete_state: StateDict,
     config: Config,
 ) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:
-    press_tasks: dict[int, asyncio.Task] = {}  # Track ongoing press tasks
-    press_start_times: dict[int, float] = {}  # Track press start times
+    press_start_times: dict[int, float] = {}
 
     async def key_change_callback(
         deck: StreamDeck,
@@ -2313,7 +2312,6 @@ def _on_press_callback(
 
         button = config.button(key)
         assert button is not None
-
         if key_pressed:
             press_start_times[key] = time.time()
             console.log(
@@ -2326,31 +2324,11 @@ def _on_press_callback(
                 complete_state=complete_state,
                 key_pressed=True,
             )
-            coro = _monitor_long_press(
-                key=key,
-                press_start_times=press_start_times,
-                websocket=websocket,
-                complete_state=complete_state,
-                config=config,
-                button=button,
-                deck=deck,
-            )
-            press_tasks[key] = asyncio.create_task(coro)
             return
 
         # Key released
-        if key in press_tasks:
-            # Cancel the long press task if it hasn't completed
-            press_tasks[key].cancel()
-            del press_tasks[key]
-
-        if key not in press_start_times:
-            return
-
-        # If still in press_start_times, it was a short press
         press_duration = time.time() - press_start_times.pop(key)
-
-        # Update the key image back to unpressed state
+        console.log(f"Key {key} released after {press_duration:.2f}s")
         update_key_image(
             deck,
             key=key,
@@ -2358,23 +2336,24 @@ def _on_press_callback(
             complete_state=complete_state,
             key_pressed=False,
         )
-
-        console.log(f"Key {key} released after {press_duration:.2f}s")
+        cb = ft.partial(
+            _try_handle_key_press,
+            websocket=websocket,
+            complete_state=complete_state,
+            config=config,
+            button=button,
+            deck=deck,
+            is_long_press=False,
+        )
         if press_duration < config.long_press_duration:
             console.log(f"Handling short press for key {key}")
-            cb = ft.partial(
-                _try_handle_key_press,
-                websocket=websocket,
-                complete_state=complete_state,
-                config=config,
-                button=button,
-                deck=deck,
-                is_long_press=False,
-            )
             if button.maybe_start_or_cancel_timer(cb):
                 console.log(f"Timer started for key {key}, delaying short press")
             else:
                 await cb()
+        else:
+            console.log(f"Handling long press for key {key}")
+            await cb(is_long_press=True)
 
     return key_change_callback
 
@@ -2401,45 +2380,6 @@ async def _try_handle_key_press(
         console.print_exception(show_locals=True)
         which = "long" if is_long_press else "short"
         console.log(f"Error in {which} press handling: {e}")
-        raise
-
-
-async def _monitor_long_press(
-    key: int,
-    press_start_times: dict[int, float],
-    websocket: websockets.WebSocketClientProtocol,
-    complete_state: StateDict,
-    config: Config,
-    button: Button,
-    deck: StreamDeck,
-) -> None:
-    try:
-        await asyncio.sleep(config.long_press_duration)
-        if key not in press_start_times:
-            return
-        # Button still pressed
-        console.log(f"Key {key} long press detected after {config.long_press_duration}s")
-        await _try_handle_key_press(
-            websocket,
-            complete_state,
-            config,
-            button,
-            deck,
-            is_long_press=True,
-        )
-        # Update key image to unpressed state after long press
-        update_key_image(
-            deck,
-            key=key,
-            config=config,
-            complete_state=complete_state,
-            key_pressed=False,
-        )
-        del press_start_times[key]
-    except asyncio.CancelledError:
-        console.log(f"Long press monitor for key {key} was canceled")
-    except Exception as e:
-        console.log(f"Unexpected error in long press monitor for key {key}: {e}")
         raise
 
 

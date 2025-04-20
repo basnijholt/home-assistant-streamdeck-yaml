@@ -910,7 +910,7 @@ class Config(BaseModel):
         " be reloaded when it is modified.",
     )
     long_press_duration: float = Field(
-        default=0.5,
+        default=1.0,
         description="The duration (in seconds) for a long press.",
     )
     _current_page_index: int = PrivateAttr(default=0)

@@ -1165,7 +1165,8 @@ async def test_long_press(
     await press_and_release(0, short_press_time)
     assert config.current_page() == home
     await press_and_release(1, long_press_time)
-    assert config.current_page() == home  # shouldn't do anything as no long action is configured
+    # uses `short` action because no long action is configured
+    assert config.current_page() == short
 
 
 async def test_anonymous_page(

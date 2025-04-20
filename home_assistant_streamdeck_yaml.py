@@ -2234,19 +2234,13 @@ async def _handle_key_press(  # noqa: PLR0912, PLR0915
         update_all_key_images(deck, config, complete_state)
         update_all_dials(deck, config, complete_state)
 
-    if is_long_press:
-        if button.long_press:
-            entity_id = button.long_press.get("entity_id", button.entity_id)
-            service = button.long_press.get("service")
-            service_data = button.long_press.get("service_data")
-            target = button.long_press.get("target", button.target)
-            special_type = button.long_press.get("special_type")
-            special_type_data = button.long_press.get("special_type_data")
-        else:
-            console.log(
-                f"Long press detected, but no long press action defined for {button.entity_id}",
-            )
-            return
+    if is_long_press and button.long_press:
+        entity_id = button.long_press.get("entity_id", button.entity_id)
+        service = button.long_press.get("service")
+        service_data = button.long_press.get("service_data")
+        target = button.long_press.get("target", button.target)
+        special_type = button.long_press.get("special_type")
+        special_type_data = button.long_press.get("special_type_data")
     else:
         entity_id = button.entity_id
         service = button.service

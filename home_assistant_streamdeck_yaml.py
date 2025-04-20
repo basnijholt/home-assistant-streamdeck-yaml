@@ -2319,9 +2319,7 @@ def _on_press_callback(
         console.log(f"Key {key} {'pressed' if key_pressed else 'released'}")
 
         button = config.button(key)
-        if button is None:
-            console.log(f"No button found for key {key}")
-            return
+        assert button is not None
 
         if key_pressed:
             press_start_times[key] = time.time()

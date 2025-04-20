@@ -2371,61 +2371,60 @@ def _on_press_callback(
                 deck=deck,
             )
             press_tasks[key] = asyncio.create_task(coro)
+            return
 
-        else:  # Key released
-            if key in press_tasks:
-                # Cancel the long press task if it hasn't completed
-                press_tasks[key].cancel()
-                del press_tasks[key]
+        # Key released
+        if key in press_tasks:
+            # Cancel the long press task if it hasn't completed
+            press_tasks[key].cancel()
+            del press_tasks[key]
 
-            if key in press_start_times:
-                # If still in press_start_times, it was a short press
-                press_duration = time.time() - press_start_times[key]
-                del press_start_times[key]
+        if key in press_start_times:
+            # If still in press_start_times, it was a short press
+            press_duration = time.time() - press_start_times[key]
+            del press_start_times[key]
 
-                # Update the key image back to unpressed state
-                update_key_image(
-                    deck,
-                    key=key,
-                    config=config,
-                    complete_state=complete_state,
-                    key_pressed=False,
-                )
+            # Update the key image back to unpressed state
+            update_key_image(
+                deck,
+                key=key,
+                config=config,
+                complete_state=complete_state,
+                key_pressed=False,
+            )
 
-                console.log(f"Key {key} released after {press_duration:.2f}s")
-                if press_duration < long_press_threshold:
-                    console.log(f"Handling short press for key {key}")
+            console.log(f"Key {key} released after {press_duration:.2f}s")
+            if press_duration < long_press_threshold:
+                console.log(f"Handling short press for key {key}")
 
-                    async def cb() -> None:
-                        """Update the deck once more after the timer is over."""
-                        assert button is not None  # for mypy
-                        try:
-                            await _handle_key_press(
-                                websocket,
-                                complete_state,
-                                config,
-                                button,
-                                deck,
-                                is_long_press=False,
-                            )
-                        except Exception as e:
-                            console.log(f"Error in short press handling: {e}")
-                            raise
-
-                    if button.maybe_start_or_cancel_timer(cb):
-                        console.log(
-                            f"Timer started for key {key}, delaying short press",
+                async def cb() -> None:
+                    """Update the deck once more after the timer is over."""
+                    assert button is not None  # for mypy
+                    try:
+                        await _handle_key_press(
+                            websocket,
+                            complete_state,
+                            config,
+                            button,
+                            deck,
+                            is_long_press=False,
                         )
-                        return
+                    except Exception as e:
+                        console.log(f"Error in short press handling: {e}")
+                        raise
 
-                    await _handle_key_press(
-                        websocket,
-                        complete_state,
-                        config,
-                        button,
-                        deck,
-                        is_long_press=False,
-                    )
+                if button.maybe_start_or_cancel_timer(cb):
+                    console.log(f"Timer started for key {key}, delaying short press")
+                    return
+
+                await _handle_key_press(
+                    websocket,
+                    complete_state,
+                    config,
+                    button,
+                    deck,
+                    is_long_press=False,
+                )
 
     return key_change_callback
 

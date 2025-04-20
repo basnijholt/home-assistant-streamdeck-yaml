@@ -434,32 +434,22 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         """Validate the special_type_data."""
         special_type = values["special_type"]
         if special_type == "go-to-page" and not isinstance(v, (int, str)):
-            msg = (
-                "If special_type is go-to-page, special_type_data must be an int or str"
-            )
+            msg = "If special_type is go-to-page, special_type_data must be an int or str"
             raise AssertionError(msg)
-        if (
-            special_type in {"next-page", "previous-page", "empty", "turn-off"}
-            and v is not None
-        ):
+        if special_type in {"next-page", "previous-page", "empty", "turn-off"} and v is not None:
             msg = f"special_type_data needs to be empty with {special_type=}"
             raise AssertionError(msg)
         if special_type == "light-control":
             if v is None:
                 v = {}
             if not isinstance(v, dict):
-                msg = (
-                    "With 'light-control', 'special_type_data' must"
-                    f" be a dict, not '{v}'"
-                )
+                msg = f"With 'light-control', 'special_type_data' must be a dict, not '{v}'"
                 raise AssertionError(msg)
             # Can only have the following keys: colors and colormap
             allowed_keys = {"colors", "colormap", "color_temp_kelvin"}
             invalid_keys = v.keys() - allowed_keys
             if invalid_keys:
-                msg = (
-                    f"Invalid keys in 'special_type_data', only {allowed_keys} allowed"
-                )
+                msg = f"Invalid keys in 'special_type_data', only {allowed_keys} allowed"
                 raise AssertionError(msg)
             # If colors is present, it must be a list of strings
             if "colors" in v:
@@ -652,10 +642,7 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             text_color = dial.text_color or "white"
 
             assert dial.entity_id is not None
-            if (
-                complete_state[dial.entity_id]["state"] == "off"
-                and dial.icon_gray_when_off
-            ):
+            if complete_state[dial.entity_id]["state"] == "off" and dial.icon_gray_when_off:
                 icon_convert_to_grayscale = True
 
             if image is None:
@@ -1324,10 +1311,7 @@ def _light_page(
     buttons_back = [Button(special_type="close-page")]
     return Page(
         name="Lights",
-        buttons=buttons_colors
-        + buttons_color_temp_kelvin
-        + buttons_brightness
-        + buttons_back,
+        buttons=buttons_colors + buttons_color_temp_kelvin + buttons_brightness + buttons_back,
     )
 
 
@@ -1403,9 +1387,7 @@ async def handle_changes(
         last_modified_time = edit_time(config._configuration_file)
         while True:
             files = [config._configuration_file, *config._include_files]
-            if config.auto_reload and any(
-                edit_time(fn) > last_modified_time for fn in files
-            ):
+            if config.auto_reload and any(edit_time(fn) > last_modified_time for fn in files):
                 console.log("Configuration file has been modified, reloading")
                 last_modified_time = max(edit_time(fn) for fn in files)
                 try:
@@ -1977,9 +1959,7 @@ async def _sync_input_boolean(
     state: Literal["on", "off"],
 ) -> None:
     """Sync the input boolean state with the Stream Deck."""
-    if (state_entity_id is not None) and (
-        state_entity_id.split(".")[0] == "input_boolean"
-    ):
+    if (state_entity_id is not None) and (state_entity_id.split(".")[0] == "input_boolean"):
         await call_service(
             websocket,
             f"input_boolean.turn_{state}",
@@ -2017,17 +1997,13 @@ def _on_touchscreen_event_callback(
         else:
             # Short touch: Sets dial value to minimal value
             # Long touch: Sets dial to maximal value
-            lcd_icon_size = (
-                deck.touchscreen_image_format()["size"][0] / deck.dial_count()
-            )
+            lcd_icon_size = deck.touchscreen_image_format()["size"][0] / deck.dial_count()
             icon_pos = value["x"] // lcd_icon_size
             dials = config.dial_sorted(int(icon_pos))
             assert dials is not None
 
             selected_dial = (
-                dials[0]
-                if dials[0].dial_event_type == DialEventType.TURN.name
-                else dials[1]
+                dials[0] if dials[0].dial_event_type == DialEventType.TURN.name else dials[1]
             )
             assert selected_dial is not None
 
@@ -2414,9 +2390,7 @@ def _convert_svg_to_png(
     )
 
     image = (
-        Image.open(io.BytesIO(png_content))
-        if png_content
-        else Image.new("RGBA", size, fill_color)
+        Image.open(io.BytesIO(png_content)) if png_content else Image.new("RGBA", size, fill_color)
     )
 
     im = ImageOps.expand(image, border=(margin, margin), fill="black")
@@ -2568,9 +2542,7 @@ def safe_load_yaml(
 
         def __init__(self, stream: Any) -> None:
             """Initialize IncludeLoader."""
-            self._root = (
-                Path(stream.name).parent if hasattr(stream, "name") else Path.cwd()
-            )
+            self._root = Path(stream.name).parent if hasattr(stream, "name") else Path.cwd()
             super().__init__(stream)
 
     def _include(loader: IncludeLoader, node: yaml.nodes.Node) -> Any:

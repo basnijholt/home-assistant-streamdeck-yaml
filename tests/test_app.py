@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools as ft
 import json
 import sys
 import textwrap
@@ -1149,12 +1150,12 @@ async def test_long_press(
     config = Config(pages=[home, short, long], long_press_duration=long_press_threshold)
     assert config._current_page_index == 0
     assert config.current_page() == home
-    press = _on_press_callback(websocket_mock, state, config)
+    press = ft.partial(_on_press_callback(websocket_mock, state, config), mock_deck)
 
     async def press_and_release(key: int, seconds: float) -> None:
-        await press(mock_deck, key, True)  # noqa: FBT003
+        await press(key, True)  # noqa: FBT003
         await asyncio.sleep(seconds)
-        await press(mock_deck, key, False)  # noqa: FBT003
+        await press(key, False)  # noqa: FBT003
 
     await press_and_release(0, short_press_time)
     assert config.current_page() == short
@@ -1170,7 +1171,7 @@ async def test_long_press(
 
     config.load_page_as_detached(home)
     assert config.current_page() == home
-    await press(mock_deck, 0, True)  # noqa: FBT003
+    await press(0, True)  # noqa: FBT003
     await asyncio.sleep(long_press_time)
     assert (
         config.current_page() == long
@@ -1178,7 +1179,7 @@ async def test_long_press(
 
     # should not register any action on release since long press
     # duration was reached and long press action was triggered
-    await press(mock_deck, 0, False)  # noqa: FBT003
+    await press(0, False)  # noqa: FBT003
     assert config.current_page() == long
 
 

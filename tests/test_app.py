@@ -1169,6 +1169,7 @@ async def test_long_press(
     # uses `short` action because no long action is configured
     assert config.current_page() == short
 
+    # Test that long press action happens when long press duration is reached without requiring a release
     config.load_page_as_detached(home)
     assert config.current_page() == home
     await press(0, True)  # noqa: FBT003

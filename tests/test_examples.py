@@ -1269,9 +1269,9 @@ def test_button(button_dct: dict[str, Any]) -> None:
         expected = result.dict()
         for key, expected_value in expected.items():
             actual_value = actual[key]
-            assert (
-                actual_value == expected_value
-            ), f'{i=}, {button_dct["description"]}, {key=}, {actual_value=}, {expected_value=}'
+            assert actual_value == expected_value, (
+                f"{i=}, {button_dct['description']}, {key=}, {actual_value=}, {expected_value=}"
+            )
 
         assert button_template == result, button_dct["description"]
 

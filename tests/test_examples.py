@@ -7,7 +7,9 @@ from typing import Any
 import pytest
 from jinja2 import Environment
 
-from home_assistant_streamdeck_yaml import Button, IconWarning
+from home_assistant_streamdeck_yaml import Button, ConnectionState, IconWarning
+
+connection_state = ConnectionState(deck_key_count=15)
 
 activate_a_scene = {
     "description": "🎭 Activate a scene",
@@ -1260,7 +1262,7 @@ def test_button(button_dct: dict[str, Any]) -> None:
         # Test rendering the icon
         with warnings.catch_warnings():
             warnings.simplefilter("error", IconWarning)
-            icon = button.render_icon(state)
+            icon = button.render_icon(state, connection_state)
         assert icon is not None
         button_template = button.rendered_template_button(state)  # type: ignore[arg-type]
         actual = button_template.dict()

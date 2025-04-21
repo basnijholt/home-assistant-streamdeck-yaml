@@ -77,6 +77,146 @@ console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
 
 
+# Default values for ConnectionState fields
+DEFAULT_TEST_HOST: str = "8.8.8.8"
+DEFAULT_TEST_PORT: int = 53
+DEFAULT_TEST_TIMEOUT: int = 3
+DEFAULT_OPEN_CONNECTION_PAGE_WHEN_DISCONNECTED: bool = True
+DEFAULT_CLOSE_CONNECTION_PAGE_WHEN_RECONNECTED: bool = True
+DEFAULT_CONNECTION_PAGE_NAME: str = "Connection-auto"
+
+
+class ConnectionState(BaseModel, extra="forbid"):  # type: ignore[call-arg]
+    """Helps keeping track of connection state."""
+
+    connection_test_host: str = Field(
+        default=DEFAULT_TEST_HOST,
+        description="The host to test the connection to.",
+    )
+    connection_test_port: int = Field(
+        default=DEFAULT_TEST_PORT,
+        description="The port to test the connection to.",
+    )
+    connection_test_timeout: int = Field(
+        default=DEFAULT_TEST_TIMEOUT,
+        description="The timeout for the connection test.",
+    )
+    open_connection_page_when_disconnected: bool = Field(
+        default=DEFAULT_OPEN_CONNECTION_PAGE_WHEN_DISCONNECTED,
+        description="Whether to load the connection page when disconnected.",
+    )
+    close_connection_page_when_reconnected: bool = Field(
+        default=DEFAULT_CLOSE_CONNECTION_PAGE_WHEN_RECONNECTED,
+        description="Whether to close the connection page when reconnected.",
+    )
+    connection_page_name: str = Field(
+        default=DEFAULT_CONNECTION_PAGE_NAME,
+        description="The name of the connection page.",
+    )
+
+    _is_ha_connected: bool = PrivateAttr(default=False)
+    _is_network_connected: bool = PrivateAttr(default=False)
+    _connection_page: Page = PrivateAttr()
+
+    def __init__(
+        self,
+        deck_key_count: int,
+        *,
+        connection_test_host: str = DEFAULT_TEST_HOST,
+        connection_test_port: int = DEFAULT_TEST_PORT,
+        connection_test_timeout: int = DEFAULT_TEST_TIMEOUT,
+        open_connection_page_when_disconnected: bool = DEFAULT_OPEN_CONNECTION_PAGE_WHEN_DISCONNECTED,
+        close_connection_page_when_reconnected: bool = DEFAULT_CLOSE_CONNECTION_PAGE_WHEN_RECONNECTED,
+        connection_page_name: str = DEFAULT_CONNECTION_PAGE_NAME,
+    ) -> None:
+        """Initialize the connection state.
+
+        Args:
+            deck_key_count: Number of keys on the deck, used to create the connection page.
+            connection_test_host: Host to test network connectivity.
+            connection_test_port: Port to test network connectivity.
+            connection_test_timeout: Timeout for network test in seconds.
+            open_connection_page_when_disconnected: Whether to load the connection page when disconnected.
+            close_connection_page_when_reconnected: Whether to close the connection page when reconnected.
+            connection_page_name: Name of the connection page.
+
+        """
+        super().__init__(
+            connection_test_host=connection_test_host,
+            connection_test_port=connection_test_port,
+            connection_test_timeout=connection_test_timeout,
+            open_connection_page_when_disconnected=open_connection_page_when_disconnected,
+            close_connection_page_when_reconnected=close_connection_page_when_reconnected,
+            connection_page_name=connection_page_name,
+        )
+        object.__setattr__(
+            self,
+            "_connection_page",
+            Page.connection_page(deck_key_count),
+        )
+
+    async def test_network_connected(self) -> bool:
+        """Check if the network is available by trying to connect to a host."""
+        try:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(
+                    self.connection_test_host,
+                    self.connection_test_port,
+                ),
+                self.connection_test_timeout,
+            )
+        except (OSError, asyncio.TimeoutError):
+            return False
+        else:
+            writer.close()
+            await writer.wait_closed()
+            return True
+
+    def is_ha_connected(self) -> bool:
+        """Return True if Home Assistant is connected."""
+        return self._is_ha_connected
+
+    def is_network_connected(self) -> bool:
+        """Return True if the network is connected."""
+        return self._is_network_connected
+
+    async def update_is_network_connected(self) -> bool:
+        """Return True if the network is connected."""
+        if self._is_ha_connected:
+            return True
+        self._is_network_connected = await self.test_network_connected()
+        return self._is_network_connected
+
+    def load_connection_page(self, config: Config) -> None:
+        """Load the connection page."""
+        config.load_page_as_detached(self._connection_page)
+
+    def close_connection_page(self, config: Config) -> None:
+        """Close the connection page."""
+        if config.current_page() == self._connection_page:
+            config.close_page()
+
+    def set_connected_to_ha_and_maybe_close_connection_page(
+        self,
+        config: Config,
+    ) -> None:
+        """Set the connected state for Home Assistant."""
+        self._is_ha_connected = True
+        self._is_network_connected = True
+        if self.close_connection_page_when_reconnected:
+            self.close_connection_page(config)
+
+    async def set_disconnected_from_ha_and_maybe_open_connection_page(
+        self,
+        config: Config,
+    ) -> None:
+        """Set the disconnected state for Home Assistant."""
+        self._is_ha_connected = False
+        await self.update_is_network_connected()
+        if self.open_connection_page_when_disconnected:
+            self.load_connection_page(config)
+
+
 class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     """Parent of Button and Dial."""
 
@@ -235,6 +375,8 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             "turn-off",
             "light-control",
             "reload",
+            "network-status",
+            "ha-status",
         ]
         | None
     ) = Field(
@@ -251,7 +393,9 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " (either an `int` or `str` (name of the page))."
         " If `light-control`, the button will control a light, and the `special_type_data`"
         " can be a dictionary, see its description."
-        " If `reload`, the button will reload the configuration file when pressed.",
+        " If `reload`, the button will reload the configuration file when pressed."
+        " If `network-status`, but button will show the connection status to the network"
+        " If `ha-status`, the button will show the status of Home Assistant.",
     )
     special_type_data: Any | None = Field(
         default=None,
@@ -304,6 +448,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
     def try_render_icon(
         self,
         complete_state: StateDict,
+        connection_state: ConnectionState,
         *,
         key_pressed: bool = False,
         size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
@@ -314,6 +459,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         try:
             return self.render_icon(
                 complete_state,
+                connection_state,
                 key_pressed=key_pressed,
                 size=size,
                 icon_mdi_margin=icon_mdi_margin,
@@ -331,6 +477,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
     def render_icon(  # noqa: PLR0912 PLR0915 C901
         self,
         complete_state: StateDict,
+        connection_state: ConnectionState,
         *,
         key_pressed: bool = False,
         size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
@@ -377,6 +524,14 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         elif button.special_type == "close-page":
             text = button.text or "Close\nPage"
             icon_mdi = button.icon_mdi or "arrow-u-left-bottom-bold"
+        elif button.special_type == "network-status":
+            connected = connection_state.is_network_connected()
+            text = "Network\n" + ("OK" if connected else "ERROR")
+            text_color = "green" if connected else "red"
+        elif button.special_type == "ha-status":
+            connected = connection_state.is_ha_connected()
+            text = "Home\nAssistant\n" + ("OK" if connected else "ERROR")
+            text_color = "green" if connected else "red"
         elif button.special_type == "turn-off":
             text = button.text or "Turn off"
             icon_mdi = button.icon_mdi or "power"
@@ -802,6 +957,22 @@ class Page(BaseModel):
                 return i
         return None
 
+    @staticmethod
+    def connection_page(deck_key_count: int) -> Page:
+        """Returns a page showing connection to network and homeassistant."""
+        connection_buttons = [
+            Button(special_type="network-status"),
+            Button(special_type="ha-status", text_offset=-7),
+        ]
+        close_button = [Button(special_type="close-page")]
+        n_assigned_buttons = len(connection_buttons) + len(close_button)
+        empty_buttons = [Button(special_type="empty")] * (deck_key_count - n_assigned_buttons)
+        buttons = connection_buttons + empty_buttons + close_button
+        return Page(
+            name="Connection-auto",
+            buttons=buttons,
+        )
+
     @classmethod
     def to_pandas_table(cls: type[Page]) -> pd.DataFrame:
         """Return a pandas DataFrame with the schema."""
@@ -904,6 +1075,7 @@ class Config(BaseModel):
         self,
         deck: StreamDeck,
         complete_state: dict[str, dict[str, Any]],
+        connection_state: ConnectionState,
     ) -> None:
         """Update all timers."""
         for key in range(deck.key_count()):
@@ -915,6 +1087,7 @@ class Config(BaseModel):
                     key=key,
                     config=self,
                     complete_state=complete_state,
+                    connection_state=connection_state,
                     key_pressed=False,
                 )
 
@@ -1358,6 +1531,7 @@ async def subscribe_state_changes(
 async def handle_changes(
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
+    connection_state: ConnectionState,
     deck: StreamDeck,
     config: Config,
 ) -> None:
@@ -1367,13 +1541,13 @@ async def handle_changes(
         """Process websocket messages."""
         while True:
             data = json.loads(await websocket.recv())
-            _update_state(complete_state, data, config, deck)
+            _update_state(complete_state, connection_state, data, config, deck)
 
     async def call_update_timers() -> None:
         """Call config.update_timers every second."""
         while True:
             await asyncio.sleep(1)
-            config.update_timers(deck, complete_state)
+            config.update_timers(deck, complete_state, connection_state)
 
     async def watch_configuration_file() -> None:
         """Watch for changes to the configuration file and reload config when it changes."""
@@ -1393,7 +1567,12 @@ async def handle_changes(
                 try:
                     config.reload()
                     deck.reset()
-                    update_all_key_images(deck, config, complete_state)
+                    update_all_key_images(
+                        deck,
+                        config,
+                        complete_state,
+                        connection_state,
+                    )
                     update_all_dials(deck, config, complete_state)
                 except Exception as e:  # noqa: BLE001
                     console.log(f"Error reloading configuration: {e}")
@@ -1420,6 +1599,7 @@ def _keys(entity_id: str, buttons: list[Button] | list[Dial]) -> list[int]:
 
 def _update_state(
     complete_state: StateDict,
+    connection_state: ConnectionState,
     data: dict[str, Any],
     config: Config,
     deck: StreamDeck,
@@ -1438,7 +1618,7 @@ def _update_state(
             if eid == config.state_entity_id:
                 is_on = complete_state[config.state_entity_id]["state"] == "on"
                 if is_on:
-                    turn_on(config, deck, complete_state)
+                    turn_on(config, deck, complete_state, connection_state)
                 else:
                     turn_off(config, deck)
                 return
@@ -1462,6 +1642,7 @@ def _update_state(
                     key=key,
                     config=config,
                     complete_state=complete_state,
+                    connection_state=connection_state,
                     key_pressed=False,
                 )
 
@@ -1885,6 +2066,7 @@ def update_key_image(
     key: int,
     config: Config,
     complete_state: StateDict,
+    connection_state: ConnectionState,
     key_pressed: bool = False,
 ) -> None:
     """Update the image for a key."""
@@ -1902,6 +2084,7 @@ def update_key_image(
     size = deck.key_image_format()["size"]
     image = button.try_render_icon(
         complete_state=complete_state,
+        connection_state=connection_state,
         key_pressed=key_pressed,
         size=size,
     )
@@ -1929,13 +2112,18 @@ def get_deck() -> StreamDeck:
     return deck
 
 
-def turn_on(config: Config, deck: StreamDeck, complete_state: StateDict) -> None:
+def turn_on(
+    config: Config,
+    deck: StreamDeck,
+    complete_state: StateDict,
+    connection_state: ConnectionState,
+) -> None:
     """Turn on the Stream Deck and update all key images."""
     console.log(f"Calling turn_on, with {config._is_on=}")
     if config._is_on:
         return
     config._is_on = True
-    update_all_key_images(deck, config, complete_state)
+    update_all_key_images(deck, config, complete_state, connection_state)
     update_all_dials(deck, config, complete_state)
     deck.set_brightness(config.brightness)
 
@@ -1971,6 +2159,7 @@ async def _sync_input_boolean(
 def _on_touchscreen_event_callback(
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
+    connection_state: ConnectionState,
     config: Config,
 ) -> Callable[
     [StreamDeck, TouchscreenEventType, dict[str, int]],
@@ -1992,7 +2181,7 @@ def _on_touchscreen_event_callback(
                 console.log(f"Going to page {config.next_page_index}")
                 config.to_page(config.previous_page_index)
             config.current_page().sort_dials()
-            update_all_key_images(deck, config, complete_state)
+            update_all_key_images(deck, config, complete_state, connection_state)
             update_all_dials(deck, config, complete_state)
         else:
             # Short touch: Sets dial value to minimal value
@@ -2016,6 +2205,7 @@ def _on_touchscreen_event_callback(
                 await handle_dial_event(
                     websocket,
                     complete_state,
+                    connection_state,
                     config,
                     dials,
                     deck,
@@ -2030,6 +2220,7 @@ def _on_touchscreen_event_callback(
 async def handle_dial_event(
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
+    connection_state: ConnectionState,
     config: Config,
     dial: tuple[Dial, Dial | None],
     deck: StreamDeck,
@@ -2039,7 +2230,7 @@ async def handle_dial_event(
 ) -> None:
     """Handles dial_event."""
     if not config._is_on:
-        turn_on(config, deck, complete_state)
+        turn_on(config, deck, complete_state, connection_state)
         await _sync_input_boolean(config.state_entity_id, websocket, "on")
         return
 
@@ -2074,7 +2265,7 @@ async def handle_dial_event(
     assert selected_dial.service is not None
     if local_update:
         assert isinstance(dial_num_sorted, int)
-        update_dial(deck, dial_num_sorted, config, complete_state)
+        update_dial(deck, dial_num_sorted, config, complete_state, connection_state)
         return
     console.log(
         f"Calling service {selected_dial.service} with data {selected_dial.service_data}",
@@ -2090,6 +2281,7 @@ async def handle_dial_event(
 def _on_dial_event_callback(
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
+    connection_state: ConnectionState,
     config: Config,
 ) -> Callable[
     [StreamDeck, int, DialEventType, int],
@@ -2111,6 +2303,7 @@ def _on_dial_event_callback(
             await handle_dial_event(
                 websocket,
                 complete_state,
+                connection_state,
                 config,
                 dial,
                 deck,
@@ -2126,6 +2319,7 @@ def _on_dial_event_callback(
             await handle_dial_event(
                 websocket,
                 complete_state,
+                connection_state,
                 config,
                 dial,
                 deck,
@@ -2138,6 +2332,7 @@ def _on_dial_event_callback(
         await handle_dial_event(
             websocket,
             complete_state,
+            connection_state,
             config,
             dial,
             deck,
@@ -2148,22 +2343,33 @@ def _on_dial_event_callback(
     return dial_event_callback
 
 
+def update_all_visuals(
+    deck: StreamDeck,
+    config: Config,
+    complete_state: StateDict,
+    connection_state: ConnectionState,
+) -> None:
+    """Update all visuals to make sure what the deck displays is up to date."""
+    config.current_page().sort_dials()
+    update_all_key_images(deck, config, complete_state, connection_state)
+    update_all_dials(deck, config, complete_state)
+
+
 async def _handle_key_press(  # noqa: PLR0912
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
+    connection_state: ConnectionState,
     config: Config,
     button: Button,
     deck: StreamDeck,
 ) -> None:
     if not config._is_on:
-        turn_on(config, deck, complete_state)
+        turn_on(config, deck, complete_state, connection_state)
         await _sync_input_boolean(config.state_entity_id, websocket, "on")
         return
 
     def update_all() -> None:
-        config.current_page().sort_dials()
-        update_all_key_images(deck, config, complete_state)
-        update_all_dials(deck, config, complete_state)
+        update_all_visuals(deck, config, complete_state, connection_state)
 
     if button.special_type == "next-page":
         config.next_page()
@@ -2218,6 +2424,7 @@ async def _handle_key_press(  # noqa: PLR0912
 def _on_press_callback(
     websocket: websockets.WebSocketClientProtocol,
     complete_state: StateDict,
+    connection_state: ConnectionState,
     config: Config,
 ) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:
     async def key_change_callback(
@@ -2234,7 +2441,14 @@ def _on_press_callback(
             async def cb() -> None:
                 """Update the deck once more after the timer is over."""
                 assert button is not None  # for mypy
-                await _handle_key_press(websocket, complete_state, config, button, deck)
+                await _handle_key_press(
+                    websocket,
+                    complete_state,
+                    connection_state,
+                    config,
+                    button,
+                    deck,
+                )
 
             if button.maybe_start_or_cancel_timer(cb):
                 key_pressed = False  # do not click now
@@ -2245,10 +2459,18 @@ def _on_press_callback(
                 key=key,
                 config=config,
                 complete_state=complete_state,
+                connection_state=connection_state,
                 key_pressed=key_pressed,
             )
             if key_pressed:
-                await _handle_key_press(websocket, complete_state, config, button, deck)
+                await _handle_key_press(
+                    websocket,
+                    complete_state,
+                    connection_state,
+                    config,
+                    button,
+                    deck,
+                )
         except Exception as e:  # noqa: BLE001
             console.print_exception(show_locals=True)
             console.log(f"key_change_callback failed with a {type(e)}: {e}")
@@ -2456,6 +2678,7 @@ def update_all_key_images(
     deck: StreamDeck,
     config: Config,
     complete_state: StateDict,
+    connection_state: ConnectionState,
 ) -> None:
     """Update all key images."""
     console.log("Called update_all_key_images")
@@ -2465,8 +2688,61 @@ def update_all_key_images(
             key=key,
             config=config,
             complete_state=complete_state,
+            connection_state=connection_state,
             key_pressed=False,
         )
+
+
+async def _run_connection_session(
+    host: str,
+    token: str,
+    protocol: Literal["wss", "ws"],
+    config: Config,
+    deck: StreamDeck,
+    connection_state: ConnectionState,
+) -> None:
+    """Handles a single connection session with Home Assistant."""
+    async with setup_ws(host, token, protocol) as websocket:
+        try:
+            complete_state = await get_states(websocket)
+            connection_state.set_connected_to_ha_and_maybe_close_connection_page(config)
+            update_all_visuals(deck, config, complete_state, connection_state)
+
+            # Turn on state entity boolean on home assistant
+            await _sync_input_boolean(config.state_entity_id, websocket, "on")
+            deck.set_key_callback_async(
+                _on_press_callback(websocket, complete_state, connection_state, config),
+            )
+            if deck.dial_count() != 0:
+                deck.set_dial_callback_async(
+                    _on_dial_event_callback(
+                        websocket,
+                        complete_state,
+                        connection_state,
+                        config,
+                    ),
+                )
+            if deck.is_visual():
+                deck.set_touchscreen_callback_async(
+                    _on_touchscreen_event_callback(
+                        websocket,
+                        complete_state,
+                        connection_state,
+                        config,
+                    ),
+                )
+
+            await subscribe_state_changes(websocket)
+            await handle_changes(
+                websocket,
+                complete_state,
+                connection_state,
+                deck,
+                config,
+            )
+        finally:
+            console.log("Cleaning up connection session...")
+            await _sync_input_boolean(config.state_entity_id, websocket, "off")
 
 
 async def run(
@@ -2474,35 +2750,84 @@ async def run(
     token: str,
     protocol: Literal["wss", "ws"],
     config: Config,
+    retry_attempts: int = 0,
+    retry_delay: float = 0.0,
+    *,
+    connection_test_host: str = DEFAULT_TEST_HOST,
+    connection_test_port: int = DEFAULT_TEST_PORT,
+    connection_test_timeout: int = DEFAULT_TEST_TIMEOUT,
+    connection_page_name: str = DEFAULT_CONNECTION_PAGE_NAME,
+    open_connection_page_when_disconnected: bool = DEFAULT_OPEN_CONNECTION_PAGE_WHEN_DISCONNECTED,
+    close_connection_page_when_reconnected: bool = DEFAULT_CLOSE_CONNECTION_PAGE_WHEN_RECONNECTED,
 ) -> None:
-    """Main entry point for the Stream Deck integration."""
+    """Main entry point for the Stream Deck integration, with retry logic."""
     deck = get_deck()
-    async with setup_ws(host, token, protocol) as websocket:
-        try:
-            complete_state = await get_states(websocket)
+    deck.set_brightness(config.brightness)
+    attempt = 0
+    connection_state = ConnectionState(
+        deck_key_count=deck.key_count(),
+        open_connection_page_when_disconnected=open_connection_page_when_disconnected,
+        close_connection_page_when_reconnected=close_connection_page_when_reconnected,
+        connection_test_host=connection_test_host,
+        connection_test_port=connection_test_port,
+        connection_test_timeout=connection_test_timeout,
+        connection_page_name=connection_page_name,
+    )
 
-            deck.set_brightness(config.brightness)
-            # Turn on state entity boolean on home assistant
-            await _sync_input_boolean(config.state_entity_id, websocket, "on")
-            update_all_key_images(deck, config, complete_state)
-            deck.set_key_callback_async(
-                _on_press_callback(websocket, complete_state, config),
+    async def set_disconnected() -> None:
+        await connection_state.set_disconnected_from_ha_and_maybe_open_connection_page(
+            config,
+        )
+        update_all_visuals(
+            deck,
+            config,
+            complete_state={},
+            connection_state=connection_state,
+        )
+
+    while retry_attempts == math.inf or attempt <= retry_attempts:
+        try:
+            console.log(f"Attempting connection (attempt {attempt + 1})...")
+            await _run_connection_session(
+                host,
+                token,
+                protocol,
+                config,
+                deck,
+                connection_state,
             )
-            update_all_dials(deck, config, complete_state)
-            if deck.dial_count() != 0:
-                deck.set_dial_callback_async(
-                    _on_dial_event_callback(websocket, complete_state, config),
-                )
-            if deck.is_visual():
-                deck.set_touchscreen_callback_async(
-                    _on_touchscreen_event_callback(websocket, complete_state, config),
-                )
-            deck.set_brightness(config.brightness)
-            await subscribe_state_changes(websocket)
-            await handle_changes(websocket, complete_state, deck, config)
-        finally:
-            await _sync_input_boolean(config.state_entity_id, websocket, "off")
-            deck.reset()
+            console.log("Connection session ended cleanly.")
+            break
+
+        except (
+            websockets.exceptions.ConnectionClosed,
+            websockets.exceptions.InvalidURI,
+            websockets.exceptions.InvalidHandshake,
+            OSError,  # Catches socket errors etc.
+            asyncio.TimeoutError,  # If setup_ws implements timeouts
+            ConnectionRefusedError,
+        ) as e:
+            attempt += 1
+            console.log(
+                f"[WARNING] WebSocket connection failed: {type(e).__name__}: {e}",
+            )
+            await set_disconnected()
+            if retry_attempts != math.inf and attempt > retry_attempts:
+                console.log("[ERROR] Max retry attempts reached, giving up.")
+                break
+            console.log(
+                f"[INFO] Retrying in {retry_delay} seconds... (attempt {attempt + 1})",
+            )
+            await asyncio.sleep(retry_delay)
+        except Exception as e:  # noqa: BLE001
+            console.log(
+                f"[ERROR] An unexpected error occurred during connection/session: {type(e).__name__}: {e}",
+            )
+            console.print_exception(show_locals=True)
+            break  # Exit loop on unexpected errors
+
+    console.log("Exiting application. Resetting deck.")
+    deck.reset()
 
 
 def _rich_table_str(df: pd.DataFrame) -> str:
@@ -2602,6 +2927,16 @@ def main() -> None:
     system_encoding = locale.getpreferredencoding()
     yaml_encoding = os.getenv("YAML_ENCODING", system_encoding)
 
+    def parse_retry_attempts_arg(val: str) -> float:
+        if val is None:
+            return 0
+        if isinstance(val, str) and val.lower() == "inf":
+            return math.inf
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return 0
+
     parser = argparse.ArgumentParser(
         epilog=_help(),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -2624,18 +2959,83 @@ def main() -> None:
         default=os.environ.get("WEBSOCKET_PROTOCOL", "wss"),
         choices=["wss", "ws"],
     )
+    parser.add_argument(
+        "--connection-retry-attempts",
+        type=parse_retry_attempts_arg,
+        default=int(os.getenv("CONNECTION_RETRY_ATTEMPTS", "0")),
+        help="Maximum number of connection retry attempts ('inf' for infinite)",
+    )
+    parser.add_argument(
+        "--connection-retry-delay",
+        type=int,
+        default=float(os.getenv("CONNECTION_RETRY_DELAY", "0")),
+        help="Delay between connection retry attempts in seconds",
+    )
+    parser.add_argument(
+        "--connection-test-host",
+        default=os.environ.get("CONNECTION_TEST_HOST", DEFAULT_TEST_HOST),
+        help="The host to test the connection to",
+    )
+    parser.add_argument(
+        "--connection-test-port",
+        type=int,
+        default=int(os.getenv("CONNECTION_TEST_PORT", DEFAULT_TEST_PORT)),
+        help="The port to test the connection to",
+    )
+    parser.add_argument(
+        "--connection-test-timeout",
+        type=float,
+        default=float(os.getenv("CONNECTION_TEST_TIMEOUT", DEFAULT_TEST_TIMEOUT)),
+        help="The timeout for the connection test",
+    )
+    parser.add_argument(
+        "--connection-page-name",
+        default=os.environ.get("CONNECTION_PAGE_NAME", DEFAULT_CONNECTION_PAGE_NAME),
+        help="The name of the connection page",
+    )
+    parser.add_argument(
+        "--open-connection-page-when-disconnected",
+        type=str,
+        default=str(
+            os.getenv(
+                "OPEN_CONNECTION_PAGE_WHEN_DISCONNECTED",
+                str(DEFAULT_OPEN_CONNECTION_PAGE_WHEN_DISCONNECTED),
+            ),
+        ),
+        help="Open the connection page when disconnected from Home Assistant",
+    )
+    parser.add_argument(
+        "--close-connection-page-when-reconnected",
+        type=str,
+        default=str(
+            os.getenv(
+                "CLOSE_CONNECTION_PAGE_WHEN_RECONNECTED",
+                str(DEFAULT_CLOSE_CONNECTION_PAGE_WHEN_RECONNECTED),
+            ),
+        ),
+        help="Close the connection page when reconnected to Home Assistant",
+    )
     args = parser.parse_args()
     console.log(f"Using version {__version__} of the Home Assistant Stream Deck.")
     console.log(
         f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}",
     )
     config = Config.load(args.config, yaml_encoding=args.yaml_encoding)
+
     asyncio.run(
         run(
             host=args.host,
             token=args.token,
             protocol=args.protocol,
             config=config,
+            retry_attempts=args.connection_retry_attempts,
+            retry_delay=args.connection_retry_delay,
+            connection_test_host=args.connection_test_host,
+            connection_test_port=args.connection_test_port,
+            connection_test_timeout=args.connection_test_timeout,
+            connection_page_name=args.connection_page_name,
+            open_connection_page_when_disconnected=args.open_connection_page_when_disconnected,
+            close_connection_page_when_reconnected=args.close_connection_page_when_reconnected,
         ),
     )
 

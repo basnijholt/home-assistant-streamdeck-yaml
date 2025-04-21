@@ -1168,6 +1168,19 @@ async def test_long_press(
     # uses `short` action because no long action is configured
     assert config.current_page() == short
 
+    config.load_page_as_detached(home)
+    assert config.current_page() == home
+    await press(mock_deck, 0, True)  # noqa: FBT003
+    await asyncio.sleep(long_press_time)
+    assert (
+        config.current_page() == long
+    )  # This currently breaks to illustrate the issue of long press action not being triggered when reaching the duration and not having released the key.
+
+    # should not register any action on release since long press
+    # duration was reached and long press action was triggered
+    await press(mock_deck, 0, False)  # noqa: FBT003
+    assert config.current_page() == long
+
 
 async def test_anonymous_page(
     mock_deck: Mock,

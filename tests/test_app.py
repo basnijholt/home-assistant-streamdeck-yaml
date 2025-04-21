@@ -1179,7 +1179,7 @@ async def test_long_press(
     )  # This currently breaks to illustrate the issue of long press action not being triggered when reaching the duration and not having released the key.
 
     # should not register any action on release since long press
-    # duration was reached and long press action was triggered
+    # duration was reached and long press action was already triggered
     await press(0, False)  # noqa: FBT003
     assert config.current_page() == long
 

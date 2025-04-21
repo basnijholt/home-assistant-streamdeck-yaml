@@ -1150,12 +1150,18 @@ async def test_long_press(
     config = Config(pages=[home, short, long], long_press_duration=long_press_threshold)
     assert config._current_page_index == 0
     assert config.current_page() == home
-    press = ft.partial(_on_press_callback(websocket_mock, state, config), mock_deck)
+    press_event = ft.partial(_on_press_callback(websocket_mock, state, config), mock_deck)
+
+    async def press(key: int) -> None:
+        await press_event(key, True)  # noqa: FBT003
+
+    async def release(key: int) -> None:
+        await press_event(key, False)  # noqa: FBT003
 
     async def press_and_release(key: int, seconds: float) -> None:
-        await press(key, True)  # noqa: FBT003
+        await press(key)
         await asyncio.sleep(seconds)
-        await press(key, False)  # noqa: FBT003
+        await release(key)
 
     await press_and_release(0, short_press_time)
     assert config.current_page() == short
@@ -1172,7 +1178,7 @@ async def test_long_press(
     # Test that long press action happens when long press duration is reached without requiring a release
     config.load_page_as_detached(home)
     assert config.current_page() == home
-    await press(0, True)  # noqa: FBT003
+    await press(0)
     await asyncio.sleep(long_press_time)
     assert (
         config.current_page() == long
@@ -1180,7 +1186,7 @@ async def test_long_press(
 
     # should not register any action on release since long press
     # duration was reached and long press action was already triggered
-    await press(0, False)  # noqa: FBT003
+    await release(0)
     assert config.current_page() == long
 
 

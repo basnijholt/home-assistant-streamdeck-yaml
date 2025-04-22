@@ -966,6 +966,30 @@ async def test_button_with_target(
             {"switch.wifi_switch": {"state": "off"}},
             "wifi-off",
         ),
+        # Test is_number filter
+        (
+            """
+            {% if state_attr('sensor.temp1', 'temperature') | is_number %}
+            {{ state_attr('sensor.temp1', 'temperature') }}°C
+            {% else %}
+            {{ state_attr('sensor.temp1', 'temperature') }}
+            {% endif %}
+            """,
+            {"sensor.temp1": {"attributes": {"temperature": "unavailable"}}},
+            "unavailable",
+        ),
+        # Test is_number filter
+        (
+            """
+            {% if state_attr('sensor.temp1', 'temperature') | is_number %}
+            {{ state_attr('sensor.temp1', 'temperature') }}°C
+            {% else %}
+            {{ state_attr('sensor.temp1', 'temperature') }}
+            {% endif %}
+            """,
+            {"sensor.temp1": {"attributes": {"temperature": 3.2}}},
+            "3.2°C",
+        ),
     ],
 )
 def test_render_jinja2_from_examples_readme(

@@ -1581,6 +1581,22 @@ def _max_filter(value: float, other_value: float) -> float:
     return max(value, other_value)
 
 
+def _is_number_filter(value: Any | None) -> bool:
+    """Check if a value is a number (int, float, or string representation of a number)."""
+    if value is None:
+        return False
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return True
+    if isinstance(value, str):
+        try:
+            float(value)
+        except ValueError:
+            return False
+        else:
+            return True
+    return False
+
+
 def _round(num: float, digits: int) -> int | float:
     """Returns rounded value with number of digits."""
     return round(num, digits)
@@ -1630,6 +1646,7 @@ def _render_jinja(
         )
         env.filters["min"] = _min_filter
         env.filters["max"] = _max_filter
+        env.filters["is_number"] = _is_number_filter
         template = env.from_string(text)
         return template.render(
             min=min,

@@ -2611,19 +2611,6 @@ def main() -> None:
     system_encoding = locale.getpreferredencoding()
     yaml_encoding = os.getenv("YAML_ENCODING", system_encoding)
 
-    def str_to_bool(val: str | None) -> bool:
-        """Convert a string to a boolean, raising ValueError for invalid values."""
-        if val is None:
-            return False
-        val_lower = val.lower()
-        if val_lower in ("true", "1", "t", "y", "yes"):
-            return True
-        if val_lower in ("false", "0", "f", "n", "no"):
-            return False
-        msg = f"Invalid boolean string: {val}"
-        console.log(f"[b red]{msg}[/]")
-        raise ValueError(msg)
-
     parser = argparse.ArgumentParser(
         epilog=_help(),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -2647,11 +2634,12 @@ def main() -> None:
     )
     parser.add_argument(
         "--allow-weaker-ssl",
-        type=str_to_bool,
-        default=str_to_bool(os.getenv("ALLOW_WEAKER_SSL")),
-        help="Allow weaker SSL connections. True makes the connection less safe, but might be needed for underpowered devices.",
+        action="store_true",
+        help="Allow less secure SSL (security level 1) for compatibility with slower hardware (e.g., RPi Zero).",
     )
     args = parser.parse_args()
+    if os.getenv("ALLOW_WEAKER_SSL", "").lower().startswith(("y", "t", "1")):
+        args.allow_weaker_ssl = True
     console.log(f"Using version {__version__} of the Home Assistant Stream Deck.")
     console.log(
         f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}, {args.allow_weaker_ssl=}",

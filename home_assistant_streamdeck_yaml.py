@@ -12,6 +12,7 @@ import json
 import locale
 import math
 import re
+import ssl
 import time
 import warnings
 from contextlib import asynccontextmanager
@@ -231,6 +232,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             "previous-page",
             "empty",
             "go-to-page",
+            "close-page",
             "turn-off",
             "light-control",
             "reload",
@@ -245,6 +247,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " If `previous-page`, the button will go to the previous page."
         " If `turn-off`, the button will turn off the SteamDeck until any button is pressed."
         " If `empty`, the button will be empty."
+        " If `close-page`, the button will close the current page and return to the previous one."
         " If `go-to-page`, the button will go to the page specified by `special_type_data`"
         " (either an `int` or `str` (name of the page))."
         " If `light-control`, the button will control a light, and the `special_type_data`"
@@ -326,7 +329,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             )
             return _generate_failed_icon(size)
 
-    def render_icon(  # noqa: PLR0912 PLR0915
+    def render_icon(  # noqa: PLR0912 PLR0915 C901
         self,
         complete_state: StateDict,
         *,
@@ -372,6 +375,9 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             page = button.special_type_data
             text = button.text or f"Go to\nPage\n{page}"
             icon_mdi = button.icon_mdi or "book-open-page-variant"
+        elif button.special_type == "close-page":
+            text = button.text or "Close\nPage"
+            icon_mdi = button.icon_mdi or "arrow-u-left-bottom-bold"
         elif button.special_type == "turn-off":
             text = button.text or "Turn off"
             icon_mdi = button.icon_mdi or "power"
@@ -410,7 +416,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         if icon_convert_to_grayscale:
             image = _convert_to_grayscale(image)
 
-        _add_text(
+        return _add_text_to_image(
             image=image,
             font_filename=font_filename,
             text_size=self.text_size,
@@ -418,20 +424,13 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             text_color=text_color if not key_pressed else "green",
             text_offset=self.text_offset,
         )
-        return image
 
     @staticmethod
     def _validate_special_type_data(special_type: str, v: Any) -> Any:  # noqa: PLR0912
         if special_type == "go-to-page" and not isinstance(v, (int, str)):
-            msg = (
-                "If special_type is go-to-page, special_type_data must be an int or str"
-            )
+            msg = "If special_type is go-to-page, special_type_data must be an int or str"
             raise AssertionError(msg)
-
-        if (
-            special_type in {"next-page", "previous-page", "empty", "turn-off"}
-            and v is not None
-        ):
+        if special_type in {"next-page", "previous-page", "empty", "turn-off"} and v is not None:
             msg = f"special_type_data needs to be empty with {special_type=}"
             raise AssertionError(msg)
 
@@ -439,18 +438,13 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             if v is None:
                 v = {}
             if not isinstance(v, dict):
-                msg = (
-                    "With 'light-control', 'special_type_data' must"
-                    f" be a dict, not '{v}'"
-                )
+                msg = f"With 'light-control', 'special_type_data' must be a dict, not '{v}'"
                 raise AssertionError(msg)
 
             allowed_keys = {"colors", "colormap", "color_temp_kelvin"}
             invalid_keys = v.keys() - allowed_keys
             if invalid_keys:
-                msg = (
-                    f"Invalid keys in 'special_type_data', only {allowed_keys} allowed"
-                )
+                msg = f"Invalid keys in 'special_type_data', only {allowed_keys} allowed"
                 raise AssertionError(msg)
 
             # If colors is present, it must be a list of strings
@@ -656,10 +650,7 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             text_color = dial.text_color or "white"
 
             assert dial.entity_id is not None
-            if (
-                complete_state[dial.entity_id]["state"] == "off"
-                and dial.icon_gray_when_off
-            ):
+            if complete_state[dial.entity_id]["state"] == "off" and dial.icon_gray_when_off:
                 icon_convert_to_grayscale = True
 
             if image is None:
@@ -675,7 +666,7 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             if icon_convert_to_grayscale:
                 image = _convert_to_grayscale(image)
 
-            _add_text(
+            return _add_text_to_image(
                 image=image,
                 font_filename=font_filename,
                 text_size=self.text_size,
@@ -683,7 +674,6 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                 text_color=text_color,
                 text_offset=self.text_offset,
             )
-            return image  # noqa: TRY300
 
         except ValueError as e:
             console.log(e)
@@ -787,6 +777,8 @@ class Page(BaseModel):
         description="A list of dials on the page.",
     )
 
+    _parent_page_index: int = PrivateAttr([])
+
     _dials_sorted: list[Dial] = PrivateAttr([])
 
     def sort_dials(self) -> list[tuple[Dial, Dial | None]]:
@@ -862,6 +854,7 @@ class Config(BaseModel):
         " be reloaded when it is modified.",
     )
     _current_page_index: int = PrivateAttr(default=0)
+    _parent_page_index: int = PrivateAttr(default=0)
     _is_on: bool = PrivateAttr(default=True)
     _detached_page: Page | None = PrivateAttr(default=None)
     _configuration_file: Path | None = PrivateAttr(default=None)
@@ -934,6 +927,7 @@ class Config(BaseModel):
 
     def next_page(self) -> Page:
         """Go to the next page."""
+        self._parent_page_index = self._current_page_index
         self._current_page_index = self.next_page_index
         return self.pages[self._current_page_index]
 
@@ -949,6 +943,7 @@ class Config(BaseModel):
 
     def previous_page(self) -> Page:
         """Go to the previous page."""
+        self._parent_page_index = self._current_page_index
         self._current_page_index = self.previous_page_index
         return self.pages[self._current_page_index]
 
@@ -982,6 +977,7 @@ class Config(BaseModel):
     def to_page(self, page: int | str) -> Page:
         """Go to a page based on the page name or index."""
         if isinstance(page, int):
+            self._parent_page_index = self._current_page_index
             self._current_page_index = page
             return self.current_page()
 
@@ -995,6 +991,20 @@ class Config(BaseModel):
                 self._detached_page = p
                 return p
         console.log(f"Could find page {page}, staying on current page")
+        return self.current_page()
+
+    def load_page_as_detached(self, page: Page) -> None:
+        """Load a page as detached."""
+        self._detached_page = page
+
+    def close_detached_page(self) -> None:
+        """Close the detached page."""
+        self._detached_page = None
+
+    def close_page(self) -> Page:
+        """Close the current page."""
+        self._detached_page = None
+        self._current_page_index = self._parent_page_index
         return self.current_page()
 
 
@@ -1233,7 +1243,7 @@ def _generate_uniform_hex_colors(n_colors: int) -> tuple[str, ...]:
 
     def hsv_to_hex(hsv: tuple[float, float, float]) -> str:
         """Convert an HSV color tuple to a hex color string."""
-        rgb = tuple(int(round(x * 255)) for x in colorsys.hsv_to_rgb(*hsv))
+        rgb = tuple(round(x * 255) for x in colorsys.hsv_to_rgb(*hsv))
         return "#{:02x}{:02x}{:02x}".format(*rgb)
 
     hues = generate_hues(n_colors)
@@ -1305,9 +1315,10 @@ def _light_page(
             },
         )
         buttons_brightness.append(button)
+    buttons_back = [Button(special_type="close-page")]
     return Page(
         name="Lights",
-        buttons=buttons_colors + buttons_color_temp_kelvin + buttons_brightness,
+        buttons=buttons_colors + buttons_color_temp_kelvin + buttons_brightness + buttons_back,
     )
 
 
@@ -1316,13 +1327,19 @@ async def setup_ws(
     host: str,
     token: str,
     protocol: Literal["wss", "ws"],
-) -> websockets.WebSocketClientProtocol:
+    *,
+    allow_weaker_ssl: bool = False,
+) -> websockets.ClientConnection:
     """Set up the connection to Home Assistant."""
     uri = f"{protocol}://{host}/api/websocket"
+    connect_args: dict[str, Any] = {"max_size": 10485760}  # limit size to 10 MiB
+    if protocol == "wss":
+        ssl_context = ssl.create_default_context()
+        connect_args["ssl"] = ssl_context
+
     while True:
         try:
-            # limit size to 10 MiB
-            async with websockets.connect(uri, max_size=10485760) as websocket:
+            async with websockets.connect(uri, **connect_args) as websocket:
                 # Send an authentication message to Home Assistant
                 auth_payload = {"type": "auth", "access_token": token}
                 await websocket.send(json.dumps(auth_payload))
@@ -1336,11 +1353,14 @@ async def setup_ws(
             # Connection was reset, retrying in 3 seconds
             console.print_exception(show_locals=True)
             console.log("Connection was reset, retrying in 3 seconds")
+            if allow_weaker_ssl:
+                ssl_context.set_ciphers("DEFAULT@SECLEVEL=1")
+                console.log("Using weaker SSL settings")
             await asyncio.sleep(5)
 
 
 async def subscribe_state_changes(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
 ) -> None:
     """Subscribe to the state change events."""
     subscribe_payload = {
@@ -1352,7 +1372,7 @@ async def subscribe_state_changes(
 
 
 async def handle_changes(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     deck: StreamDeck,
     config: Config,
@@ -1383,9 +1403,7 @@ async def handle_changes(
         last_modified_time = edit_time(config._configuration_file)
         while True:
             files = [config._configuration_file, *config._include_files]
-            if config.auto_reload and any(
-                edit_time(fn) > last_modified_time for fn in files
-            ):
+            if config.auto_reload and any(edit_time(fn) > last_modified_time for fn in files):
                 console.log("Configuration file has been modified, reloading")
                 last_modified_time = max(edit_time(fn) for fn in files)
                 try:
@@ -1638,7 +1656,7 @@ def _render_jinja(
         return text
 
 
-async def get_states(websocket: websockets.WebSocketClientProtocol) -> dict[str, Any]:
+async def get_states(websocket: websockets.ClientConnection) -> dict[str, Any]:
     """Get the current state of all entities."""
     _id = _next_id()
     subscribe_payload = {"type": "get_states", "id": _id}
@@ -1650,7 +1668,7 @@ async def get_states(websocket: websockets.WebSocketClientProtocol) -> dict[str,
             return {state["entity_id"]: state for state in data["result"]}
 
 
-async def unsubscribe(websocket: websockets.WebSocketClientProtocol, id_: int) -> None:
+async def unsubscribe(websocket: websockets.ClientConnection, id_: int) -> None:
     """Unsubscribe from an event."""
     subscribe_payload = {
         "id": _next_id(),
@@ -1661,7 +1679,7 @@ async def unsubscribe(websocket: websockets.WebSocketClientProtocol, id_: int) -
 
 
 async def call_service(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     service: str,
     data: dict[str, Any],
     target: dict[str, Any] | None = None,
@@ -1687,8 +1705,7 @@ def _rgb_to_hex(rgb: tuple[int, int, int]) -> str:
 
 def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     # Remove '#' if present
-    if hex_color.startswith("#"):
-        hex_color = hex_color[1:]
+    hex_color = hex_color.removeprefix("#")
 
     # Convert hexadecimal to RGB
     r, g, b = tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
@@ -1720,7 +1737,7 @@ def _download_and_save_mdi(icon_mdi: str) -> Path:
         return filename_svg
     svg_content = _download(url)
     try:
-        etree.fromstring(svg_content)  # noqa: S320
+        etree.fromstring(svg_content)
     except etree.XMLSyntaxError:
         msg = (f"Invalid SVG: {url}, `svg_content` starts with: {svg_content[:100]!r}",)
         console.log(f"[b red]{msg}[/]")
@@ -1771,30 +1788,57 @@ def _init_icon(
     return Image.new("RGB", size, rgb_color)
 
 
-def _add_text(
+@ft.lru_cache(maxsize=1000)
+def _generate_text_image(
     *,
-    image: Image.Image,
     font_filename: str,
     text_size: int,
     text: str,
     text_color: str,
     text_offset: int = 0,
-) -> None:
+    size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
+) -> Image.Image:
+    """Render text onto a transparent image and return it for compositing."""
     if text_size == 0:
         console.log(f"Text size is 0, not drawing text: {text!r}")
-        return
-    draw = ImageDraw.Draw(image)
+        return Image.new("RGBA", size, (0, 0, 0, 0))
+
+    text_image = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(text_image)
     font = ImageFont.truetype(str(ASSETS_PATH / font_filename), text_size)
     draw.text(
-        (image.width / 2, image.height / 2 + text_offset),
+        (size[0] / 2, size[1] / 2 + text_offset),
         text=text,
         font=font,
         anchor="ms",
         fill=text_color,
         align="center",
     )
+    return text_image
 
 
+def _add_text_to_image(
+    image: Image.Image,
+    *,
+    font_filename: str,
+    text_size: int,
+    text: str,
+    text_color: str,
+    text_offset: int = 0,
+) -> Image.Image:
+    """Combine two images."""
+    text_image = _generate_text_image(
+        font_filename=font_filename,
+        text_size=text_size,
+        text=text,
+        text_color=text_color,
+        text_offset=text_offset,
+        size=image.size,
+    )
+    return Image.alpha_composite(image.convert("RGBA"), text_image).convert("RGB")
+
+
+@ft.lru_cache(maxsize=1)
 def _generate_failed_icon(
     size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
 ) -> Image.Image:
@@ -1804,14 +1848,13 @@ def _generate_failed_icon(
     font_filename = DEFAULT_FONT
     text_size = int(min(size) * 0.15)  # Adjust font size based on the icon size
     icon = Image.new("RGB", size, background_color)
-    _add_text(
+    return _add_text_to_image(
         image=icon,
         font_filename=font_filename,
         text_size=text_size,
         text="Rendering\nfailed",
         text_color=text_color,
     )
-    return icon
 
 
 def update_all_dials(
@@ -1888,9 +1931,15 @@ def update_key_image(
 ) -> None:
     """Update the image for a key."""
     button = config.button(key)
+
+    def clear_image() -> None:
+        deck.set_key_image(key, None)
+
     if button is None:
+        clear_image()
         return
     if button.special_type == "empty":
+        clear_image()
         return
     size = deck.key_image_format()["size"]
     image = button.try_render_icon(
@@ -1948,13 +1997,11 @@ def turn_off(config: Config, deck: StreamDeck) -> None:
 
 async def _sync_input_boolean(
     state_entity_id: str | None,
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     state: Literal["on", "off"],
 ) -> None:
     """Sync the input boolean state with the Stream Deck."""
-    if (state_entity_id is not None) and (
-        state_entity_id.split(".")[0] == "input_boolean"
-    ):
+    if (state_entity_id is not None) and (state_entity_id.split(".")[0] == "input_boolean"):
         await call_service(
             websocket,
             f"input_boolean.turn_{state}",
@@ -1964,7 +2011,7 @@ async def _sync_input_boolean(
 
 
 def _on_touchscreen_event_callback(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
 ) -> Callable[
@@ -1986,24 +2033,19 @@ def _on_touchscreen_event_callback(
             else:
                 console.log(f"Going to page {config.next_page_index}")
                 config.to_page(config.previous_page_index)
-            deck.reset()
             config.current_page().sort_dials()
             update_all_key_images(deck, config, complete_state)
             update_all_dials(deck, config, complete_state)
         else:
             # Short touch: Sets dial value to minimal value
             # Long touch: Sets dial to maximal value
-            lcd_icon_size = (
-                deck.touchscreen_image_format()["size"][0] / deck.dial_count()
-            )
+            lcd_icon_size = deck.touchscreen_image_format()["size"][0] / deck.dial_count()
             icon_pos = value["x"] // lcd_icon_size
             dials = config.dial_sorted(int(icon_pos))
             assert dials is not None
 
             selected_dial = (
-                dials[0]
-                if dials[0].dial_event_type == DialEventType.TURN.name
-                else dials[1]
+                dials[0] if dials[0].dial_event_type == DialEventType.TURN.name else dials[1]
             )
             assert selected_dial is not None
 
@@ -2028,7 +2070,7 @@ def _on_touchscreen_event_callback(
 
 
 async def handle_dial_event(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
     dial: tuple[Dial, Dial | None],
@@ -2088,7 +2130,7 @@ async def handle_dial_event(
 
 
 def _on_dial_event_callback(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
 ) -> Callable[
@@ -2148,8 +2190,8 @@ def _on_dial_event_callback(
     return dial_event_callback
 
 
-async def _handle_key_press(
-    websocket: websockets.WebSocketClientProtocol,
+async def _handle_key_press(  # noqa: PLR0912
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
     button: Button,
@@ -2161,7 +2203,6 @@ async def _handle_key_press(
         return
 
     def update_all() -> None:
-        deck.reset()
         config.current_page().sort_dials()
         update_all_key_images(deck, config, complete_state)
         update_all_dials(deck, config, complete_state)
@@ -2171,6 +2212,9 @@ async def _handle_key_press(
         update_all()
     elif button.special_type == "previous-page":
         config.previous_page()
+        update_all()
+    elif button.special_type == "close-page":
+        config.close_page()
         update_all()
     elif button.special_type == "go-to-page":
         assert isinstance(button.special_type_data, (str, int))
@@ -2184,12 +2228,12 @@ async def _handle_key_press(
         assert isinstance(button.special_type_data, dict)
         page = _light_page(
             entity_id=button.entity_id,
-            n_colors=10,
+            n_colors=9,
             colormap=button.special_type_data.get("colormap", None),
             colors=button.special_type_data.get("colors", None),
             color_temp_kelvin=button.special_type_data.get("color_temp_kelvin", None),
         )
-        config._detached_page = page
+        config.load_page_as_detached(page)
         update_all()
         return  # to skip the _detached_page reset below
     elif button.special_type == "reload":
@@ -2209,12 +2253,12 @@ async def _handle_key_press(
         await call_service(websocket, button.service, service_data, button.target)
 
     if config._detached_page:
-        config._detached_page = None
+        config.close_detached_page()
         update_all()
 
 
 def _on_press_callback(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
 ) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:
@@ -2364,7 +2408,7 @@ def _convert_svg_to_png(
     fill_color = _scale_hex_color(color, opacity)
 
     try:
-        svg_tree = etree.fromstring(svg_content)  # noqa: S320
+        svg_tree = etree.fromstring(svg_content)
         svg_tree.attrib["fill"] = fill_color
         svg_tree.attrib["style"] = f"background-color: {background_color}"
         modified_svg_content = etree.tostring(svg_tree)
@@ -2388,9 +2432,7 @@ def _convert_svg_to_png(
     )
 
     image = (
-        Image.open(io.BytesIO(png_content))
-        if png_content
-        else Image.new("RGBA", size, fill_color)
+        Image.open(io.BytesIO(png_content)) if png_content else Image.new("RGBA", size, fill_color)
     )
 
     im = ImageOps.expand(image, border=(margin, margin), fill="black")
@@ -2474,10 +2516,12 @@ async def run(
     token: str,
     protocol: Literal["wss", "ws"],
     config: Config,
+    *,
+    allow_weaker_ssl: bool = False,
 ) -> None:
     """Main entry point for the Stream Deck integration."""
     deck = get_deck()
-    async with setup_ws(host, token, protocol) as websocket:
+    async with setup_ws(host, token, protocol, allow_weaker_ssl=allow_weaker_ssl) as websocket:
         try:
             complete_state = await get_states(websocket)
 
@@ -2542,9 +2586,7 @@ def safe_load_yaml(
 
         def __init__(self, stream: Any) -> None:
             """Initialize IncludeLoader."""
-            self._root = (
-                Path(stream.name).parent if hasattr(stream, "name") else Path.cwd()
-            )
+            self._root = Path(stream.name).parent if hasattr(stream, "name") else Path.cwd()
             super().__init__(stream)
 
     def _include(loader: IncludeLoader, node: yaml.nodes.Node) -> Any:
@@ -2620,16 +2662,22 @@ def main() -> None:
         default=yaml_encoding,
         help=f"Specify encoding for YAML files (default is system encoding or from environment variable YAML_ENCODING (default: {yaml_encoding})",
     )
-
     parser.add_argument(
         "--protocol",
         default=os.environ.get("WEBSOCKET_PROTOCOL", "wss"),
         choices=["wss", "ws"],
     )
+    parser.add_argument(
+        "--allow-weaker-ssl",
+        action="store_true",
+        help="Allow less secure SSL (security level 1) for compatibility with slower hardware (e.g., RPi Zero).",
+    )
     args = parser.parse_args()
+    if os.getenv("ALLOW_WEAKER_SSL", "").lower().startswith(("y", "t", "1")):
+        args.allow_weaker_ssl = True
     console.log(f"Using version {__version__} of the Home Assistant Stream Deck.")
     console.log(
-        f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}",
+        f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}, {args.allow_weaker_ssl=}",
     )
     config = Config.load(args.config, yaml_encoding=args.yaml_encoding)
     asyncio.run(
@@ -2638,6 +2686,7 @@ def main() -> None:
             token=args.token,
             protocol=args.protocol,
             config=config,
+            allow_weaker_ssl=args.allow_weaker_ssl,
         ),
     )
 

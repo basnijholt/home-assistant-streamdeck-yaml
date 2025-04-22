@@ -33,10 +33,9 @@ IMAGE_PARAMETERS: list[tuple[dict | None, dict | None]] = [
             "text_size": 14,
             "text_color": "yellow",
             "text_offset": 5,
-            "size": (72, 72),
         },
         {
-            "icon_mdi": "home",
+            "icon_filename": "xbox.png",
             "icon_mdi_margin": 10,
             "icon_mdi_color": "#FFFFFF",  # White
             "icon_background_color": "#000000",  # Black
@@ -79,6 +78,22 @@ IMAGE_PARAMETERS: list[tuple[dict | None, dict | None]] = [
             "size": (72, 72),
         },
     ),
+    # Rectangle
+    (
+        {
+            "text": "NoIcon",
+            "text_size": 12,
+            "text_color": "red",
+            "text_offset": 0,
+        },
+        {
+            "icon_mdi": "home",
+            "icon_mdi_margin": 10,
+            "icon_mdi_color": "#FFFFFF",
+            "icon_background_color": "#000000",
+            "size": (200, 100),
+        },
+    ),
 ]
 
 
@@ -103,9 +118,10 @@ def generate_image(text_params: dict | None, icon_params: dict | None) -> Image.
     # Add text if text_params provided
     if text_params:
         assert FONT_PATH.exists(), f"Font not found at {FONT_PATH}"
-        assert text_params["size"] == size, (
-            f"Text size {text_params['size']} must match image size {size}"
-        )
+        if "size" in text_params:
+            assert text_params["size"] == size, (
+                f"Text size {text_params['size']} must match image size {size}"
+            )
         base_image = _add_text_to_image(
             image=base_image,
             font_filename=str(FONT_PATH),

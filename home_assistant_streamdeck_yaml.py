@@ -12,6 +12,7 @@ import json
 import locale
 import math
 import re
+import ssl
 import time
 import warnings
 from contextlib import asynccontextmanager
@@ -1320,13 +1321,16 @@ async def setup_ws(
     host: str,
     token: str,
     protocol: Literal["wss", "ws"],
+    *,
+    allow_weaker_ssl: bool = False,
 ) -> websockets.WebSocketClientProtocol:
     """Set up the connection to Home Assistant."""
     uri = f"{protocol}://{host}/api/websocket"
+    ssl_context = ssl.create_default_context()
     while True:
         try:
             # limit size to 10 MiB
-            async with websockets.connect(uri, max_size=10485760) as websocket:
+            async with websockets.connect(uri, ssl=ssl_context, max_size=10485760) as websocket:
                 # Send an authentication message to Home Assistant
                 auth_payload = {"type": "auth", "access_token": token}
                 await websocket.send(json.dumps(auth_payload))
@@ -1340,6 +1344,9 @@ async def setup_ws(
             # Connection was reset, retrying in 3 seconds
             console.print_exception(show_locals=True)
             console.log("Connection was reset, retrying in 3 seconds")
+            if allow_weaker_ssl:
+                ssl_context.set_ciphers("DEFAULT@SECLEVEL=1")
+                console.log("Using weaker SSL settings")
             await asyncio.sleep(5)
 
 
@@ -2474,10 +2481,12 @@ async def run(
     token: str,
     protocol: Literal["wss", "ws"],
     config: Config,
+    *,
+    allow_weaker_ssl: bool = False,
 ) -> None:
     """Main entry point for the Stream Deck integration."""
     deck = get_deck()
-    async with setup_ws(host, token, protocol) as websocket:
+    async with setup_ws(host, token, protocol, allow_weaker_ssl=allow_weaker_ssl) as websocket:
         try:
             complete_state = await get_states(websocket)
 
@@ -2618,16 +2627,22 @@ def main() -> None:
         default=yaml_encoding,
         help=f"Specify encoding for YAML files (default is system encoding or from environment variable YAML_ENCODING (default: {yaml_encoding})",
     )
-
     parser.add_argument(
         "--protocol",
         default=os.environ.get("WEBSOCKET_PROTOCOL", "wss"),
         choices=["wss", "ws"],
     )
+    parser.add_argument(
+        "--allow-weaker-ssl",
+        action="store_true",
+        help="Allow less secure SSL (security level 1) for compatibility with slower hardware (e.g., RPi Zero).",
+    )
     args = parser.parse_args()
+    if os.getenv("ALLOW_WEAKER_SSL", "").lower().startswith(("y", "t", "1")):
+        args.allow_weaker_ssl = True
     console.log(f"Using version {__version__} of the Home Assistant Stream Deck.")
     console.log(
-        f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}",
+        f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}, {args.allow_weaker_ssl=}",
     )
     config = Config.load(args.config, yaml_encoding=args.yaml_encoding)
     asyncio.run(
@@ -2636,6 +2651,7 @@ def main() -> None:
             token=args.token,
             protocol=args.protocol,
             config=config,
+            allow_weaker_ssl=args.allow_weaker_ssl,
         ),
     )
 

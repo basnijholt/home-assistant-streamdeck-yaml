@@ -1321,14 +1321,17 @@ async def setup_ws(
     protocol: Literal["wss", "ws"],
     *,
     allow_weaker_ssl: bool = False,
-) -> websockets.WebSocketClientProtocol:
+) -> websockets.ClientConnection:
     """Set up the connection to Home Assistant."""
     uri = f"{protocol}://{host}/api/websocket"
-    ssl_context = ssl.create_default_context()
+    connect_args: dict[str, Any] = {"max_size": 10485760}  # limit size to 10 MiB
+    if protocol == "wss":
+        ssl_context = ssl.create_default_context()
+        connect_args["ssl"] = ssl_context
+
     while True:
         try:
-            # limit size to 10 MiB
-            async with websockets.connect(uri, ssl=ssl_context, max_size=10485760) as websocket:
+            async with websockets.connect(uri, **connect_args) as websocket:
                 # Send an authentication message to Home Assistant
                 auth_payload = {"type": "auth", "access_token": token}
                 await websocket.send(json.dumps(auth_payload))
@@ -1349,7 +1352,7 @@ async def setup_ws(
 
 
 async def subscribe_state_changes(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
 ) -> None:
     """Subscribe to the state change events."""
     subscribe_payload = {
@@ -1361,7 +1364,7 @@ async def subscribe_state_changes(
 
 
 async def handle_changes(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     deck: StreamDeck,
     config: Config,
@@ -1645,7 +1648,7 @@ def _render_jinja(
         return text
 
 
-async def get_states(websocket: websockets.WebSocketClientProtocol) -> dict[str, Any]:
+async def get_states(websocket: websockets.ClientConnection) -> dict[str, Any]:
     """Get the current state of all entities."""
     _id = _next_id()
     subscribe_payload = {"type": "get_states", "id": _id}
@@ -1657,7 +1660,7 @@ async def get_states(websocket: websockets.WebSocketClientProtocol) -> dict[str,
             return {state["entity_id"]: state for state in data["result"]}
 
 
-async def unsubscribe(websocket: websockets.WebSocketClientProtocol, id_: int) -> None:
+async def unsubscribe(websocket: websockets.ClientConnection, id_: int) -> None:
     """Unsubscribe from an event."""
     subscribe_payload = {
         "id": _next_id(),
@@ -1668,7 +1671,7 @@ async def unsubscribe(websocket: websockets.WebSocketClientProtocol, id_: int) -
 
 
 async def call_service(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     service: str,
     data: dict[str, Any],
     target: dict[str, Any] | None = None,
@@ -1986,7 +1989,7 @@ def turn_off(config: Config, deck: StreamDeck) -> None:
 
 async def _sync_input_boolean(
     state_entity_id: str | None,
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     state: Literal["on", "off"],
 ) -> None:
     """Sync the input boolean state with the Stream Deck."""
@@ -2000,7 +2003,7 @@ async def _sync_input_boolean(
 
 
 def _on_touchscreen_event_callback(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
 ) -> Callable[
@@ -2059,7 +2062,7 @@ def _on_touchscreen_event_callback(
 
 
 async def handle_dial_event(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
     dial: tuple[Dial, Dial | None],
@@ -2119,7 +2122,7 @@ async def handle_dial_event(
 
 
 def _on_dial_event_callback(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
 ) -> Callable[
@@ -2180,7 +2183,7 @@ def _on_dial_event_callback(
 
 
 async def _handle_key_press(  # noqa: PLR0912
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
     button: Button,
@@ -2247,7 +2250,7 @@ async def _handle_key_press(  # noqa: PLR0912
 
 
 def _on_press_callback(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
 ) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:

@@ -122,10 +122,10 @@ def test_variable_substitution_in_include(tmp_path: Path) -> None:
       duration: 10
       home_page: Home
     pages:
-      - !include {file: includes/light_page_plus.yaml, vars: {eid: light.living_room}}
+      - !include {file: includes/light_page_plus.yaml, vars: {name: living-room-lights, eid: light.living_room}}
     """
     light_page_plus_content = """
-    name: ${eid}
+    name: ${name}
     dials:
       - entity_id: ${eid}
         service: light.turn_on
@@ -165,6 +165,6 @@ def test_variable_substitution_in_include(tmp_path: Path) -> None:
     )
 
     # Additional check: name field should be substituted correctly
-    assert data["pages"][0]["name"] == "light.living_room", (
+    assert data["pages"][0]["name"] == "living-room-lights", (
         "Failed to substitute ${eid} with light.living_room in name"
     )

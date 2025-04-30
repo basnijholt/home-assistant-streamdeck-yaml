@@ -2565,6 +2565,10 @@ def _rich_table_str(df: pd.DataFrame) -> str:
     return console.file.getvalue()
 
 
+# Define YAML node type
+YamlNode = dict[str, Any] | list[Any] | str | int | float | bool | None
+
+
 def safe_load_yaml(
     f: TextIO | str,
     *,
@@ -2574,23 +2578,26 @@ def safe_load_yaml(
     """Load a YAML file."""
     included_files = []
 
-    def _traverse_yaml(node: Any, variables: dict[str, str]) -> Any:
+    def _traverse_yaml(node: YamlNode, variables: dict[str, str]) -> YamlNode:
         if isinstance(node, dict):
             for key, value in node.items():
                 if isinstance(value, str):
+                    result = value  # Start with the original string
                     for var, var_value in variables.items():
                         regex_format = rf"\$\{{{var}\}}"
-                        node[key] = re.sub(regex_format, str(var_value), value)
+                        result = re.sub(regex_format, str(var_value), result)
+                    node[key] = result
                 else:
                     node[key] = _traverse_yaml(value, variables)
             return node
         if isinstance(node, list):
             return [_traverse_yaml(item, variables) for item in node]
         if isinstance(node, str):
+            result = node  # Start with the original string
             for var, var_value in variables.items():
                 regex_format = rf"\$\{{{var}\}}"
-                node = re.sub(regex_format, str(var_value), node)
-            return node
+                result = re.sub(regex_format, str(var_value), result)
+            return result
         return node
 
     class IncludeLoader(yaml.SafeLoader):

@@ -160,7 +160,6 @@ def test_variable_substitution_in_include(tmp_path: Path) -> None:
     # Assert that data is a dictionary to satisfy MyPy
     data = cast("dict[str, Any]", data)
 
-    # Check that entity_id is substituted correctly (this will fail due to the bug)
     assert data["pages"][0]["dials"][0]["entity_id"] == "light.living_room", (
         "Failed to substitute ${eid} with light.living_room in entity_id"
     )

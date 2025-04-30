@@ -2574,21 +2574,24 @@ def safe_load_yaml(
     """Load a YAML file."""
     included_files = []
 
-    def _traverse_yaml(node: dict[str, Any], variables: dict[str, str]) -> None:
+    def _traverse_yaml(node: Any, variables: dict[str, str]) -> Any:
         if isinstance(node, dict):
             for key, value in node.items():
-                if not isinstance(value, dict):
+                if isinstance(value, str):
                     for var, var_value in variables.items():
-                        if not isinstance(value, str):
-                            continue
-
                         regex_format = rf"\$\{{{var}\}}"
-                        node[key] = re.sub(regex_format, str(var_value), node[key])
+                        node[key] = re.sub(regex_format, str(var_value), value)
                 else:
-                    _traverse_yaml(value, variables)
-        elif isinstance(node, list):
-            for item in node:
-                _traverse_yaml(item, variables)
+                    node[key] = _traverse_yaml(value, variables)
+            return node
+        if isinstance(node, list):
+            return [_traverse_yaml(item, variables) for item in node]
+        if isinstance(node, str):
+            for var, var_value in variables.items():
+                regex_format = rf"\$\{{{var}\}}"
+                node = re.sub(regex_format, str(var_value), node)
+            return node
+        return node
 
     class IncludeLoader(yaml.SafeLoader):
         """YAML Loader with `!include` constructor."""

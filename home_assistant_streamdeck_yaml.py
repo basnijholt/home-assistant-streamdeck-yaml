@@ -1956,8 +1956,8 @@ def update_dial(
 
     if data is not None:
         if "event" in data and "data" in data["event"]:
-            event_data: dict[str, Any] = data["event"]["data"]
-            new_state: dict[str, Any] = event_data["new_state"]
+            event_data = data["event"]["data"]
+            new_state = event_data["new_state"]
             dial.update_attributes(new_state)
         else:
             dial.update_attributes(data)

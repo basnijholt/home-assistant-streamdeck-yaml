@@ -1893,7 +1893,7 @@ def get_size_per_dial(deck: StreamDeck) -> tuple[int, int]:
 def update_all_dials(
     deck: StreamDeck,
     config: Config,
-    complete_state: dict[str, Any],
+    complete_state: StateDict,
 ) -> None:
     """Updates configured dials and clears unconfigured dial slots."""
     console.log("Called update_all_dials")
@@ -1944,7 +1944,7 @@ def update_dial(
     deck: StreamDeck,
     key: int,
     config: Config,
-    complete_state: dict[str, Any],
+    complete_state: StateDict,
     data: dict[str, Any] | None = None,
 ) -> None:
     """Update the dial."""

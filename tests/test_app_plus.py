@@ -21,6 +21,7 @@ from home_assistant_streamdeck_yaml import (
     Page,
     _on_dial_event_callback,
     _update_state,
+    get_lcd_size,
     get_size_per_dial,
     update_all_dials,
     update_dial,
@@ -478,3 +479,19 @@ def test_update_all_dials_partial_and_no_dials(mock_deck_plus: Mock) -> None:
                 and call.args[0] == blank_image_bytes
                 for call in mock_deck_plus.set_touchscreen_image.call_args_list
             )
+
+
+def test_get_lcd_size(mock_deck_plus: Mock) -> None:
+    """Test that get_lcd_size() works properly."""
+    assert get_lcd_size(mock_deck_plus) == (
+        StreamDeckPlus.TOUCHSCREEN_PIXEL_WIDTH,
+        StreamDeckPlus.TOUCHSCREEN_PIXEL_HEIGHT,
+    )
+
+
+def test_get_size_per_dial(mock_deck_plus: Mock) -> None:
+    """Test that get_size_per_dial() works properly."""
+    assert get_size_per_dial(mock_deck_plus) == (
+        StreamDeckPlus.TOUCHSCREEN_PIXEL_WIDTH / mock_deck_plus.dial_count(),
+        StreamDeckPlus.TOUCHSCREEN_PIXEL_HEIGHT,
+    )

@@ -1964,21 +1964,21 @@ def update_dial(
         else:
             dial.update_attributes(data)
 
-    size_per_dial: tuple[int, int] = get_size_per_dial(deck)
-    dial_key: int | None = config.current_page().get_sorted_key(dial)
+    size_per_dial = get_size_per_dial(deck)
+    dial_key = config.current_page().get_sorted_key(dial)
     console.log(f"dial_key {dial_key}")
     if dial_key is None:
         console.log(f"Dial {key} has no valid dial_key, skipping")
         return
-    dial_offset: int = dial_key * size_per_dial[0]
-    image: Image.Image = dial.render_lcd_image(
+    dial_offset = dial_key * size_per_dial[0]
+    image = dial.render_lcd_image(
         complete_state=complete_state,
         size=size_per_dial,
         key=dial_key,
     )
     img_bytes = io.BytesIO()
     image.save(img_bytes, format="JPEG")
-    lcd_image_bytes: bytes = img_bytes.getvalue()
+    lcd_image_bytes = img_bytes.getvalue()
     deck.set_touchscreen_image(
         lcd_image_bytes,
         dial_offset,

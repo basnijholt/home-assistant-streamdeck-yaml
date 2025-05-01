@@ -1949,9 +1949,7 @@ def update_dial(
 ) -> None:
     """Update the dial."""
     dial = config.dial(key)
-    if dial is None:
-        console.log(f"Dial {key} is None, skipping")
-        return
+    assert dial is not None
 
     if dial.dial_event_type == "PUSH":
         return
@@ -1966,7 +1964,6 @@ def update_dial(
 
     size_per_dial = get_size_per_dial(deck)
     dial_key = config.current_page().get_sorted_key(dial)
-    console.log(f"dial_key {dial_key}")
     if dial_key is None:
         console.log(f"Dial {key} has no valid dial_key, skipping")
         return

@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import io
 import json
 from pathlib import Path
 from typing import Any
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 import websockets
@@ -18,10 +19,10 @@ from home_assistant_streamdeck_yaml import (
     Config,
     Dial,
     Page,
-    TouchscreenEventType,
     _on_dial_event_callback,
-    _on_touchscreen_event_callback,
     _update_state,
+    get_size_per_dial,
+    update_all_dials,
     update_dial,
 )
 
@@ -285,88 +286,195 @@ async def test_streamdeck_plus(
     assert updated_attributes["min"] == 0
 
 
-async def test_touchscreen(
-    mock_deck_plus: Mock,
-    websocket_mock: Mock,
-    state: dict[str, dict[str, Any]],
-    dials: list[Dial],
-) -> None:
-    """Test touchscreen events for dial."""
-    home = Page(
-        name="home",
-        buttons=[
-            Button(special_type="go-to-page", special_type_data="page_1"),
-            Button(special_type="go-to-page", special_type_data="page_anon"),
-        ],
+def test_update_all_dials_partial_and_no_dials(mock_deck_plus: Mock) -> None:
+    """Test updating partial dials and clearing unconfigured dial slots."""
+    # Create dials programmatically for input_number entities
+    dial_number1 = Dial(
+        entity_id="input_number.streamdeck1",
+        service="input_number.set_value",
+        service_data={"value": "{{ dial_value() }}"},
+        dial_event_type="TURN",
+        text="Number 1",
+        attributes={"min": 0, "max": 100, "step": 1},
+    )
+    dial_number2 = Dial(
+        entity_id="input_number.streamdeck2",
+        service="input_number.set_value",
+        service_data={"value": "{{ dial_value() }}"},
+        dial_event_type="TURN",
+        text="Number 2",
+        attributes={"min": 0, "max": 100, "step": 1},
     )
 
-    page_1 = Page(
-        name="page_1",
-        dials=dials,
-    )
+    # Create pages with different dial counts
+    one_dial_page = Page(name="OneDial", dials=[dial_number1])
+    two_dials_page = Page(name="TwoDials", dials=[dial_number1, dial_number2])
+    no_dials_page = Page(name="NoDials", dials=[])
 
-    page_anon = Page(name="page_anon", dials=dials)
-    config = Config(pages=[home, page_1], anonymous_pages=[page_anon])
-    assert config._current_page_index == 0
-    assert config.current_page() == home
+    # Create config with pages
+    config = Config(pages=[one_dial_page, two_dials_page, no_dials_page])
 
-    # Check if you can change page using Touchscreen.
-    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
-    await touch_event(
-        mock_deck_plus,
-        TouchscreenEventType.DRAG,
-        {
-            "x": 0,
-            "y": 0,
-            "x_out": 100,
-            "y_out": 0,
+    # Mock state with attributes and numeric states
+    complete_state: dict[str, Any] = {
+        "input_number.streamdeck1": {
+            "state": 50.0,
+            "attributes": {
+                "friendly_name": "StreamDeck Number 1",
+                "min": 0,
+                "max": 100,
+                "step": 1,
+            },
         },
-    )
-
-    assert config.current_page() == page_1
-    # Check if you can set max using touchscreen.
-    config.current_page().sort_dials()
-    dial = config.dial(0)
-    assert dial is not None
-
-    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
-    await touch_event(
-        mock_deck_plus,
-        TouchscreenEventType.LONG,
-        {
-            "x": 100,
-            "y": 50,
+        "input_number.streamdeck2": {
+            "state": 75.0,
+            "attributes": {
+                "friendly_name": "StreamDeck Number 2",
+                "min": 0,
+                "max": 100,
+                "step": 1,
+            },
         },
-    )
-    attributes = dial.get_attributes()
-    assert attributes["state"] == attributes["max"]
+    }
 
-    # Check if you can set min using touchscreen.
-    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
-    await touch_event(
-        mock_deck_plus,
-        TouchscreenEventType.SHORT,
-        {
-            "x": 100,
-            "y": 50,
-        },
-    )
-    attributes = dial.get_attributes()
-    assert attributes["state"] == attributes["min"]
+    # Generate blank image bytes for verification
+    size_per_dial: tuple[int, int] = get_size_per_dial(mock_deck_plus)
+    blank_image: Image.Image = Image.new("RGB", size_per_dial, (0, 0, 0))
+    img_bytes = io.BytesIO()
+    blank_image.save(img_bytes, format="JPEG")
+    blank_image_bytes: bytes = img_bytes.getvalue()
 
-    # Check if disabling touchscreen events works
-    dial = config.dial(3)
-    assert dial is not None
-    assert dial.allow_touchscreen_events is not True
+    # Mock Dial.render_lcd_image and _get_blank_image
+    def mock_render_lcd_image(
+        self: Any,  # noqa: ARG001
+        complete_state: dict[str, Any],  # noqa: ARG001
+        size: tuple[int, int],
+        key: int,  # noqa: ARG001
+    ) -> Image.Image:
+        return Image.new("RGB", size, (255, 255, 255))  # White image for updates
 
-    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
-    await touch_event(
-        mock_deck_plus,
-        TouchscreenEventType.SHORT,
-        {
-            "x": 300,
-            "y": 50,
-        },
-    )
-    attributes = dial.get_attributes()
-    assert attributes["state"] is not attributes["min"]
+    with (
+        patch("home_assistant_streamdeck_yaml.Dial.render_lcd_image", mock_render_lcd_image),
+        patch("home_assistant_streamdeck_yaml._get_blank_image", return_value=blank_image_bytes),
+    ):
+        # Get the number of dials from the mock
+        dial_count: int = mock_deck_plus.dial_count()
+
+        # Test OneDial page (1 dial, clear remaining slots)
+        config.to_page("OneDial")
+        config.current_page().sort_dials()
+        update_all_dials(mock_deck_plus, config, complete_state)
+        assert (
+            mock_deck_plus.set_touchscreen_image.call_count == dial_count
+        )  # 1 update + (dial_count-1) clears
+        # Debug: Print call_args_list
+        print(
+            "OneDial calls:",
+            [
+                (
+                    call.args[1],
+                    call.args[2],
+                    call.kwargs.get("width"),
+                    call.kwargs.get("height"),
+                    len(call.args[0]),
+                )
+                for call in mock_deck_plus.set_touchscreen_image.call_args_list
+            ],
+        )
+        # Verify update call for dial_key=0
+        assert any(
+            call.args[1] == 0  # x_pos=0 for dial_key=0
+            and call.args[2] == 0  # y_pos=0
+            and call.kwargs["width"] == size_per_dial[0]
+            and call.kwargs["height"] == size_per_dial[1]
+            and len(call.args[0]) > 0  # Non-blank image
+            for call in mock_deck_plus.set_touchscreen_image.call_args_list
+        )
+        # Verify clearing calls for unconfigured slots (dial_key=1 to dial_count-1)
+        configured_keys = {0}  # OneDial has dial_key=0
+        unconfigured_keys = set(range(dial_count)) - configured_keys
+        for dial_key in unconfigured_keys:
+            x_offset = dial_key * size_per_dial[0]
+            assert any(
+                call.args[1] == x_offset  # x_pos=dial_key * size_per_dial[0]
+                and call.args[2] == 0  # y_pos=0
+                and call.kwargs["width"] == size_per_dial[0]
+                and call.kwargs["height"] == size_per_dial[1]
+                and call.args[0] == blank_image_bytes
+                for call in mock_deck_plus.set_touchscreen_image.call_args_list
+            )
+
+        # Test TwoDials page (2 dials, clear remaining slots)
+        mock_deck_plus.set_touchscreen_image.reset_mock()
+        config.to_page("TwoDials")
+        config.current_page().sort_dials()
+        update_all_dials(mock_deck_plus, config, complete_state)
+        assert (
+            mock_deck_plus.set_touchscreen_image.call_count == dial_count
+        )  # 2 updates + (dial_count-2) clears
+        print(
+            "TwoDials calls:",
+            [
+                (
+                    call.args[1],
+                    call.args[2],
+                    call.kwargs.get("width"),
+                    call.kwargs.get("height"),
+                    len(call.args[0]),
+                )
+                for call in mock_deck_plus.set_touchscreen_image.call_args_list
+            ],
+        )
+        for dial_key in [0, 1]:
+            x_offset = dial_key * size_per_dial[0]
+            assert any(
+                call.args[1] == x_offset
+                and call.args[2] == 0
+                and call.kwargs["width"] == size_per_dial[0]
+                and call.kwargs["height"] == size_per_dial[1]
+                and len(call.args[0]) > 0
+                for call in mock_deck_plus.set_touchscreen_image.call_args_list
+            )
+        configured_keys = {0, 1}  # TwoDials has dial_key=0,1
+        unconfigured_keys = set(range(dial_count)) - configured_keys
+        for dial_key in unconfigured_keys:
+            x_offset = dial_key * size_per_dial[0]
+            assert any(
+                call.args[1] == x_offset
+                and call.args[2] == 0
+                and call.kwargs["width"] == size_per_dial[0]
+                and call.kwargs["height"] == size_per_dial[1]
+                and call.args[0] == blank_image_bytes
+                for call in mock_deck_plus.set_touchscreen_image.call_args_list
+            )
+
+        # Test NoDials page (clear all slots)
+        mock_deck_plus.set_touchscreen_image.reset_mock()
+        config.to_page("NoDials")
+        config.current_page().sort_dials()
+        update_all_dials(mock_deck_plus, config, complete_state)
+        assert mock_deck_plus.set_touchscreen_image.call_count == dial_count  # dial_count clears
+        print(
+            "NoDials calls:",
+            [
+                (
+                    call.args[1],
+                    call.args[2],
+                    call.kwargs.get("width"),
+                    call.kwargs.get("height"),
+                    len(call.args[0]),
+                )
+                for call in mock_deck_plus.set_touchscreen_image.call_args_list
+            ],
+        )
+        configured_keys = set()  # NoDials has no dials
+        unconfigured_keys = set(range(dial_count)) - configured_keys
+        for dial_key in unconfigured_keys:
+            x_offset = dial_key * size_per_dial[0]
+            assert any(
+                call.args[1] == x_offset
+                and call.args[2] == 0
+                and call.kwargs["width"] == size_per_dial[0]
+                and call.kwargs["height"] == size_per_dial[1]
+                and call.args[0] == blank_image_bytes
+                for call in mock_deck_plus.set_touchscreen_image.call_args_list
+            )

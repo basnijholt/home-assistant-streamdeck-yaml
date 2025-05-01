@@ -1964,9 +1964,7 @@ def update_dial(
 
     size_per_dial = get_size_per_dial(deck)
     dial_key = config.current_page().get_sorted_key(dial)
-    if dial_key is None:
-        console.log(f"Dial {key} has no valid dial_key, skipping")
-        return
+    assert dial_key is not None
     dial_offset = dial_key * size_per_dial[0]
     image = dial.render_lcd_image(
         complete_state=complete_state,

@@ -1903,9 +1903,7 @@ def update_all_dials(
 
     # Update configured dials
     for key, current_dial in enumerate(config.current_page().dials):
-        if current_dial is None:
-            console.log(f"Dial {key} is None, skipping")
-            continue
+        assert current_dial is not None
         if current_dial.entity_id is None:
             console.log(f"Dial {key} has no entity_id, skipping")
             continue

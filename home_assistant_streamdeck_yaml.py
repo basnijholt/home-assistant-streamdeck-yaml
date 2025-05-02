@@ -510,7 +510,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         return button, image
 
 
-class DialEventConfig(BaseModel, extra="forbid"):
+class DialEventConfig(BaseModel, extra="forbid"): # type: ignore[call-arg]
     service: str | None = Field(
         default=None,
         allow_template=True,
@@ -581,7 +581,7 @@ class DialEventConfig(BaseModel, extra="forbid"):
 
 
 # Added class: TurnProperties
-class TurnProperties(BaseModel, extra="forbid"):
+class TurnProperties(BaseModel, extra="forbid"): # type: ignore[call-arg]
     service_attribute: str | None = Field(
         default=None,
         allow_template=True,
@@ -609,7 +609,7 @@ class TurnProperties(BaseModel, extra="forbid"):
     )
 
 # Added class: DialTurnConfig
-class DialTurnConfig(DialEventConfig, extra="forbid"):
+class DialTurnConfig(DialEventConfig, extra="forbid"): # type: ignore[call-arg]
     properties: TurnProperties = Field(
         default_factory=TurnProperties,
         description="Properties controlling the dial's turn behavior and state."
@@ -633,18 +633,9 @@ class DialTurnConfig(DialEventConfig, extra="forbid"):
         schema = cls.schema()
         properties = schema["properties"]
         return {k for k, v in properties.items() if v.get("allow_template", False)}
-    def rendered_template_turn(
-        self,
-        complete_state: StateDict,
-    ) -> "DialTurnConfig":
-        dct = self.rendered_template_event(complete_state)
-        if "properties" in dct:
-            props = {k: _render_jinja(v, complete_state) if isinstance(v, str) else v for k, v in dct["properties"].items()}
-            dct["properties"] = props
-        return DialTurnConfig(**dct)
 
 # Added class: DialPushConfig
-class DialPushConfig(DialEventConfig, extra="forbid"):
+class DialPushConfig(DialEventConfig, extra="forbid"): # type: ignore[call-arg]
     def rendered_template_push(
         self,
         complete_state: StateDict,
@@ -659,7 +650,7 @@ class DialPushConfig(DialEventConfig, extra="forbid"):
         return {k for k, v in properties.items() if v.get("allow_template", False)}
     
 # Added class: DialConfig (replaces Dial)
-class DialConfig(_ButtonDialBase, extra="forbid"):
+class DialConfig(_ButtonDialBase, extra="forbid"): # type: ignore[call-arg]
     turn: DialTurnConfig | None = Field(
         default=None,
         description="Configuration for dial turn events."

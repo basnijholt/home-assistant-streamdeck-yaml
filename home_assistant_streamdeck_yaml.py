@@ -608,7 +608,6 @@ class TurnProperties(BaseModel, extra="forbid"): # type: ignore[call-arg]
         description="The current value of the dial."
     )
 
-# Added class: DialTurnConfig
 class DialTurnConfig(DialEventConfig, extra="forbid"): # type: ignore[call-arg]
     properties: TurnProperties = Field(
         default_factory=TurnProperties,
@@ -633,6 +632,71 @@ class DialTurnConfig(DialEventConfig, extra="forbid"): # type: ignore[call-arg]
         schema = cls.schema()
         properties = schema["properties"]
         return {k for k, v in properties.items() if v.get("allow_template", False)}
+
+    def sync_with_ha_state(self, new_state: float | None, entity_id: str | None = None) -> bool:
+        if self.is_sleeping():  # Skip sync if timer is running (recent turn)
+            console.log(f"Skipping HA state sync for turn with service_attribute {self.properties.service_attribute} (entity_id={entity_id}): timer is running")
+            return False
+        try:
+            min_val = float(self.properties.min)
+            max_val = float(self.properties.max)
+            if min_val >= max_val:
+                console.log(f"Invalid min/max: min={min_val}, max={max_val}, setting max to min + 1")
+                max_val = min_val + 1
+                self.properties.max = max_val
+            new_state = self.properties.state if new_state is None else new_state  # Default to current state
+            return self._sync_state(new_state, min_val, max_val)
+        except (ValueError, TypeError) as e:
+            console.log(f"Failed to sync turn state for entity_id={entity_id}: {e}")
+            return False
+
+    def process_ha_update(self, new_state: float | None, entity_id: str | None = None) -> bool:
+        if self.is_sleeping():  # Skip sync if timer is running (recent turn)
+            console.log(f"Skipping HA state update for turn with service_attribute {self.properties.service_attribute} (entity_id={entity_id}): timer is running")
+            return False
+        try:
+            min_val = float(self.properties.min)
+            max_val = float(self.properties.max)
+            if min_val >= max_val:
+                console.log(f"Invalid min/max: min={min_val}, max={max_val}, setting max to min + 1")
+                max_val = min_val + 1
+                self.properties.max = max_val
+            new_state = self.properties.state if new_state is None else new_state  # Default to current state
+            return self._sync_state(new_state, min_val, max_val)
+        except (ValueError, TypeError) as e:
+            console.log(f"Failed to process HA state update for entity_id={entity_id}: {e}")
+            return False
+
+    def _sync_state(self, new_state: float, min_val: float, max_val: float) -> bool:
+        """Helper to sync state with clamping and logging, avoiding duplication."""
+        new_state = min(max_val, max(min_val, new_state))
+        if abs(new_state - self.properties.state) > 0.001:  # Avoid redundant updates
+            self.properties.state = new_state
+            console.log(f"Synced turn state to {new_state} for {self.properties.service_attribute} from HA data")
+            return True
+        return False
+
+    def update_on_physical_turn(self, value: float) -> None:
+        try:
+            current_state = float(self.properties.state)
+            step = float(self.properties.step)
+            min_val = float(self.properties.min)
+            max_val = float(self.properties.max)
+            if min_val >= max_val:
+                console.log(f"Invalid min/max: min={min_val}, max={max_val}, setting max to min + 1")
+                max_val = min_val + 1
+                self.properties.max = max_val
+            new_state = current_state + value * step
+            new_state = min(max_val, max(min_val, new_state))
+            console.log(f"Before update: state={self.properties.state}")
+            self.properties.state = new_state
+            console.log(f"Updated turn state to {new_state} on physical turn (value={value}, step={step}, min={min_val}, max={max_val})")
+        except (ValueError, TypeError) as e:
+            console.log(f"Failed to update turn state on physical turn: {e}")
+            self.properties.state = min_val
+                        
+    def set_state(self, value: float) -> None:
+        self.properties.state = value 
 
 # Added class: DialPushConfig
 class DialPushConfig(DialEventConfig, extra="forbid"): # type: ignore[call-arg]
@@ -666,175 +730,42 @@ class DialConfig(_ButtonDialBase, extra="forbid"): # type: ignore[call-arg]
     )
     
     def sync_with_ha_state(self, complete_state: StateDict) -> bool:
-        if not self.turn:
+        if not self.turn or not self.entity_id:
             return False
-        turn = self.turn  # Use current turn config to preserve internal state
-        if turn.is_sleeping():  # Skip sync if timer is running (recent turn)
-            console.log(f"Skipping HA state sync for dial with entity_id {self.entity_id}: timer is running")
-            return False
-        try:
-            min_val = float(turn.properties.min)
-            max_val = float(turn.properties.max)
-            if min_val >= max_val:
-                console.log(f"Invalid min/max: min={min_val}, max={max_val}, setting max to min + 1")
-                max_val = min_val + 1
-                turn.properties.max = max_val
-            new_state = turn.properties.state  # Default to current state
-            entity_id = self.entity_id
-            if entity_id and entity_id in complete_state:
-                entity_state = complete_state[entity_id]
-                if entity_state.get("state") == "on" and turn.properties.service_attribute:
-                    value = entity_state.get("attributes", {}).get(turn.properties.service_attribute)
-                    if value is not None:
-                        new_state = float(value)
-                elif "state" in entity_state:
-                    try:
-                        new_state = float(entity_state["state"])
-                    except (ValueError, TypeError):
-                        pass  # Keep current state
-            return self._sync_state(new_state, min_val, max_val)
-        except (KeyError, ValueError, TypeError) as e:
-            console.log(f"Failed to sync dial state: {e}")
-            return False
+        entity_state = complete_state.get(self.entity_id)
+        new_state = None
+        if entity_state and entity_state.get("state") == "on" and self.turn.properties.service_attribute:
+            value = entity_state.get("attributes", {}).get(self.turn.properties.service_attribute)
+            if value is not None:
+                new_state = float(value)
+        elif entity_state and "state" in entity_state:
+            try:
+                new_state = float(entity_state["state"])
+            except (ValueError, TypeError):
+                pass  # Keep new_state as None
+        return self.turn.sync_with_ha_state(new_state, self.entity_id)
 
     def process_ha_update(self, data: dict[str, Any]) -> bool:
-        if not self.turn:
+        if not self.turn or not self.entity_id or self.entity_id != data.get("entity_id"):
             return False
-        turn = self.turn  # Use current turn config to preserve internal state
-        if turn.is_sleeping():  # Skip sync if timer is running (recent turn)
-            console.log(f"Skipping HA state update for dial with entity_id {self.entity_id}: timer is running")
-            return False
-        try:
-            min_val = float(turn.properties.min)
-            max_val = float(turn.properties.max)
-            if min_val >= max_val:
-                console.log(f"Invalid min/max: min={min_val}, max={max_val}, setting max to min + 1")
-                max_val = min_val + 1
-                turn.properties.max = max_val
-            new_state = turn.properties.state  # Default to current state
-            entity_id = self.entity_id
-            if entity_id and entity_id == data.get("entity_id"):
-                new_state_data = data.get("new_state")
-                if new_state_data and new_state_data.get("state") == "on" and turn.properties.service_attribute:
-                    value = new_state_data.get("attributes", {}).get(turn.properties.service_attribute)
-                    if value is not None:
-                        new_state = float(value)
-            return self._sync_state(new_state, min_val, max_val)
-        except (KeyError, ValueError, TypeError) as e:
-            console.log(f"Failed to process HA state update: {e}")
-            return False
-
-    def _sync_state(self, new_state: float, min_val: float, max_val: float) -> bool:
-        """Helper to sync state with clamping and logging, avoiding duplication."""
-        new_state = min(max_val, max(min_val, new_state))
-        if abs(new_state - self.turn.properties.state) > 0.001:  # Avoid redundant updates
-            self.turn.properties.state = new_state
-            console.log(f"Synced dial state to {new_state} for {self.turn.properties.service_attribute} from HA data")
-            return True
-        return False
+        new_state_data = data.get("new_state")
+        new_state = None
+        if new_state_data and new_state_data.get("state") == "on" and self.turn.properties.service_attribute:
+            value = new_state_data.get("attributes", {}).get(self.turn.properties.service_attribute)
+            if value is not None:
+                new_state = float(value)
+        return self.turn.process_ha_update(new_state, self.entity_id)
 
     def update_on_physical_turn(self, value: float) -> None:
         if not self.turn:
             console.log("No turn configuration for dial, cannot update on physical turn")
             return
-        turn = self.turn  # Use current turn config to preserve internal state
-        try:
-            current_state = float(turn.properties.state)
-            step = float(turn.properties.step)
-            min_val = float(turn.properties.min)
-            max_val = float(turn.properties.max)
-            if min_val >= max_val:
-                console.log(f"Invalid min/max: min={min_val}, max={max_val}, setting max to min + 1")
-                max_val = min_val + 1
-                turn.properties.max = max_val
-            new_state = current_state + value * step
-            new_state = min(max_val, max(min_val, new_state))
-            turn.properties.state = new_state
-            console.log(f"Updated dial state to {new_state} on physical turn (value={value}, step={step}, min={min_val}, max={max_val})")
-        except (ValueError, TypeError) as e:
-            console.log(f"Failed to update dial state on physical turn: {e}")
-            turn.properties.state = min_val
-
+        self.turn.update_on_physical_turn(value)
             
-    def update_turn_state(
-        self,
-        data: dict[str, Any],
-        complete_state: StateDict,
-    ) -> None:
-        if not self.turn:
-            console.log("No turn configuration for dial, cannot update state")
-            return
-        turn = self.turn
-        assert turn is not None
-        try:
-            min_val = float(turn.properties.min)
-            max_val = float(turn.properties.max)
-            if min_val >= max_val:
-                console.log(f"Invalid min/max: min={min_val}, max={max_val}, setting max to min + 1")
-                max_val = min_val + 1
-                turn.properties.max = max_val
-            new_state = min_val  # Default to min
-            if turn.properties.service_attribute and "attributes" in data:
-                value = data["attributes"].get(turn.properties.service_attribute)
-                if value is not None:
-                    new_state = float(value)
-                else:
-                    console.log(f"No value for {turn.properties.service_attribute}, using min: {min_val}")
-            elif "state" in data:
-                try:
-                    new_state = float(data["state"])
-                except (ValueError, TypeError):
-                    console.log(f"Invalid HA state {data.get('state')}, using min: {min_val}")
-            new_state = min(max_val, max(min_val, new_state))
-            if abs(new_state - turn.properties.state) > 0.001:  # Avoid redundant updates
-                turn.properties.state = new_state
-                console.log(f"Updated dial state to {new_state} for {turn.properties.service_attribute} from HA data")
-            else:
-                console.log(f"No state change needed: current={turn.properties.state}, new={new_state}")
-            # Force LCD update after state change
-            if self.entity_id:
-                console.log(f"Forcing LCD update for dial {self.entity_id} after state update")
-                update_dial(deck, key, config, complete_state)
-        except (KeyError, ValueError, TypeError) as e:
-            console.log(f"Failed to update turn state: {e}")
-            turn.properties.state = min_val
-            update_dial(deck, key, config, complete_state)
-                
-            
-        
-    def increment_turn_state(self, value: float, complete_state: StateDict) -> None:
-        if not self.turn:
-            console.log("No turn configuration for dial, cannot increment state")
-            return
-        turn = self.turn
-        assert turn is not None
-        try:
-            current_state = float(turn.properties.state)
-            step = float(turn.properties.step)
-            min_val = float(turn.properties.min)
-            max_val = float(turn.properties.max)
-            if min_val >= max_val:
-                console.log(f"Invalid min/max: min={min_val}, max={max_val}, setting max to min + 1")
-                max_val = min_val + 1
-                turn.properties.max = max_val
-            new_state = current_state + value * step
-            new_state = min(max_val, max(min_val, new_state))
-            turn.properties.state = new_state
-            console.log(f"Incremented dial state to {new_state} (value={value}, step={step}, min={min_val}, max={max_val})")
-            # Force LCD update after state change
-            console.log(f"Forcing LCD update for dial {self.entity_id} after increment")
-            update_dial(deck, key, config, complete_state)
-        except (ValueError, TypeError) as e:
-            console.log(f"Failed to increment dial state: {e}")
-            turn.properties.state = turn.properties.min
-            
-            
-    def set_turn_state(self, value: float, complete_state: StateDict) -> None:
+    def set_turn_state(self, value: float) -> None:
         if not self.turn:
             return
-        turn = self.turn
-        assert turn is not None
-        turn.properties.state = value
+        self.turn.set_state(value)
 
     def render_lcd_image(
         self,
@@ -2070,9 +2001,6 @@ def update_dial(
     if not dial:
         return
 
-    if data is not None:
-        dial.update_turn_state(data, complete_state)
-
     size_lcd = deck.touchscreen_image_format()["size"]
     size_per_dial = (size_lcd[0] // deck.dial_count(), size_lcd[1])
     image = dial.render_lcd_image(
@@ -2210,9 +2138,9 @@ def _on_touchscreen_event_callback(
             if dial and dial.allow_touchscreen_events and dial.turn:
                 turn = dial.turn
                 if event_type == TouchscreenEventType.SHORT:
-                    dial.set_turn_state(turn.properties.min, complete_state)
+                    dial.set_turn_state(turn.properties.min)
                 elif event_type == TouchscreenEventType.LONG:
-                    dial.set_turn_state(turn.properties.max, complete_state)
+                    dial.set_turn_state(turn.properties.max)
                 await handle_dial_event(
                     websocket,
                     complete_state,

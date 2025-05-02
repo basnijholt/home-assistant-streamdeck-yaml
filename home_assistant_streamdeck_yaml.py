@@ -699,6 +699,7 @@ class DialConfig(_ButtonDialBase, extra="forbid"):
             return False
         turn = self.turn  # Use current turn config to preserve internal state
         if turn.is_sleeping():  # Skip sync if timer is running (recent turn)
+            console.log(f"Skipping HA state sync for dial with entity_id {self.entity_id}: timer is running")
             return False
         try:
             min_val = float(turn.properties.min)
@@ -720,14 +721,46 @@ class DialConfig(_ButtonDialBase, extra="forbid"):
                         new_state = float(entity_state["state"])
                     except (ValueError, TypeError):
                         pass  # Keep current state
-            new_state = min(max_val, max(min_val, new_state))
-            if abs(new_state - turn.properties.state) > 0.001:  # Avoid redundant updates
-                turn.properties.state = new_state
-                return True
-            return False
+            return self._sync_state(new_state, min_val, max_val)
         except (KeyError, ValueError, TypeError) as e:
             console.log(f"Failed to sync dial state: {e}")
             return False
+
+    def process_ha_update(self, data: dict[str, Any]) -> bool:
+        if not self.turn:
+            return False
+        turn = self.turn  # Use current turn config to preserve internal state
+        if turn.is_sleeping():  # Skip sync if timer is running (recent turn)
+            console.log(f"Skipping HA state update for dial with entity_id {self.entity_id}: timer is running")
+            return False
+        try:
+            min_val = float(turn.properties.min)
+            max_val = float(turn.properties.max)
+            if min_val >= max_val:
+                console.log(f"Invalid min/max: min={min_val}, max={max_val}, setting max to min + 1")
+                max_val = min_val + 1
+                turn.properties.max = max_val
+            new_state = turn.properties.state  # Default to current state
+            entity_id = self.entity_id
+            if entity_id and entity_id == data.get("entity_id"):
+                new_state_data = data.get("new_state")
+                if new_state_data and new_state_data.get("state") == "on" and turn.properties.service_attribute:
+                    value = new_state_data.get("attributes", {}).get(turn.properties.service_attribute)
+                    if value is not None:
+                        new_state = float(value)
+            return self._sync_state(new_state, min_val, max_val)
+        except (KeyError, ValueError, TypeError) as e:
+            console.log(f"Failed to process HA state update: {e}")
+            return False
+
+    def _sync_state(self, new_state: float, min_val: float, max_val: float) -> bool:
+        """Helper to sync state with clamping and logging, avoiding duplication."""
+        new_state = min(max_val, max(min_val, new_state))
+        if abs(new_state - self.turn.properties.state) > 0.001:  # Avoid redundant updates
+            self.turn.properties.state = new_state
+            console.log(f"Synced dial state to {new_state} for {self.turn.properties.service_attribute} from HA data")
+            return True
+        return False
 
     def update_on_physical_turn(self, value: float) -> None:
         if not self.turn:
@@ -977,10 +1010,14 @@ class Page(BaseModel):
     _parent_page_index: int = PrivateAttr([])
     _dials_sorted: list[DialConfig] = PrivateAttr([])
 
-    def sync_all_dials_with_ha_state(self, complete_state: StateDict, deck: StreamDeck, config: Config) -> None:
+    def sync_all_dials_with_ha_state(self, complete_state: StateDict, deck: StreamDeck, config: Config, data: dict[str, Any] | None = None) -> None:
+        if data is None or "event" not in data or "data" not in data["event"]:
+            return
+        event_data = data["event"]["data"]
+        entity_id = event_data.get("entity_id")
         for key, dial in enumerate(self.dials):
-            if dial.entity_id:
-                if dial.sync_with_ha_state(complete_state):
+            if dial.entity_id == entity_id:
+                if dial.process_ha_update(event_data):
                     console.log(f"Dial {key} state updated, refreshing LCD")
                     update_dial(
                         deck=deck,
@@ -988,11 +1025,8 @@ class Page(BaseModel):
                         config=config,
                         complete_state=complete_state,
                     )
-        dial_list = self._dials_sorted
-        for i in range(len(dial_list)):
-            if dial in dial_list[i]:
-                return i
-        return None
+                    break
+
 
     @classmethod
     def to_pandas_table(cls: type[Page]) -> pd.DataFrame:
@@ -1638,7 +1672,7 @@ def _update_state(
                 return
 
             # Update all dials on the page
-            config.current_page().sync_all_dials_with_ha_state(complete_state, deck, config)
+            config.current_page().sync_all_dials_with_ha_state(complete_state, deck, config, data)
 
             keys = _keys(eid, buttons)
             for key in keys:
@@ -2036,17 +2070,19 @@ def _generate_failed_icon(
 def update_all_dials(
     deck: StreamDeck,
     config: Config,
-    complete_state: StateDict,
+    complete_state: dict[str, dict[str, Any]],
 ) -> None:
-    console.log("Called update_all_dials")
+    """Update all dials on the StreamDeck."""
     for key in range(deck.dial_count()):
         dial = config.dial(key)
-        if dial and dial.entity_id:
+        if dial:
+            # Sync dial state with HA before rendering
+            dial.sync_with_ha_state(complete_state)
             update_dial(
-                deck,
-                key,
-                config,
-                complete_state,
+                deck=deck,
+                key=key,
+                config=config,
+                complete_state=complete_state,
             )
 
 

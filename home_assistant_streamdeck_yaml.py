@@ -713,8 +713,8 @@ class DialPushConfig(DialEventConfig, extra="forbid"): # type: ignore[call-arg]
         properties = schema["properties"]
         return {k for k, v in properties.items() if v.get("allow_template", False)}
     
-# Added class: DialConfig (replaces Dial)
-class DialConfig(_ButtonDialBase, extra="forbid"): # type: ignore[call-arg]
+# Added class: Dial (replaces Dial)
+class Dial(_ButtonDialBase, extra="forbid"): # type: ignore[call-arg]
     turn: DialTurnConfig | None = Field(
         default=None,
         description="Configuration for dial turn events."
@@ -838,7 +838,7 @@ class DialConfig(_ButtonDialBase, extra="forbid"): # type: ignore[call-arg]
             return _generate_failed_icon(size=size)
 
 def _update_dial_descriptions() -> None:
-    for _k, _v in DialConfig.__fields__.items():
+    for _k, _v in Dial.__fields__.items():
         _v.field_info.description = (
             _v.field_info.description.replace("on the button", "above the dial")
             .replace("button", "dial")
@@ -905,12 +905,12 @@ class Page(BaseModel):
         default_factory=list,
         description="A list of buttons on the page.",
     )
-    dials: list[DialConfig] = Field(
+    dials: list[Dial] = Field(
         default_factory=list,
         description="A list of dials on the page.",
     )
     _parent_page_index: int = PrivateAttr([])
-    _dials_sorted: list[DialConfig] = PrivateAttr([])
+    _dials_sorted: list[Dial] = PrivateAttr([])
 
     def sync_all_dials_with_ha_state(self, complete_state: StateDict, deck: StreamDeck, config: Config, data: dict[str, Any] | None = None) -> None:
         if data is None or "event" not in data or "data" not in data["event"]:
@@ -1079,7 +1079,7 @@ class Config(BaseModel):
             return self._detached_page
         return self.pages[self._current_page_index]
 
-    def dial(self, key: int) -> DialConfig | None:
+    def dial(self, key: int) -> Dial | None:
         dials = self.current_page().dials
         if key < len(dials):
             return dials[key]
@@ -1542,7 +1542,7 @@ async def handle_changes(
     )
 
 
-def _keys(entity_id: str, buttons: list[Button] | list[DialConfig]) -> list[int]:
+def _keys(entity_id: str, buttons: list[Button] | list[Dial]) -> list[int]:
     return [
         i
         for i, item in enumerate(buttons)
@@ -1715,14 +1715,14 @@ def _round(num: float, digits: int) -> int | float:
     return round(num, digits)
 
 
-def _dial_value(dial: DialConfig | None, complete_state: StateDict) -> float:
+def _dial_value(dial: Dial | None, complete_state: StateDict) -> float:
     if not dial or not dial.turn:
         return 0
     return dial.turn.properties.state
 
 def _dial_attr(
     attr: str,
-    dial: DialConfig | None = None,
+    dial: Dial | None = None,
 ) -> str | float | None:
     if not dial or not dial.turn:
         console.log(f"Error getting dial attribute attr='{attr}', dial={dial}")
@@ -1736,7 +1736,7 @@ def _dial_attr(
 def _render_jinja(
     text: str,
     complete_state: StateDict,
-    dial: DialConfig | None = None,
+    dial: Dial | None = None,
 ) -> str:
     if not isinstance(text, str):
         return text
@@ -2158,7 +2158,7 @@ async def handle_dial_event(
     websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
-    dial: DialConfig,
+    dial: Dial,
     deck: StreamDeck,
     event_type: DialEventType,
     value: int,
@@ -2193,14 +2193,15 @@ async def handle_dial_event(
             if config_item.service_data is None
             else config_item.service_data.copy()
         )
-        if event_type == DialEventType.TURN and dial.turn and dial.turn.properties.service_attribute:
+        if event_type == DialEventType.TURN and dial.turn and dial.turn.properties.service_attribute is not None:
+            service_attribute = dial.turn.properties.service_attribute
             state = dial.turn.properties.state
             min_val = dial.turn.properties.min
             max_val = dial.turn.properties.max
             if state < min_val or state > max_val:
-                console.log(f"Invalid state {state} for {dial.turn.properties.service_attribute}, clamping to range")
+                console.log(f"Invalid state {state} for {service_attribute}, clamping to range")
                 state = min(max_val, max(min_val, state))
-            service_data[dial.turn.properties.service_attribute] = int(state)
+            service_data[service_attribute] = str(int(state))
         if "entity_id" not in service_data and dial.entity_id:
             service_data["entity_id"] = dial.entity_id
 

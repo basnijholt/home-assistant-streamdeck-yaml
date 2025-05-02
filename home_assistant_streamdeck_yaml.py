@@ -673,26 +673,6 @@ class DialConfig(_ButtonDialBase, extra="forbid"):
         allow_template=True,
         description="Whether events from the touchscreen are allowed, for example set the minimal value on `SHORT` and set maximal value on `LONG`."
     )
-
-    def rendered_template_dial(
-        self,
-        complete_state: StateDict,
-    ) -> "DialConfig":
-        dct = self.dict(exclude_unset=True)
-        for key in self.templatable():
-            if key not in dct:
-                continue
-            val = dct[key]
-            if isinstance(val, dict):
-                for k, v in val.items():
-                    val[k] = _render_jinja(v, complete_state)
-            elif isinstance(val, str):
-                dct[key] = _render_jinja(val, complete_state)
-        if "turn" in dct and dct["turn"]:
-            dct["turn"] = DialTurnConfig(**dct["turn"]).rendered_template_turn(complete_state).dict()
-        if "push" in dct and dct["push"]:
-            dct["push"] = DialPushConfig(**dct["push"]).rendered_template_push(complete_state).dict()
-        return DialConfig(**dct)
     
     def sync_with_ha_state(self, complete_state: StateDict) -> bool:
         if not self.turn:
@@ -793,7 +773,7 @@ class DialConfig(_ButtonDialBase, extra="forbid"):
         if not self.turn:
             console.log("No turn configuration for dial, cannot update state")
             return
-        turn = self.rendered_template_dial(complete_state).turn
+        turn = self.turn
         assert turn is not None
         try:
             min_val = float(turn.properties.min)
@@ -835,7 +815,7 @@ class DialConfig(_ButtonDialBase, extra="forbid"):
         if not self.turn:
             console.log("No turn configuration for dial, cannot increment state")
             return
-        turn = self.rendered_template_dial(complete_state).turn
+        turn = self.turn
         assert turn is not None
         try:
             current_state = float(turn.properties.state)
@@ -861,7 +841,7 @@ class DialConfig(_ButtonDialBase, extra="forbid"):
     def set_turn_state(self, value: float, complete_state: StateDict) -> None:
         if not self.turn:
             return
-        turn = self.rendered_template_dial(complete_state).turn
+        turn = self.turn
         assert turn is not None
         turn.properties.state = value
 
@@ -875,12 +855,12 @@ class DialConfig(_ButtonDialBase, extra="forbid"):
     ) -> Image.Image:
         try:
             image = None
-            state_value = self.turn.properties.state if self.turn else 0.0  # Use current state directly
 
-            # Render icon template with current dial context
-            icon = _render_jinja(self.icon, complete_state, dial=self) if isinstance(self.icon, str) else self.icon
-            text = _render_jinja(self.text, complete_state, dial=self) if isinstance(self.text, str) else self.text
-            text_color = _render_jinja(self.text_color, complete_state, dial=self) if isinstance(self.text_color, str) else self.text_color or "white"
+            # Ensure dial context is set
+            dial = self
+            icon = _render_jinja(self.icon, complete_state, dial=dial) if isinstance(self.icon, str) else self.icon
+            text = _render_jinja(self.text, complete_state, dial=dial) if isinstance(self.text, str) else self.text
+            text_color = _render_jinja(self.text_color, complete_state, dial=dial) if isinstance(self.text_color, str) else self.text_color or "white"
 
             if isinstance(icon, str) and ":" in icon:
                 which, id_ = icon.split(":", 1)
@@ -1816,20 +1796,20 @@ def _round(num: float, digits: int) -> int | float:
 def _dial_value(dial: DialConfig | None, complete_state: StateDict) -> float:
     if not dial or not dial.turn:
         return 0
-    return dial.rendered_template_dial(complete_state).turn.properties.state
+    return dial.turn.properties.state
 
 def _dial_attr(
     attr: str,
-    dial: DialConfig | None,
-    complete_state: StateDict,
-) -> float:
-    if not dial or not dial.turn or not attr:
-        return 0
+    dial: DialConfig | None = None,
+) -> str | float | None:
+    if not dial or not dial.turn:
+        console.log(f"Error getting dial attribute attr='{attr}', dial={dial}")
+        return None
     try:
-        return float(getattr(dial.rendered_template_dial(complete_state).turn.properties, attr))
-    except (AttributeError, ValueError) as e:
-        console.log(f"Error getting dial attribute {attr}: {e}")
-        return 0
+        return getattr(dial.turn.properties, attr)
+    except AttributeError:
+        console.log(f"Error getting dial attribute attr='{attr}', dial={dial}")
+        return None
 
 def _render_jinja(
     text: str,
@@ -1849,7 +1829,7 @@ def _render_jinja(
         env.filters["max"] = _max_filter
         env.filters["is_number"] = _is_number_filter
         template = env.from_string(text)
-        return template.render(
+        result = template.render(
             min=min,
             max=max,
             is_state_attr=ft.partial(_is_state_attr, complete_state=complete_state),
@@ -1858,12 +1838,14 @@ def _render_jinja(
             is_state=ft.partial(_is_state, complete_state=complete_state),
             round=_round,
             dial_value=ft.partial(_dial_value, dial=dial, complete_state=complete_state),
-            dial_attr=ft.partial(_dial_attr, dial=dial, complete_state=complete_state),
+            dial_attr=ft.partial(_dial_attr, dial=dial),
         ).strip()
+        return result
     except jinja2.exceptions.TemplateError as err:
         console.print_exception(show_locals=True)
         console.log(f"Error rendering template: {err} with error type {type(err)}")
         return text
+
 
 async def get_states(websocket: websockets.ClientConnection) -> dict[str, Any]:
     """Get the current state of all entities."""
@@ -2235,7 +2217,7 @@ def _on_touchscreen_event_callback(
             icon_pos = value["x"] // lcd_icon_size
             dial = config.dial(int(icon_pos))
             if dial and dial.allow_touchscreen_events and dial.turn:
-                turn = dial.rendered_template_dial(complete_state).turn
+                turn = dial.turn
                 if event_type == TouchscreenEventType.SHORT:
                     dial.set_turn_state(turn.properties.min, complete_state)
                 elif event_type == TouchscreenEventType.LONG:

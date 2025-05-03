@@ -576,19 +576,21 @@ class DialTurnConfig(ServiceData, extra="forbid"):  # type: ignore[call-arg]
     def rendered_template(
         self,
         complete_state: StateDict,
+        dial: Dial,
     ) -> DialTurnConfig:
-        dct = {}
+        """Render template strings in the turn configuration."""
+        dct: dict[str, Any] = {}
         for key, val in self.__dict__.items():
             if key == "properties":
                 props = TurnProperties(**val).dict()
                 for k in TurnProperties.templatable():
                     if k in props and isinstance(props[k], str):
-                        props[k] = _render_jinja(props[k], complete_state)
+                        props[k] = _render_jinja(props[k], complete_state, dial=dial)
                 dct[key] = props
             elif isinstance(val, str):
-                dct[key] = _render_jinja(val, complete_state)
+                dct[key] = _render_jinja(val, complete_state, dial=dial)
             elif isinstance(val, dict):
-                dct[key] = {k: _render_jinja(v, complete_state) if isinstance(v, str) else v for k, v in val.items()}
+                dct[key] = dict({k: _render_jinja(v, complete_state, dial=dial) if isinstance(v, str) else v for k, v in val.items()})
             else:
                 dct[key] = val
         return DialTurnConfig(**dct)
@@ -661,6 +663,10 @@ class DialTurnConfig(ServiceData, extra="forbid"):  # type: ignore[call-arg]
             console.log(f"Failed to update turn state on physical turn: {e}")
             self.properties.state = min_val
 
+    def set_state(self, state:float) -> None:
+        self.properties.state = state
+        
+        
 class DialPushConfig(ServiceData, extra="forbid"):  # type: ignore[call-arg]
     """Configuration for a StreamDeck dial's push behavior, including service actions."""
 
@@ -693,13 +699,15 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         description="Configuration for the dial's push behavior."
     )
     allow_touchscreen_events: bool = Field(
-        default=True,
-        description="Whether to allow touchscreen events on the dial."
+        default=False,
+        allow_template=True,
+        description="Whether events from the touchscreen are allowed, for example set the minimal value on `SHORT` and set maximal value on `LONG`.",
     )
 
     def __init__(self, **kwargs):
         console.log(f"Initializing Dial with kwargs: {kwargs}")
         super().__init__(**kwargs)
+
 
     @validator("entity_id")
     def validate_entity_id(cls, v: str | None) -> str | None:
@@ -707,10 +715,10 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             return v
         if not v:
             raise ValueError("entity_id cannot be an empty string")
-        if not re.match(r"^[a-z]+\.[a-z0-9_]+$", v):
+        if not re.match(r"^[a-z_]+\.[a-z0-9_]+$", v):
             raise ValueError(f"entity_id {v} must follow the format 'domain.entity_name' (e.g., light.living_room)")
         return v
-
+    
     def sync_with_ha_state(self, complete_state: StateDict) -> bool:
         if not self.turn or not self.entity_id:
             return False
@@ -744,6 +752,10 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             console.log("No turn configuration for dial, cannot update on physical turn")
             return
         self.turn.update_on_physical_turn(value)
+
+    def set_turn_state(self, state:float) -> None:
+        if self.turn:
+            self.turn.set_state(state)
 
     def rendered_template_dial(self, complete_state: StateDict) -> Dial:
         """Render template strings in the dial configuration."""

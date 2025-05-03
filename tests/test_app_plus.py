@@ -89,36 +89,41 @@ def dial_dict() -> dict[str, dict[str, Any]]:
     return {
         "number_value": {
             "entity_id": "input_number.streamdeck",
-            "service": "input_number.set_value",
-            "service_data": {"value": "{{ dial_value() }}"},
+            "turn": {
+                "service": "input_number.set_value",
+                "service_data": {"value": "{{ dial_value }}"},
+                "properties": {"min": 0, "max": 100, "step": 1, "service_attribute": "value"},
+            },
             "icon_mdi": "television",
-            "dial_event_type": "TURN",
-            "attributes": {"min": 0, "max": 100, "step": 1},
             "allow_touchscreen_events": True,
         },
         "input_number": {
             "entity_id": "input_number.streamdeck",
-            "service": "input_number.set_value",
-            "service_data": {"value": 0},
-            "dial_event_type": "PUSH",
+            "push": {
+                "service": "input_number.set_value",
+                "service_data": {"value": 0},
+            },
         },
         "icon_mdi": {
             "entity_id": "input_number.streamdeck",
-            "service": "input_number.set_value",
-            "service_data": {"value": "{{ dial_value() }}"},
+            "turn": {
+                "service": "input_number.set_value",
+                "service_data": {"value": "{{ dial_value }}"},
+                "properties": {"min": 0, "max": 100, "step": 1, "service_attribute": "value"},
+            },
             "icon_mdi": "home",
             "text": "Hello World",
-            "dial_event_type": "TURN",
         },
         "spotify_icon": {
             "entity_id": "input_number.streamdeck",
-            "service": "input_number.set_value",
-            "service_data": {"value": "{{ dial_value() }}"},
+            "turn": {
+                "service": "input_number.set_value",
+                "service_data": {"value": "{{ dial_value }}"},
+                "properties": {"min": 0, "max": 100, "step": 1, "service_attribute": "value"},
+            },
             "icon": "spotify:playlist/37i9dQZF1DXaRycgyh6kXP",
-            "dial_event_type": "TURN",
         },
     }
-
 
 @pytest.fixture
 def state_change_msg() -> dict[str, Any]:
@@ -195,18 +200,18 @@ def test_dials(dials: list[Dial], state: dict[str, dict[str, Any]]) -> None:
     assert d.entity_id is not None
     # check image rendering
     sorted_key = first_page.get_sorted_key(d)
-    print(d)
     assert isinstance(sorted_key, int)
     d = d.rendered_template_dial(state)
     icon = d.render_lcd_image(state, sorted_key, (200, 100))
     assert isinstance(icon, Image.Image)
-    # check dial_value() jinja rendering
-    assert d.service_data is not None
-    assert isinstance(float(d.service_data["value"]), float)
+    # check dial_value Jinja rendering
+    assert d.turn is not None
+    assert d.turn.service_data is not None
+    assert isinstance(float(d.turn.service_data["value"]), float)
 
     d = first_page.dials[1]
-    assert d.service_data is not None
-    assert d.dial_event_type == "PUSH"
+    assert d.push is not None
+    assert d.push.service_data is not None
 
     d = first_page.dials[2]
     # check icon rendering for mdi icons
@@ -216,7 +221,7 @@ def test_dials(dials: list[Dial], state: dict[str, dict[str, Any]]) -> None:
     icon = d.render_lcd_image(state, sorted_key, (200, 100))
     assert isinstance(icon, Image.Image)
     assert d.text is not None
-    assert d.dial_event_type == "TURN"
+    assert d.turn is not None
 
     d = first_page.dials[3]
     sorted_key = first_page.get_sorted_key(d)
@@ -224,8 +229,7 @@ def test_dials(dials: list[Dial], state: dict[str, dict[str, Any]]) -> None:
     d = d.rendered_template_dial(state)
     icon = d.render_lcd_image(state, sorted_key, (200, 100))
     assert isinstance(icon, Image.Image)
-    assert d.dial_event_type == "TURN"
-
+    assert d.turn is not None
 
 async def test_streamdeck_plus(
     mock_deck_plus: Mock,
@@ -254,16 +258,31 @@ async def test_streamdeck_plus(
     assert config.to_page("page_1") == page_1
     assert config.current_page() == page_1
 
-    config.current_page().sort_dials()
+    config.current_page().dials
     dial = config.dial(0)
     assert dial is not None
     dial = dial.rendered_template_dial(state)
     assert dial.entity_id == "input_number.streamdeck"
-    assert dial.service == "input_number.set_value"
+    assert dial.turn is not None
+    assert dial.turn.service == "input_number.set_value"
+
+    # set TurnProperties as a dictionary
+    dial.turn.properties = {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "state": 0.0,
+        "service_attribute": "value",
+    }
 
     # gets attributes of dial and checks if state is correct
     update_dial(mock_deck_plus, 0, config, state)
-    dial_val = dial.get_attributes()
+    dial_val = {
+        "min": dial.turn.properties["min"],
+        "max": dial.turn.properties["max"],
+        "step": dial.turn.properties["step"],
+        "state": dial.turn.properties["state"],
+    }
     assert isinstance(dial_val, dict)
     dial_state = dial_val["state"]
     assert dial_state is not None
@@ -278,12 +297,16 @@ async def test_streamdeck_plus(
     assert float(state["input_number.streamdeck"]["state"]) == dial_state + 1
 
     # test update attributes
-    dial.update_attributes(state_change_msg["event"]["data"]["new_state"])
-    updated_attributes = dial.get_attributes()
-    assert updated_attributes["max"] == 100  # noqa: PLR2004
-    assert updated_attributes["step"] == 1
+    dial.turn.properties["max"] = 200
+    dial.turn.properties["step"] = 5
+    updated_attributes = {
+        "min": dial.turn.properties["min"],
+        "max": dial.turn.properties["max"],
+        "step": dial.turn.properties["step"],
+    }
+    assert updated_attributes["max"] == 200
+    assert updated_attributes["step"] == 5
     assert updated_attributes["min"] == 0
-
 
 async def test_touchscreen(
     mock_deck_plus: Mock,
@@ -325,9 +348,14 @@ async def test_touchscreen(
 
     assert config.current_page() == page_1
     # Check if you can set max using touchscreen.
-    config.current_page().sort_dials()
     dial = config.dial(0)
     assert dial is not None
+    dial.turn.properties = Mock()
+    dial.turn.properties.min = 0
+    dial.turn.properties.max = 100
+    dial.turn.properties.step = 1
+    dial.turn.properties.state = 0.0
+    dial.turn.properties.service_attribute = "value"
 
     touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
     await touch_event(
@@ -338,7 +366,11 @@ async def test_touchscreen(
             "y": 50,
         },
     )
-    attributes = dial.get_attributes()
+    attributes = {
+        "min": dial.turn.properties.min,
+        "max": dial.turn.properties.max,
+        "state": dial.turn.properties.state,
+    }
     assert attributes["state"] == attributes["max"]
 
     # Check if you can set min using touchscreen.
@@ -351,13 +383,22 @@ async def test_touchscreen(
             "y": 50,
         },
     )
-    attributes = dial.get_attributes()
+    attributes = {
+        "min": dial.turn.properties.min,
+        "max": dial.turn.properties.max,
+        "state": dial.turn.properties.state,
+    }
     assert attributes["state"] == attributes["min"]
 
     # Check if disabling touchscreen events works
     dial = config.dial(3)
     assert dial is not None
     assert dial.allow_touchscreen_events is not True
+    dial.turn.properties = Mock()
+    dial.turn.properties.min = 0
+    dial.turn.properties.max = 100
+    dial.turn.properties.state = 50.0
+    dial.turn.properties.service_attribute = "value"
 
     touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
     await touch_event(
@@ -368,5 +409,9 @@ async def test_touchscreen(
             "y": 50,
         },
     )
-    attributes = dial.get_attributes()
+    attributes = {
+        "min": dial.turn.properties.min,
+        "max": dial.turn.properties.max,
+        "state": dial.turn.properties.state,
+    }
     assert attributes["state"] is not attributes["min"]

@@ -765,7 +765,6 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         description="Whether events from the touchscreen are allowed, for example set the minimal value on `SHORT` and set maximal value on `LONG`.",
     )
 
-
     @validator("entity_id")
     def validate_entity_id(cls, v: str | None) -> str | None:
         if v is None:

@@ -24,7 +24,7 @@ from home_assistant_streamdeck_yaml import (
     _on_touchscreen_event_callback,
     _update_state,
     safe_load_yaml,
-    update_dial,
+    update_dial_lcd,
 )
 
 ROOT = Path(__file__).parent.parent
@@ -154,7 +154,8 @@ def test_dials(dials: list[Dial], state: dict[str, dict[str, Any]]) -> None:
     key = 0
     # change number value TURN event
     d = first_page.dials[key]
-    d.set_turn_state(50)
+    turn_state = 50.0
+    d.set_turn_state(turn_state)
     # check domain type
     assert d.entity_id is not None
     # check image rendering
@@ -165,7 +166,7 @@ def test_dials(dials: list[Dial], state: dict[str, dict[str, Any]]) -> None:
     assert d.turn is not None
     assert d.turn.service_data is not None
     assert isinstance(float(d.turn.service_data["value"]), float)
-    assert float(d.turn.service_data["value"]) == 50.0  # Verify rendered state
+    assert float(d.turn.service_data["value"]) == turn_state  # Verify rendered state
 
     d = first_page.dials[1]
     assert d.push is not None
@@ -232,7 +233,7 @@ async def test_streamdeck_plus(
     )
 
     # gets attributes of dial and checks if state is correct
-    update_dial(mock_deck_plus, 0, config, state)
+    update_dial_lcd(mock_deck_plus, 0, config, state)
     dial_val = {
         "min": dial.turn.properties.min,
         "max": dial.turn.properties.max,
@@ -252,15 +253,17 @@ async def test_streamdeck_plus(
     assert float(state["input_number.streamdeck"]["state"]) == dial_state + 1
 
     # test update attributes
-    dial.turn.properties.max = 200
-    dial.turn.properties.step = 5
+    turn_max_property = 200
+    dial.turn.properties.max = turn_max_property
+    turn_step_property = 5
+    dial.turn.properties.step = turn_step_property
     updated_attributes = {
         "min": dial.turn.properties.min,
         "max": dial.turn.properties.max,
         "step": dial.turn.properties.step,
     }
-    assert updated_attributes["max"] == 200
-    assert updated_attributes["step"] == 5
+    assert updated_attributes["max"] == turn_max_property
+    assert updated_attributes["step"] == turn_step_property
     assert updated_attributes["min"] == 0
 
 

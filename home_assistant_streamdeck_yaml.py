@@ -135,17 +135,17 @@ class ServiceData(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         self,
         callback: Callable[[], None | Coroutine] | None = None,
     ) -> bool:
-        """Start a new timer or restart if none is running."""
+        """Starts or restarts AsyncDelayedCallback timer."""
         if not self.delay:
             return False
-        if self._timer is None or not self._timer.is_running():
-            assert isinstance(self.delay, (int, float)), f"Invalid delay: {self.delay}"
+        if self._timer is None:
+            assert isinstance(
+                self.delay,
+                (int, float),
+            ), f"Invalid delay: {self.delay}"
             self._timer = AsyncDelayedCallback(delay=self.delay, callback=callback)
-            self._timer.start()
-            console.log(f"Started timer with delay {self.delay}")
-            return True
-        console.log(f"Timer already running with delay {self.delay}")
-        return False
+        self._timer.start()
+        return True
 
     @classmethod
     def templatable(cls: type[_ButtonDialBase]) -> set[str]:

@@ -153,7 +153,7 @@ class ServiceData(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     @classmethod
     def to_markdown_table(cls: type[Button]) -> str:
         """Return a markdown table with the schema."""
-        return cls.to_pandas_table().to_markdown(index=False)
+        return cls.to_pandas_table().to_markdown(index=False)        
 
 
 class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
@@ -611,28 +611,18 @@ class DialTurnConfig(ServiceData, extra="forbid"):  # type: ignore[call-arg]
         complete_state: StateDict,
         dial: Dial,
     ) -> DialTurnConfig:
-        """Render template strings in the turn configuration."""
-        dct: dict[str, Any] = {}
-        for key, val in self.__dict__.items():
-            if key == "properties":
-                props = val.dict()  # val is a TurnProperties object
-                for k in TurnProperties.templatable():
-                    if k in props and isinstance(props[k], str):
-                        props[k] = _render_jinja(props[k], complete_state, dial=dial)
-                dct[key] = props
-            elif isinstance(val, str):
-                dct[key] = _render_jinja(val, complete_state, dial=dial)
-            elif isinstance(val, dict):
-                dct[key] = dict(
-                    {
-                        k: _render_jinja(v, complete_state, dial=dial) if isinstance(v, str) else v
-                        for k, v in val.items()
-                    },
-                )
+        """Return a button with the rendered text."""
+        dct = self.dict(exclude_unset=True)
+        for key in self.templatable():
+            if key not in dct:
+                continue
+            val = dct[key]
+            if isinstance(val, dict):  # e.g., service_data, target
+                for k, v in val.items():
+                    val[k] = _render_jinja(v, complete_state, dial)
             else:
-                dct[key] = val
+                dct[key] = _render_jinja(val, complete_state, dial)  # type: ignore[assignment]
         return DialTurnConfig(**dct)
-
     @classmethod
     def templatable(cls: type[DialTurnConfig]) -> set[str]:
         schema = cls.schema()
@@ -753,10 +743,12 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
 
     turn: DialTurnConfig | None = Field(
         default=None,
+        allow_template=True,
         description="Configuration for the dial's turn behavior.",
     )
     push: DialPushConfig | None = Field(
         default=None,
+        allow_template=True,
         description="Configuration for the dial's push behavior.",
     )
     allow_touchscreen_events: bool = Field(
@@ -830,21 +822,21 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             if key not in dct:
                 continue
             val = dct[key]
-            if isinstance(val, (DialTurnConfig, DialPushConfig)):
-                # Call the rendered_template method of the config object
+            if key == "turn" and val is not None:
+                if isinstance(val, dict):
+                    val = DialTurnConfig(**val)
+                dct[key] = val.rendered_template(complete_state, self)
+            elif key == "push" and val is not None:
+                if isinstance(val, dict):
+                    val = DialPushConfig(**val)
                 dct[key] = val.rendered_template(complete_state, self)
             elif isinstance(val, str):
-                # Render string fields
                 dct[key] = _render_jinja(val, complete_state, dial=self)
             elif isinstance(val, dict):
-                # Render dictionary fields
                 dct[key] = {
                     k: _render_jinja(v, complete_state, dial=self) if isinstance(v, str) else v
                     for k, v in val.items()
                 }
-            else:
-                # Keep other fields as is
-                pass  # No change needed for non-templatable fields
         return Dial(**dct)
 
     def render_lcd_image(

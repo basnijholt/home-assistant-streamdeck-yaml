@@ -78,73 +78,6 @@ console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
 
 
-class TurnProperties(BaseModel, extra="forbid"):  # type: ignore[call-arg]
-    service_attribute: str | None = Field(
-        default=None,
-        allow_template=True,
-        description="The attribute of the entity state used for the dial value.",
-    )
-    min: float = Field(
-        default=0.0,
-        allow_template=True,
-        description="The minimum value of the dial.",
-    )
-    max: float = Field(
-        default=100.0,
-        allow_template=True,
-        description="The maximum value of the dial.",
-    )
-    step: float = Field(
-        default=1.0,
-        allow_template=True,
-        description="The step size for dial value increments.",
-    )
-    state: float = Field(
-        default=0.0,
-        allow_template=True,
-        description="The current value of the dial.",
-    )
-
-    @validator("service_attribute", "min", "max", "step", pre=True)
-    def validate_fields(cls, v: Any) -> Any:
-        """Ensure fields are valid before processing."""
-        if isinstance(v, str) and v.strip() == "":
-            return None if v == "service_attribute" else 0.0
-        return v
-
-    @classmethod
-    def validate(cls, v: Any) -> TurnProperties:
-        """Ensure properties is a valid TurnProperties instance."""
-        if isinstance(v, dict):
-            return cls(**v)
-        return v
-
-    @validator("max")
-    def validate_min_max(cls, max: float, values: dict[str, Any]) -> float:
-        """Ensure min < max."""
-        min_val = values.get("min")
-        if min_val is not None and max <= min_val:
-            raise ValueError(f"max ({max}) must be greater than min ({min_val})")
-        return max
-
-    @validator("step")
-    def validate_step(cls, step: float, values: dict[str, Any]) -> float:
-        """Ensure abs(step) <= max - min."""
-        min_val = values.get("min")
-        max_val = values.get("max")
-        if min_val is not None and max_val is not None:
-            range_size = max_val - min_val
-            if abs(step) > range_size:
-                raise ValueError(f"abs(step) ({abs(step)}) must be <= max - min ({range_size})")
-        return step
-
-    @classmethod
-    def templatable(cls: type[_ButtonDialBase]) -> set[str]:
-        schema = cls.schema()
-        properties = schema["properties"]
-        return {k for k, v in properties.items() if v.get("allow_template", False)}
-
-
 class ServiceData(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     """Base class for service-related fields and timer management used by Button, DialTurnConfig, and DialPushConfig."""
 
@@ -602,6 +535,75 @@ class Button(_ButtonDialBase, ServiceData, extra="forbid"):  # type: ignore[call
             text_color="white",
         )
         return button, image
+
+
+class TurnProperties(BaseModel, extra="forbid"):  # type: ignore[call-arg]
+    """Contaqins properties specific to the turn action of a dial"""
+
+    service_attribute: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="The attribute of the entity state used for the dial value.",
+    )
+    min: float = Field(
+        default=0.0,
+        allow_template=True,
+        description="The minimum value of the dial.",
+    )
+    max: float = Field(
+        default=100.0,
+        allow_template=True,
+        description="The maximum value of the dial.",
+    )
+    step: float = Field(
+        default=1.0,
+        allow_template=True,
+        description="The step size for dial value increments.",
+    )
+    state: float = Field(
+        default=0.0,
+        allow_template=True,
+        description="The current value of the dial.",
+    )
+
+    @validator("service_attribute", "min", "max", "step", pre=True)
+    def validate_fields(cls, v: Any) -> Any:
+        """Ensure fields are valid before processing."""
+        if isinstance(v, str) and v.strip() == "":
+            return None if v == "service_attribute" else 0.0
+        return v
+
+    @classmethod
+    def validate(cls, v: Any) -> TurnProperties:
+        """Ensure properties is a valid TurnProperties instance."""
+        if isinstance(v, dict):
+            return cls(**v)
+        return v
+
+    @validator("max")
+    def validate_min_max(cls, max: float, values: dict[str, Any]) -> float:
+        """Ensure min < max."""
+        min_val = values.get("min")
+        if min_val is not None and max <= min_val:
+            raise ValueError(f"max ({max}) must be greater than min ({min_val})")
+        return max
+
+    @validator("step")
+    def validate_step(cls, step: float, values: dict[str, Any]) -> float:
+        """Ensure abs(step) <= max - min."""
+        min_val = values.get("min")
+        max_val = values.get("max")
+        if min_val is not None and max_val is not None:
+            range_size = max_val - min_val
+            if abs(step) > range_size:
+                raise ValueError(f"abs(step) ({abs(step)}) must be <= max - min ({range_size})")
+        return step
+
+    @classmethod
+    def templatable(cls: type[_ButtonDialBase]) -> set[str]:
+        schema = cls.schema()
+        properties = schema["properties"]
+        return {k for k, v in properties.items() if v.get("allow_template", False)}
 
 
 class DialTurnConfig(ServiceData, extra="forbid"):  # type: ignore[call-arg]

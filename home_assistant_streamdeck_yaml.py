@@ -105,10 +105,6 @@ class ServiceData(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     )
     _timer: AsyncDelayedCallback | None = PrivateAttr(None)
 
-    def __init__(self, **kwargs):
-        console.log(f"Initializing ServiceData with kwargs: {kwargs}")
-        super().__init__(**kwargs)
-
     def is_sleeping(self) -> bool:
         """Check if a service call is delayed due to an active timer."""
         return self._timer is not None and self._timer.is_running()
@@ -312,10 +308,6 @@ class Button(_ButtonDialBase, ServiceData, extra="forbid"):  # type: ignore[call
         " color_temp_kelvin (list of Kelvin temperatures, max n_keys_on_streamdeck - 5),"
         " colormap (Matplotlib colormap name). If unspecified, 10 equally spaced colors are used.",
     )
-
-    def __init__(self, **kwargs):
-        console.log(f"Initializing Button with kwargs: {kwargs}")
-        super().__init__(**kwargs)
 
     @classmethod
     def from_yaml(
@@ -773,9 +765,6 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         description="Whether events from the touchscreen are allowed, for example set the minimal value on `SHORT` and set maximal value on `LONG`.",
     )
 
-    def __init__(self, **kwargs):
-        console.log(f"Initializing Dial with kwargs: {kwargs}")
-        super().__init__(**kwargs)
 
     @validator("entity_id")
     def validate_entity_id(cls, v: str | None) -> str | None:
@@ -837,20 +826,27 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
 
     def rendered_template_dial(self, complete_state: StateDict) -> Dial:
         """Render template strings in the dial configuration."""
-        new_dict = {}
-        for key, val in self.__dict__.items():
+        dct = self.dict(exclude_unset=True)
+        for key in self.templatable():
+            if key not in dct:
+                continue
+            val = dct[key]
             if isinstance(val, (DialTurnConfig, DialPushConfig)):
-                new_dict[key] = val.rendered_template(complete_state, self)
+                # Call the rendered_template method of the config object
+                dct[key] = val.rendered_template(complete_state, self)
             elif isinstance(val, str):
-                new_dict[key] = _render_jinja(val, complete_state, dial=self)
+                # Render string fields
+                dct[key] = _render_jinja(val, complete_state, dial=self)
             elif isinstance(val, dict):
-                new_dict[key] = {
+                # Render dictionary fields
+                dct[key] = {
                     k: _render_jinja(v, complete_state, dial=self) if isinstance(v, str) else v
                     for k, v in val.items()
                 }
             else:
-                new_dict[key] = val
-        return Dial(**new_dict)
+                # Keep other fields as is
+                pass  # No change needed for non-templatable fields
+        return Dial(**dct)
 
     def render_lcd_image(
         self,

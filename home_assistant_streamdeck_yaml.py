@@ -153,7 +153,7 @@ class ServiceData(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     @classmethod
     def to_markdown_table(cls: type[Button]) -> str:
         """Return a markdown table with the schema."""
-        return cls.to_pandas_table().to_markdown(index=False)        
+        return cls.to_pandas_table().to_markdown(index=False)
 
 
 class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
@@ -623,6 +623,7 @@ class DialTurnConfig(ServiceData, extra="forbid"):  # type: ignore[call-arg]
             else:
                 dct[key] = _render_jinja(val, complete_state, dial)  # type: ignore[assignment]
         return DialTurnConfig(**dct)
+
     @classmethod
     def templatable(cls: type[DialTurnConfig]) -> set[str]:
         schema = cls.schema()

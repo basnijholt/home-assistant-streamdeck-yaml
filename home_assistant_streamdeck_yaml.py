@@ -77,52 +77,132 @@ LCD_ICON_SIZE_Y = 100
 console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
 
-
-class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
-    """Parent of Button and Dial."""
-
-    entity_id: str | None = Field(
+class TurnProperties(BaseModel, extra="forbid"): # type: ignore[call-arg]
+    service_attribute: str | None = Field(
         default=None,
         allow_template=True,
-        description="The `entity_id` that this button controls."
-        " This entity will be passed to the `service` when the button is pressed."
-        " The button is re-rendered whenever the state of this entity changes.",
+        description="The attribute of the entity state used for the dial value."
     )
-    linked_entity: str | None = Field(
-        default=None,
+    min: float = Field(
+        default=0.0,
         allow_template=True,
-        description="A secondary entity_id that is used for updating images and states",
+        description="The minimum value of the dial."
     )
+    max: float = Field(
+        default=100.0,
+        allow_template=True,
+        description="The maximum value of the dial."
+    )
+    step: float = Field(
+        default=1.0,
+        allow_template=True,
+        description="The step size for dial value increments."
+    )
+    state: float = Field(
+        default=0.0,
+        allow_template=True,
+        description="The current value of the dial."
+    )
+
+
+class ServiceData(BaseModel, extra="forbid"):  # type: ignore[call-arg]
+    """Base class for service-related fields and timer management used by Button, DialTurnConfig, and DialPushConfig."""
+    
     service: str | None = Field(
         default=None,
         allow_template=True,
-        description="The `service` that will be called when the button is pressed.",
+        description="The Home Assistant service to call when the action is triggered.",
     )
     service_data: dict[str, Any] | None = Field(
         default=None,
         allow_template=True,
-        description="The `service_data` that will be passed to the `service` when the button is pressed."
-        " If empty, the `entity_id` will be passed.",
+        description="Data to pass to the service call. If empty, the entity_id may be passed.",
     )
     target: dict[str, Any] | None = Field(
         default=None,
         allow_template=True,
-        description="The `target` that will be passed to the `service` when the button is pressed.",
+        description="Target data for the service call.",
+    )
+    delay: float | str = Field(
+        default=0.0,
+        allow_template=True,
+        description="Delay (in seconds) before the action is triggered."
+        " Counts down from the trigger time. If triggered again, the timer is cancelled."
+        " Should be a float or template string evaluating to a float.",
+    )
+    _timer: AsyncDelayedCallback | None = PrivateAttr(None)
+
+    def __init__(self, **kwargs):
+        console.log(f"Initializing ServiceData with kwargs: {kwargs}")
+        super().__init__(**kwargs)
+
+    def is_sleeping(self) -> bool:
+        """Check if a service call is delayed due to an active timer."""
+        return self._timer is not None and self._timer.is_running()
+    
+    def maybe_start_or_cancel_timer(
+        self,
+        callback: Callable[[], None | Coroutine] | None = None,
+    ) -> bool:
+        """Start or cancel the timer."""
+        if self.delay:
+            if self._timer is None:
+                assert isinstance(
+                    self.delay,
+                    (int, float),
+                ), f"Invalid delay: {self.delay}"
+                self._timer = AsyncDelayedCallback(delay=self.delay, callback=callback)
+            if self._timer.is_running():
+                self._timer.cancel()
+            else:
+                self._timer.start()
+            return True
+        return False
+    
+    def start_or_restart_timer(
+        self,
+        callback: Callable[[], None | Coroutine] | None = None,
+    ) -> bool:
+        """Start a new timer or restart if none is running."""
+        if not self.delay:
+            return False
+        if self._timer is None or not self._timer.is_running():
+            assert isinstance(self.delay, (int, float)), f"Invalid delay: {self.delay}"
+            self._timer = AsyncDelayedCallback(delay=self.delay, callback=callback)
+            self._timer.start()
+            console.log(f"Started timer with delay {self.delay}")
+            return True
+        console.log(f"Timer already running with delay {self.delay}")
+        return False
+    
+
+class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
+    """Base class for Button and Dial, defining shared visual and entity-related fields."""
+
+    entity_id: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="The entity_id that this button or dial controls."
+        " This entity will be passed to the service when triggered."
+        " The button or dial is re-rendered whenever the state of this entity changes.",
+    )
+    linked_entity: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="A secondary entity_id that is used for updating images and states.",
     )
     text: str = Field(
         default="",
         allow_template=True,
-        description="The text to display on the button."
+        description="The text to display on the button or dial."
         " If empty, no text is displayed."
-        r" You might want to add `\n` characters to spread the text over several"
-        r" lines, or use the `\|` character in YAML to create a multi-line string.",
+        r" Use \n for multi-line text or \| in YAML for multi-line strings.",
     )
     text_color: str | None = Field(
         default=None,
         allow_template=True,
         description="Color of the text."
-        " If empty, the color is `white`, unless an `entity_id` is specified, in"
-        " which case the color is `amber` when the state is `on`, and `white` when it is `off`.",
+        " If empty, defaults to white, or amber when entity_id state is on, white when off.",
     )
     text_size: int = Field(
         default=12,
@@ -132,28 +212,23 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     text_offset: int = Field(
         default=0,
         allow_template=False,
-        description="The text's position can be moved up or down from the center of"
-        " the button, and this movement is measured in pixels. The value can be"
-        " positive (for upward movement) or negative (for downward movement).",
+        description="Text position offset in pixels from the center. Positive moves up, negative down.",
     )
     icon: str | None = Field(
         default=None,
         allow_template=True,
-        description="The icon filename to display on the button."
-        " Make the path absolute (e.g., `/config/streamdeck/my_icon.png`) or relative to the"
-        " `assets` directory (e.g., `my_icon.png`)."
-        " If empty, a icon with `icon_background_color` and `text` is displayed."
-        " The icon can be a URL to an image,"
-        " like `'url:https://www.nijho.lt/authors/admin/avatar.jpg'`, or a `spotify:`"
-        " icon, like `'spotify:album/6gnYcXVaffdG0vwVM34cr8'`."
-        " If the icon is a `spotify:` icon, the icon will be downloaded and cached."
-        " The icon can also display a partially complete ring, like a progress bar,"
-        " or sensor value, like `ring:25` for a 25% complete ring.",
+        description="Icon filename to display."
+        " Use absolute paths (e.g., /config/streamdeck/my_icon.png) or relative to"
+        " the assets directory (e.g., my_icon.png)."
+        " If empty, displays an icon with icon_background_color and text."
+        " Supports URLs (e.g., url:https://example.com/image.jpg),"
+        " Spotify icons (e.g., spotify:album/6gnYcXVaffdG0vwVM34cr8),"
+        " or rings (e.g., ring:25 for a 25% complete ring).",
     )
     icon_mdi: str | None = Field(
         default=None,
         allow_template=True,
-        description="The Material Design Icon to display on the button."
+        description="Material Design Icon to display."
         " If empty, no icon is displayed."
         " See https://mdi.bessarabov.com/ for a list of icons."
         " The SVG icon will be downloaded and cached.",
@@ -161,69 +236,49 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     icon_background_color: str = Field(
         default="#000000",
         allow_template=True,
-        description="A color (in hex format, e.g., '#FF0000') for the background of the icon (if no `icon` is specified).",
+        description="Hex color (e.g., #FF0000) for the icon background if no icon is specified.",
     )
     icon_mdi_color: str | None = Field(
         default=None,
         allow_template=True,
-        description="The color of the Material Design Icon (in hex format, e.g., '#FF0000')."
-        " If empty, the color is derived from `text_color` but is less saturated (gray is mixed in).",
+        description="Hex color (e.g., #FF0000) for the Material Design Icon."
+        " If empty, derived from text_color with less saturation.",
     )
     icon_gray_when_off: bool = Field(
         default=False,
         allow_template=False,
-        description="When specifying `icon` and `entity_id`, if the state is `off`, the icon will be converted to grayscale.",
-    )
-    delay: float | str = Field(
-        default=0.0,
-        allow_template=True,
-        description="The delay (in seconds) before the `service` is called."
-        " This is useful if you want to wait before calling the `service`."
-        " Counts down from the time the button is pressed."
-        " If while counting the button is pressed again, the timer is cancelled."
-        " Should be a float or template string that evaluates to a float.",
+        description="If icon and entity_id are specified, convert the icon to grayscale when the state is off.",
     )
 
-    _timer: AsyncDelayedCallback | None = PrivateAttr(None)
-
     @classmethod
-    def templatable(cls: type["_ButtonDialBase"]) -> set[str]:
-        schema = cls.schema()
-        properties = schema["properties"]
-        return {k for k, v in properties.items() if v.get("allow_template", False)}
-
-    @classmethod
-    def to_pandas_table(cls: type[Button]) -> pd.DataFrame:
-        """Return a pandas table with the schema."""
+    def to_pandas_schema_table(cls: type['_ButtonDialBase']) -> pd.DataFrame:
+        """Return a pandas table with the schema of the class's fields."""
         import pandas as pd
-
+        
+        console.log(f"Calling to_pandas_schema_table on {cls.__name__} class")
         rows = []
         for k, field in cls.__fields__.items():
             info = field.field_info
             if info.description is None:
                 continue
 
-            def code(text: str) -> str:
-                return f"`{text}`"
+            def code(text: str | Any) -> str:
+                return f"`{text}`" if text is not None else ""
 
             row = {
                 "Variable name": code(k),
-                "Allow template": "✅" if info.extra["allow_template"] else "❌",
+                "Allow template": "✅" if info.extra.get("allow_template", False) else "❌",
                 "Description": info.description,
-                "Default": code(info.default) if info.default else "",
+                "Default": code(info.default) if info.default is not None else "",
                 "Type": code(field._type_display()),
             }
             rows.append(row)
-        return pd.DataFrame(rows)
+        df = pd.DataFrame(rows)
+        console.log(f"Generated {cls.__name__} schema DataFrame: {df.to_dict()}")
+        return df
 
-    @classmethod
-    def to_markdown_table(cls: type[Button]) -> str:
-        """Return a markdown table with the schema."""
-        return cls.to_pandas_table().to_markdown(index=False)
-
-
-class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
-    """Button configuration."""
+class Button(_ButtonDialBase, ServiceData, extra="forbid"):  # type: ignore[call-arg]
+    """Configuration for a StreamDeck button, supporting normal and special actions."""
 
     special_type: (
         Literal[
@@ -241,31 +296,30 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         default=None,
         allow_template=False,
         description="Special type of button."
-        " If no specified, the button is a normal button."
-        " If `next-page`, the button will go to the next page."
-        " If `previous-page`, the button will go to the previous page."
-        " If `turn-off`, the button will turn off the SteamDeck until any button is pressed."
-        " If `empty`, the button will be empty."
-        " If `close-page`, the button will close the current page and return to the previous one."
-        " If `go-to-page`, the button will go to the page specified by `special_type_data`"
-        " (either an `int` or `str` (name of the page))."
-        " If `light-control`, the button will control a light, and the `special_type_data`"
-        " can be a dictionary, see its description."
-        " If `reload`, the button will reload the configuration file when pressed.",
+        " If not specified, the button is a normal button."
+        " next-page: Goes to the next page."
+        " previous-page: Goes to the previous page."
+        " turn-off: Turns off the StreamDeck until a button is pressed."
+        " empty: The button is empty."
+        " close-page: Closes the current page and returns to the previous one."
+        " go-to-page: Goes to the page specified by special_type_data (int or str)."
+        " light-control: Controls a light with special_type_data as a dictionary."
+        " reload: Reloads the configuration file.",
     )
     special_type_data: Any | None = Field(
         default=None,
         allow_template=True,
         description="Data for the special type of button."
-        " If `go-to-page`, the data should be an `int` or `str` (name of the page)."
-        " If `light-control`, the data should optionally be a dictionary."
-        " The dictionary can contain the following keys:"
-        " The `colors` key and a value a list of max (`n_keys_on_streamdeck - 5`) hex colors."
-        " The `color_temp_kelvin` key and a value a list of max (`n_keys_on_streamdeck - 5`) color temperatures in Kelvin."
-        " The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html)"
-        " can be used. This requires the `matplotlib` package to be installed. If no"
-        " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",
+        " For go-to-page, an int or str (page name)."
+        " For light-control, optionally a dictionary with keys:"
+        " colors (list of hex colors, max n_keys_on_streamdeck - 5),"
+        " color_temp_kelvin (list of Kelvin temperatures, max n_keys_on_streamdeck - 5),"
+        " colormap (Matplotlib colormap name). If unspecified, 10 equally spaced colors are used.",
     )
+
+    def __init__(self, **kwargs):
+        console.log(f"Initializing Button with kwargs: {kwargs}")
+        super().__init__(**kwargs)
 
     @classmethod
     def from_yaml(
@@ -470,28 +524,6 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                 v["color_temp_kelvin"] = tuple(v["color_temp_kelvin"])
         return v
 
-    def maybe_start_or_cancel_timer(
-        self,
-        callback: Callable[[], None | Coroutine] | None = None,
-    ) -> bool:
-        """Start or cancel the timer."""
-        if self.delay:
-            if self._timer is None:
-                assert isinstance(
-                    self.delay,
-                    (int, float),
-                ), f"Invalid delay: {self.delay}"
-                self._timer = AsyncDelayedCallback(delay=self.delay, callback=callback)
-            if self._timer.is_running():
-                self._timer.cancel()
-            else:
-                self._timer.start()
-            return True
-        return False
-
-    def is_sleeping(self) -> bool:
-        """Return True if the timer is sleeping."""
-        return self._timer is not None and self._timer.is_sleeping
 
     def sleep_button_and_image(
         self,
@@ -508,127 +540,38 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             text_color="white",
         )
         return button, image
+    
+    
+class DialTurnConfig(ServiceData, extra="forbid"):  # type: ignore[call-arg]
+    """Configuration for a StreamDeck dial's turn behavior, including state and service actions."""
 
-
-class DialEventConfig(BaseModel, extra="forbid"): # type: ignore[call-arg]
-    service: str | None = Field(
-        default=None,
-        allow_template=True,
-        description="The `service` that will be called when the dial event occurs."
-    )
-    service_data: dict[str, Any] | None = Field(
-        default=None,
-        allow_template=True,
-        description="The `service_data` passed to the `service`. If empty, the `entity_id` is passed."
-    )
-    target: dict[str, Any] | None = Field(
-        default=None,
-        allow_template=True,
-        description="The `target` passed to the `service`."
-    )
-    delay: float | str = Field(
-        default=0.0,
-        allow_template=True,
-        description="The delay (in seconds) before the `service` is called."
-    )
-
-    _timer: AsyncDelayedCallback | None = PrivateAttr(None)
-
-    def rendered_template_event(
-        self,
-        complete_state: StateDict,
-    ) -> dict[str, Any]:
-        dct = self.dict(exclude_unset=True)
-        for key in self.templatable():
-            if key not in dct:
-                continue
-            val = dct[key]
-            if isinstance(val, dict):
-                for k, v in val.items():
-                    val[k] = _render_jinja(v, complete_state)
-            elif isinstance(val, str):
-                dct[key] = _render_jinja(val, complete_state)
-        return dct
-
-    def start_or_restart_timer(
-        self,
-        callback: Callable[[], None | Coroutine] | None = None,
-    ) -> bool:
-        if not self.delay:
-            return False
-        if self._timer is None or not self._timer.is_running():
-            assert isinstance(self.delay, (int, float)), f"Invalid delay: {self.delay}"
-            self._timer = AsyncDelayedCallback(delay=self.delay, callback=callback)
-            self._timer.start()
-            console.log(f"Started timer for dial turn with delay {self.delay}")
-            return True
-        console.log("Timer already running for dial turn, not restarting")
-        return False
-
-    def is_sleeping(self) -> bool:
-        return self._timer is not None and self._timer.is_sleeping
-
-    def remaining_time(self) -> float:
-        if self._timer is None:
-            return 0
-        return self._timer.remaining_time()
-
-    @classmethod
-    def templatable(cls: type["DialEventConfig"]) -> set[str]:
-        schema = cls.schema()
-        properties = schema["properties"]
-        return {k for k, v in properties.items() if v.get("allow_template", False)}
-
-
-# Added class: TurnProperties
-class TurnProperties(BaseModel, extra="forbid"): # type: ignore[call-arg]
-    service_attribute: str | None = Field(
-        default=None,
-        allow_template=True,
-        description="The attribute of the entity state used for the dial value."
-    )
-    min: float = Field(
-        default=0.0,
-        allow_template=True,
-        description="The minimum value of the dial."
-    )
-    max: float = Field(
-        default=100.0,
-        allow_template=True,
-        description="The maximum value of the dial."
-    )
-    step: float = Field(
-        default=1.0,
-        allow_template=True,
-        description="The step size for dial value increments."
-    )
-    state: float = Field(
-        default=0.0,
-        allow_template=True,
-        description="The current value of the dial."
-    )
-
-class DialTurnConfig(DialEventConfig, extra="forbid"): # type: ignore[call-arg]
     properties: TurnProperties = Field(
         default_factory=TurnProperties,
         description="Properties controlling the dial's turn behavior and state."
     )
 
-    def rendered_template_turn(
+    def rendered_template(
         self,
         complete_state: StateDict,
-    ) -> "DialTurnConfig":
-        dct = self.rendered_template_event(complete_state)
-        if "properties" in dct:
-            props = TurnProperties(**dct["properties"]).dict()
-            for k in TurnProperties.templatable():
-                if k in props and isinstance(props[k], str):
-                    props[k] = _render_jinja(props[k], complete_state)
-            dct["properties"] = props
+    ) -> DialTurnConfig:
+        dct = {}
+        for key, val in self.__dict__.items():
+            if key == "properties":
+                props = TurnProperties(**val).dict()
+                for k in TurnProperties.templatable():
+                    if k in props and isinstance(props[k], str):
+                        props[k] = _render_jinja(props[k], complete_state)
+                dct[key] = props
+            elif isinstance(val, str):
+                dct[key] = _render_jinja(val, complete_state)
+            elif isinstance(val, dict):
+                dct[key] = {k: _render_jinja(v, complete_state) if isinstance(v, str) else v for k, v in val.items()}
+            else:
+                dct[key] = val
         return DialTurnConfig(**dct)
 
     @classmethod
-    def templatable(cls: type["DialTurnConfig"]) -> set[str]:
+    def templatable(cls: type[DialTurnConfig]) -> set[str]:
         schema = cls.schema()
         properties = schema["properties"]
         return {k for k, v in properties.items() if v.get("allow_template", False)}
@@ -694,41 +637,57 @@ class DialTurnConfig(DialEventConfig, extra="forbid"): # type: ignore[call-arg]
         except (ValueError, TypeError) as e:
             console.log(f"Failed to update turn state on physical turn: {e}")
             self.properties.state = min_val
-                        
-    def set_state(self, value: float) -> None:
-        self.properties.state = value 
 
-# Added class: DialPushConfig
-class DialPushConfig(DialEventConfig, extra="forbid"): # type: ignore[call-arg]
-    def rendered_template_push(
-        self,
-        complete_state: StateDict,
-    ) -> "DialPushConfig":
-        dct = self.rendered_template_event(complete_state)
-        return DialPushConfig(**dct)
+class DialPushConfig(ServiceData, extra="forbid"):  # type: ignore[call-arg]
+    """Configuration for a StreamDeck dial's push behavior, including service actions."""
 
-    @classmethod
-    def templatable(cls: type["DialPushConfig"]) -> set[str]:
-        schema = cls.schema()
-        properties = schema["properties"]
-        return {k for k, v in properties.items() if v.get("allow_template", False)}
-    
-# Added class: Dial (replaces Dial)
-class Dial(_ButtonDialBase, extra="forbid"): # type: ignore[call-arg]
+    def rendered_template(
+            self,
+            complete_state: StateDict,
+            dial: Dial,
+        ) -> DialPushConfig:
+            """Render template strings in the push configuration."""
+            dct: dict[str, Any] = {}
+            for key, val in self.__dict__.items():
+                if isinstance(val, str):
+                    dct[key] = _render_jinja(val, complete_state, dial=dial)
+                elif isinstance(val, dict):
+                    dct[key] = dict({k: _render_jinja(v, complete_state, dial=dial) if isinstance(v, str) else v for k, v in val.items()})
+                else:
+                    dct[key] = val
+            return DialPushConfig(**dct)
+        
+        
+class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
+    """Configuration for a StreamDeck dial, managing turn and push interactions."""
+
     turn: DialTurnConfig | None = Field(
         default=None,
-        description="Configuration for dial turn events."
+        description="Configuration for the dial's turn behavior."
     )
     push: DialPushConfig | None = Field(
         default=None,
-        description="Configuration for dial push events."
+        description="Configuration for the dial's push behavior."
     )
     allow_touchscreen_events: bool = Field(
-        default=False,
-        allow_template=True,
-        description="Whether events from the touchscreen are allowed, for example set the minimal value on `SHORT` and set maximal value on `LONG`."
+        default=True,
+        description="Whether to allow touchscreen events on the dial."
     )
-    
+
+    def __init__(self, **kwargs):
+        console.log(f"Initializing Dial with kwargs: {kwargs}")
+        super().__init__(**kwargs)
+
+    @validator("entity_id")
+    def validate_entity_id(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        if not v:
+            raise ValueError("entity_id cannot be an empty string")
+        if not re.match(r"^[a-z]+\.[a-z0-9_]+$", v):
+            raise ValueError(f"entity_id {v} must follow the format 'domain.entity_name' (e.g., light.living_room)")
+        return v
+
     def sync_with_ha_state(self, complete_state: StateDict) -> bool:
         if not self.turn or not self.entity_id:
             return False
@@ -757,16 +716,29 @@ class Dial(_ButtonDialBase, extra="forbid"): # type: ignore[call-arg]
         return self.turn.process_ha_update(new_state, self.entity_id)
 
     def update_on_physical_turn(self, value: float) -> None:
+        console.log(f"updating dial {self} with {value=}")
         if not self.turn:
             console.log("No turn configuration for dial, cannot update on physical turn")
             return
         self.turn.update_on_physical_turn(value)
-            
-    def set_turn_state(self, value: float) -> None:
-        if not self.turn:
-            return
-        self.turn.set_state(value)
 
+    def rendered_template_dial(self, complete_state: StateDict) -> Dial:
+        """Render template strings in the dial configuration."""
+        new_dict = {}
+        for key, val in self.__dict__.items():
+            if isinstance(val, (DialTurnConfig, DialPushConfig)):
+                new_dict[key] = val.rendered_template(complete_state, self)
+            elif isinstance(val, str):
+                new_dict[key] = _render_jinja(val, complete_state, dial=self)
+            elif isinstance(val, dict):
+                new_dict[key] = {
+                    k: _render_jinja(v, complete_state, dial=self) if isinstance(v, str) else v
+                    for k, v in val.items()
+                }
+            else:
+                new_dict[key] = val
+        return Dial(**new_dict)
+    
     def render_lcd_image(
         self,
         complete_state: StateDict,
@@ -2169,6 +2141,7 @@ async def handle_dial_event(
         await _sync_input_boolean(config.state_entity_id, websocket, "on")
         return
 
+    console.log(f"handling dial event {event_type=} for {dial=}")
     config_item = dial.turn if event_type == DialEventType.TURN else dial.push
     key = [k for k, d in enumerate(config.current_page().dials) if d == dial][0]  # Get physical dial number
 
@@ -2215,6 +2188,7 @@ async def handle_dial_event(
         console.log(f"Forcing LCD update for dial {dial.entity_id} after service call")
         update_dial(deck, key, config, complete_state)
 
+
 def _on_dial_event_callback(
     websocket: websockets.ClientConnection,
     complete_state: StateDict,
@@ -2248,7 +2222,7 @@ def _on_dial_event_callback(
             )
 
         config_item = dial.turn if event_type == DialEventType.TURN else dial.push
-        if config_item and event_type == DialEventType.TURN and config_item.start_or_restart_timer(callback):
+        if config_item and event_type == DialEventType.TURN and dial.turn and dial.turn.start_or_restart_timer(callback):
             await handle_dial_event(
                 websocket,
                 complete_state,
@@ -2710,7 +2684,8 @@ def _help() -> str:
             f"See the configuration options below:\n\n"
             f"Config YAML options:\n{_rich_table_str(Config.to_pandas_table())}\n\n"
             f"Page YAML options:\n{_rich_table_str(Page.to_pandas_table())}\n\n"
-            f"Button YAML options:\n{_rich_table_str(Button.to_pandas_table())}\n\n"
+            f"Button YAML options:\n{_rich_table_str(Button.to_pandas_schema_table())}\n\n"
+            f"Dial YAML options:\n{_rich_table_str(Dial.to_pandas_schema_table())}"
         )
     except ModuleNotFoundError:
         return ""

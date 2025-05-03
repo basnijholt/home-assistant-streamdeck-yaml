@@ -92,12 +92,14 @@ def dial_yaml_config() -> str:
     with yaml_file.open("r") as f:
         return f.read()
 
+
 @pytest.fixture
 def dials(dial_yaml_config: str) -> list[Dial]:
     """Order of dials for page."""
     dial_configs = safe_load_yaml(dial_yaml_config, return_included_paths=False)
     assert isinstance(dial_configs, list)
     return [Dial(**config) for config in dial_configs]
+
 
 @pytest.fixture
 def state_change_msg() -> dict[str, Any]:
@@ -143,7 +145,6 @@ def state_change_msg() -> dict[str, Any]:
     }
 
 
-
 def test_dials(dials: list[Dial], state: dict[str, dict[str, Any]]) -> None:
     """Tests setup of pages with dials and rendering of image."""
     page = Page(name="Home", dials=dials)
@@ -185,6 +186,7 @@ def test_dials(dials: list[Dial], state: dict[str, dict[str, Any]]) -> None:
     icon = d.render_lcd_image(state, key, (200, 100))
     assert isinstance(icon, Image.Image)
     assert d.turn is not None
+
 
 async def test_streamdeck_plus(
     mock_deck_plus: Mock,
@@ -260,6 +262,7 @@ async def test_streamdeck_plus(
     assert updated_attributes["max"] == 200
     assert updated_attributes["step"] == 5
     assert updated_attributes["min"] == 0
+
 
 async def test_touchscreen(
     mock_deck_plus: Mock,

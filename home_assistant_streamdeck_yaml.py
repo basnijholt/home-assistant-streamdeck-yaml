@@ -175,6 +175,18 @@ class ServiceData(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         console.log(f"Timer already running with delay {self.delay}")
         return False
     
+    @classmethod
+    def templatable(cls: type["_ButtonDialBase"]) -> set[str]:
+        schema = cls.schema()
+        properties = schema["properties"]
+        return {k for k, v in properties.items() if v.get("allow_template", False)}
+    
+    @classmethod
+    def to_markdown_table(cls: type[Button]) -> str:
+        """Return a markdown table with the schema."""
+        return cls.to_pandas_table().to_markdown(index=False)
+    
+    
 
 class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     """Base class for Button and Dial, defining shared visual and entity-related fields."""
@@ -251,6 +263,12 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     )
 
     @classmethod
+    def templatable(cls: type["_ButtonDialBase"]) -> set[str]:
+        schema = cls.schema()
+        properties = schema["properties"]
+        return {k for k, v in properties.items() if v.get("allow_template", False)}
+    
+    @classmethod
     def to_pandas_schema_table(cls: type['_ButtonDialBase']) -> pd.DataFrame:
         """Return a pandas table with the schema of the class's fields."""
         import pandas as pd
@@ -276,6 +294,11 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         df = pd.DataFrame(rows)
         console.log(f"Generated {cls.__name__} schema DataFrame: {df.to_dict()}")
         return df
+    
+    @classmethod
+    def to_markdown_table(cls: type[Button]) -> str:
+        """Return a markdown table with the schema."""
+        return cls.to_pandas_schema_table().to_markdown(index=False)
 
 class Button(_ButtonDialBase, ServiceData, extra="forbid"):  # type: ignore[call-arg]
     """Configuration for a StreamDeck button, supporting normal and special actions."""

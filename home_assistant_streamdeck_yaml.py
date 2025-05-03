@@ -89,7 +89,8 @@ class ServiceData(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     service_data: dict[str, Any] | None = Field(
         default=None,
         allow_template=True,
-        description="Data to pass to the service call. If empty, the entity_id may be passed.",
+        description="The `service_data` that will be passed to the `service` when the button is pressed."
+        " If empty, the `entity_id` will be passed.",
     )
     target: dict[str, Any] | None = Field(
         default=None,
@@ -99,9 +100,11 @@ class ServiceData(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     delay: float | str = Field(
         default=0.0,
         allow_template=True,
-        description="Delay (in seconds) before the action is triggered."
-        " Counts down from the trigger time. If triggered again, the timer is cancelled."
-        " Should be a float or template string evaluating to a float.",
+        description="The delay (in seconds) before the `service` is called."
+        " This is useful if you want to wait before calling the `service`."
+        " Counts down from the time the button is pressed."
+        " If while counting the button is pressed again, the timer is cancelled."
+        " Should be a float or template string that evaluates to a float.",
     )
     _timer: AsyncDelayedCallback | None = PrivateAttr(None)
 
@@ -163,9 +166,9 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     entity_id: str | None = Field(
         default=None,
         allow_template=True,
-        description="The entity_id that this button or dial controls."
-        " This entity will be passed to the service when triggered."
-        " The button or dial is re-rendered whenever the state of this entity changes.",
+        description="The `entity_id` that this button controls."
+        " This entity will be passed to the `service` when the button is pressed."
+        " The button is re-rendered whenever the state of this entity changes.",
     )
     linked_entity: str | None = Field(
         default=None,
@@ -177,13 +180,15 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         allow_template=True,
         description="The text to display on the button or dial."
         " If empty, no text is displayed."
-        r" Use \n for multi-line text or \| in YAML for multi-line strings.",
+        r" You might want to add `\n` characters to spread the text over several"
+        r" lines, or use the `\|` character in YAML to create a multi-line string.",
     )
     text_color: str | None = Field(
         default=None,
         allow_template=True,
         description="Color of the text."
-        " If empty, defaults to white, or amber when entity_id state is on, white when off.",
+        " If empty, the color is `white`, unless an `entity_id` is specified, in"
+        " which case the color is `amber` when the state is `on`, and `white` when it is `off`.",
     )
     text_size: int = Field(
         default=12,
@@ -193,7 +198,16 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     text_offset: int = Field(
         default=0,
         allow_template=False,
-        description="Text position offset in pixels from the center. Positive moves up, negative down.",
+        description="The icon filename to display on the button."
+        " Make the path absolute (e.g., `/config/streamdeck/my_icon.png`) or relative to the"
+        " `assets` directory (e.g., `my_icon.png`)."
+        " If empty, a icon with `icon_background_color` and `text` is displayed."
+        " The icon can be a URL to an image,"
+        " like `'url:https://www.nijho.lt/authors/admin/avatar.jpg'`, or a `spotify:`"
+        " icon, like `'spotify:album/6gnYcXVaffdG0vwVM34cr8'`."
+        " If the icon is a `spotify:` icon, the icon will be downloaded and cached."
+        " The icon can also display a partially complete ring, like a progress bar,"
+        " or sensor value, like `ring:25` for a 25% complete ring.",
     )
     icon: str | None = Field(
         default=None,
@@ -217,7 +231,7 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     icon_background_color: str = Field(
         default="#000000",
         allow_template=True,
-        description="Hex color (e.g., #FF0000) for the icon background if no icon is specified.",
+        description="A color (in hex format, e.g., '#FF0000') for the background of the icon (if no `icon` is specified).",
     )
     icon_mdi_color: str | None = Field(
         default=None,
@@ -242,7 +256,6 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         """Return a pandas table with the schema of the class's fields."""
         import pandas as pd
 
-        console.log(f"Calling to_pandas_schema_table on {cls.__name__} class")
         rows = []
         for k, field in cls.__fields__.items():
             info = field.field_info
@@ -260,9 +273,7 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
                 "Type": code(field._type_display()),
             }
             rows.append(row)
-        df = pd.DataFrame(rows)
-        console.log(f"Generated {cls.__name__} schema DataFrame: {df.to_dict()}")
-        return df
+        return pd.DataFrame(rows)
 
     @classmethod
     def to_markdown_table(cls: type[Button]) -> str:
@@ -271,7 +282,7 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
 
 
 class Button(_ButtonDialBase, ServiceData, extra="forbid"):  # type: ignore[call-arg]
-    """Configuration for a StreamDeck button, supporting normal and special actions."""
+    """Button configuration."""
 
     special_type: (
         Literal[
@@ -289,25 +300,30 @@ class Button(_ButtonDialBase, ServiceData, extra="forbid"):  # type: ignore[call
         default=None,
         allow_template=False,
         description="Special type of button."
-        " If not specified, the button is a normal button."
-        " next-page: Goes to the next page."
-        " previous-page: Goes to the previous page."
-        " turn-off: Turns off the StreamDeck until a button is pressed."
-        " empty: The button is empty."
-        " close-page: Closes the current page and returns to the previous one."
-        " go-to-page: Goes to the page specified by special_type_data (int or str)."
-        " light-control: Controls a light with special_type_data as a dictionary."
-        " reload: Reloads the configuration file.",
+        " If no specified, the button is a normal button."
+        " If `next-page`, the button will go to the next page."
+        " If `previous-page`, the button will go to the previous page."
+        " If `turn-off`, the button will turn off the SteamDeck until any button is pressed."
+        " If `empty`, the button will be empty."
+        " If `close-page`, the button will close the current page and return to the previous one."
+        " If `go-to-page`, the button will go to the page specified by `special_type_data`"
+        " (either an `int` or `str` (name of the page))."
+        " If `light-control`, the button will control a light, and the `special_type_data`"
+        " can be a dictionary, see its description."
+        " If `reload`, the button will reload the configuration file when pressed.",
     )
     special_type_data: Any | None = Field(
         default=None,
         allow_template=True,
         description="Data for the special type of button."
-        " For go-to-page, an int or str (page name)."
-        " For light-control, optionally a dictionary with keys:"
-        " colors (list of hex colors, max n_keys_on_streamdeck - 5),"
-        " color_temp_kelvin (list of Kelvin temperatures, max n_keys_on_streamdeck - 5),"
-        " colormap (Matplotlib colormap name). If unspecified, 10 equally spaced colors are used.",
+        " If `go-to-page`, the data should be an `int` or `str` (name of the page)."
+        " If `light-control`, the data should optionally be a dictionary."
+        " The dictionary can contain the following keys:"
+        " The `colors` key and a value a list of max (`n_keys_on_streamdeck - 5`) hex colors."
+        " The `color_temp_kelvin` key and a value a list of max (`n_keys_on_streamdeck - 5`) color temperatures in Kelvin."
+        " The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html)"
+        " can be used. This requires the `matplotlib` package to be installed. If no"
+        " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",
     )
 
     @classmethod
@@ -1916,7 +1932,6 @@ async def call_service(
     }
     if target is not None:
         subscribe_payload["target"] = target
-    console.log(f"Calling service: {service} with data {data}")
     await websocket.send(json.dumps(subscribe_payload))
 
 
@@ -2082,7 +2097,7 @@ def _generate_failed_icon(
 def update_all_dials(
     deck: StreamDeck,
     config: Config,
-    complete_state: dict[str, dict[str, Any]],
+    complete_state: StateDict,
 ) -> None:
     """Update all dials on the StreamDeck."""
     for key in range(deck.dial_count()):
@@ -2280,11 +2295,9 @@ async def handle_dial_event(
         await _sync_input_boolean(config.state_entity_id, websocket, "on")
         return
 
-    console.log(f"handling dial event {event_type=} for {dial=}")
     config_item = dial.turn if event_type == DialEventType.TURN else dial.push
     key = next(k for k, d in enumerate(config.current_page().dials) if d == dial)
-    if not config_item or (event_type == DialEventType.PUSH and value == 0):
-        console.log(f"No valid configuration for {event_type} or push released")
+    if not config_item or (event_type == DialEventType.PUSH):
         return
 
     if event_type == DialEventType.TURN and value != 0:  # Skip value=0 to avoid resets
@@ -2296,7 +2309,6 @@ async def handle_dial_event(
         return  # Timer handled in _on_dial_event_callback
 
     if local_update:
-        console.log(f"Performing local update for dial {dial.entity_id}")
         update_dial_lcd(deck, key, config, complete_state)
         return
 
@@ -2322,7 +2334,6 @@ async def handle_dial_event(
         if "entity_id" not in service_data and dial.entity_id:
             service_data["entity_id"] = dial.entity_id
 
-        console.log(f"Calling service {config_item.service} with data {service_data}")
         await call_service(
             websocket,
             config_item.service,

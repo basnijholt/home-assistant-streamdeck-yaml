@@ -104,6 +104,39 @@ class TurnProperties(BaseModel, extra="forbid"): # type: ignore[call-arg]
         description="The current value of the dial."
     )
 
+    @validator("service_attribute", "min", "max", "step", pre=True)
+    def validate_fields(cls, v: Any) -> Any:
+        """Ensure fields are valid before processing."""
+        if isinstance(v, str) and v.strip() == "":
+            return None if v == "service_attribute" else 0.0
+        return v
+
+    @classmethod
+    def validate(cls, v: Any) -> 'TurnProperties':
+        """Ensure properties is a valid TurnProperties instance."""
+        if isinstance(v, dict):
+            return cls(**v)
+        return v
+
+    @validator("max")
+    def validate_min_max(cls, max: float, values: dict[str, Any]) -> float:
+        """Ensure min < max."""
+        min_val = values.get("min")
+        if min_val is not None and max <= min_val:
+            raise ValueError(f"max ({max}) must be greater than min ({min_val})")
+        return max
+
+    @validator("step")
+    def validate_step(cls, step: float, values: dict[str, Any]) -> float:
+        """Ensure abs(step) <= max - min."""
+        min_val = values.get("min")
+        max_val = values.get("max")
+        if min_val is not None and max_val is not None:
+            range_size = max_val - min_val
+            if abs(step) > range_size:
+                raise ValueError(f"abs(step) ({abs(step)}) must be <= max - min ({range_size})")
+        return step
+    
     @classmethod
     def templatable(cls: type["_ButtonDialBase"]) -> set[str]:
         schema = cls.schema()
@@ -577,7 +610,6 @@ class DialTurnConfig(ServiceData, extra="forbid"):  # type: ignore[call-arg]
         default_factory=TurnProperties,
         description="Properties controlling the dial's turn behavior and state."
     )
-
     def rendered_template(
         self,
         complete_state: StateDict,
@@ -587,7 +619,7 @@ class DialTurnConfig(ServiceData, extra="forbid"):  # type: ignore[call-arg]
         dct: dict[str, Any] = {}
         for key, val in self.__dict__.items():
             if key == "properties":
-                props = val.dict()  # val is already a TurnProperties object
+                props = val.dict()  # val is a TurnProperties object
                 for k in TurnProperties.templatable():
                     if k in props and isinstance(props[k], str):
                         props[k] = _render_jinja(props[k], complete_state, dial=dial)
@@ -1727,7 +1759,7 @@ def _round(num: float, digits: int) -> int | float:
     return round(num, digits)
 
 
-def _dial_value(dial: Dial | None, complete_state: StateDict) -> float:
+def _dial_value(dial: Dial | None) -> float:
     if not dial or not dial.turn:
         return 0
     return dial.turn.properties.state
@@ -1750,6 +1782,7 @@ def _render_jinja(
     complete_state: StateDict,
     dial: Dial | None = None,
 ) -> str:
+    """Render a Jinja template."""
     if not isinstance(text, str):
         return text
     if "{" not in text:
@@ -1763,7 +1796,7 @@ def _render_jinja(
         env.filters["max"] = _max_filter
         env.filters["is_number"] = _is_number_filter
         template = env.from_string(text)
-        result = template.render(
+        return template.render(
             min=min,
             max=max,
             is_state_attr=ft.partial(_is_state_attr, complete_state=complete_state),
@@ -1771,10 +1804,9 @@ def _render_jinja(
             states=ft.partial(_states, complete_state=complete_state),
             is_state=ft.partial(_is_state, complete_state=complete_state),
             round=_round,
-            dial_value=ft.partial(_dial_value, dial=dial, complete_state=complete_state),
+            dial_value=ft.partial(_dial_value, dial=dial),
             dial_attr=ft.partial(_dial_attr, dial=dial),
         ).strip()
-        return result
     except jinja2.exceptions.TemplateError as err:
         console.print_exception(show_locals=True)
         console.log(f"Error rendering template: {err} with error type {type(err)}")

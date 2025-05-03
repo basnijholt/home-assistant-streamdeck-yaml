@@ -23,6 +23,7 @@ from home_assistant_streamdeck_yaml import (
     _on_dial_event_callback,
     _on_touchscreen_event_callback,
     _update_state,
+    safe_load_yaml,
     update_dial,
 )
 
@@ -85,46 +86,18 @@ def mock_deck_plus() -> Mock:
 
 
 @pytest.fixture
-def dial_dict() -> dict[str, dict[str, Any]]:
-    """Returns Config dictionary for streamdeck plus."""
-    return {
-        "number_value": {
-            "entity_id": "input_number.streamdeck",
-            "turn": {
-                "service": "input_number.set_value",
-                "service_data": {"value": "{{ dial_value }}"},
-                "properties": {"min": 0, "max": 100, "step": 1, "service_attribute": "value"},
-            },
-            "icon_mdi": "television",
-            "allow_touchscreen_events": True,
-        },
-        "input_number": {
-            "entity_id": "input_number.streamdeck",
-            "push": {
-                "service": "input_number.set_value",
-                "service_data": {"value": 0},
-            },
-        },
-        "icon_mdi": {
-            "entity_id": "input_number.streamdeck",
-            "turn": {
-                "service": "input_number.set_value",
-                "service_data": {"value": "{{ dial_value }}"},
-                "properties": {"min": 0, "max": 100, "step": 1, "service_attribute": "value"},
-            },
-            "icon_mdi": "home",
-            "text": "Hello World",
-        },
-        "spotify_icon": {
-            "entity_id": "input_number.streamdeck",
-            "turn": {
-                "service": "input_number.set_value",
-                "service_data": {"value": "{{ dial_value }}"},
-                "properties": {"min": 0, "max": 100, "step": 1, "service_attribute": "value"},
-            },
-            "icon": "spotify:playlist/37i9dQZF1DXaRycgyh6kXP",
-        },
-    }
+def dial_yaml_config() -> str:
+    """Returns YAML configuration for StreamDeck Plus dials."""
+    yaml_file = Path(__file__).parent / "dial_config.yaml"
+    with yaml_file.open("r") as f:
+        return f.read()
+
+@pytest.fixture
+def dials(dial_yaml_config: str) -> list[Dial]:
+    """Order of dials for page."""
+    dial_configs = safe_load_yaml(dial_yaml_config, return_included_paths=False)
+    assert isinstance(dial_configs, list)
+    return [Dial(**config) for config in dial_configs]
 
 @pytest.fixture
 def state_change_msg() -> dict[str, Any]:
@@ -170,18 +143,6 @@ def state_change_msg() -> dict[str, Any]:
     }
 
 
-@pytest.fixture
-def dials(dial_dict: dict[str, dict[str, Any]]) -> list[Dial]:
-    """Order of dials for page."""
-    dial_order = [
-        "number_value",
-        "input_number",
-        "icon_mdi",
-        "spotify_icon",
-    ]
-
-    return [Dial(**dial_dict[key]) for key in dial_order]
-
 
 def test_dials(dials: list[Dial], state: dict[str, dict[str, Any]]) -> None:
     """Tests setup of pages with dials and rendering of image."""
@@ -189,13 +150,10 @@ def test_dials(dials: list[Dial], state: dict[str, dict[str, Any]]) -> None:
     config = Config(pages=[page])
     first_page = config.to_page(0)
 
-    assert sorted_dials is not None
-    for i in range(len(sorted_dials)):
-        assert sorted_dials[i] == config.dial_sorted(i)
-
     key = 0
     # change number value TURN event
     d = first_page.dials[key]
+    d.set_turn_state(50)
     # check domain type
     assert d.entity_id is not None
     # check image rendering
@@ -206,26 +164,25 @@ def test_dials(dials: list[Dial], state: dict[str, dict[str, Any]]) -> None:
     assert d.turn is not None
     assert d.turn.service_data is not None
     assert isinstance(float(d.turn.service_data["value"]), float)
+    assert float(d.turn.service_data["value"]) == 50.0  # Verify rendered state
 
     d = first_page.dials[1]
     assert d.push is not None
     assert d.push.service_data is not None
 
-    d = first_page.dials[2]
+    key = 2
+    d = first_page.dials[key]
     # check icon rendering for mdi icons
-    sorted_key = first_page.get_sorted_key(d)
-    assert isinstance(sorted_key, int)
     d = d.rendered_template_dial(state)
-    icon = d.render_lcd_image(state, sorted_key, (200, 100))
+    icon = d.render_lcd_image(state, key, (200, 100))
     assert isinstance(icon, Image.Image)
     assert d.text is not None
     assert d.turn is not None
 
-    d = first_page.dials[3]
-    sorted_key = first_page.get_sorted_key(d)
-    assert isinstance(sorted_key, int)
+    key = 3
+    d = first_page.dials[key]
     d = d.rendered_template_dial(state)
-    icon = d.render_lcd_image(state, sorted_key, (200, 100))
+    icon = d.render_lcd_image(state, key, (200, 100))
     assert isinstance(icon, Image.Image)
     assert d.turn is not None
 

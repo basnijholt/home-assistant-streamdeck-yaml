@@ -19,6 +19,7 @@ from home_assistant_streamdeck_yaml import (
     Dial,
     Page,
     TouchscreenEventType,
+    TurnProperties,
     _on_dial_event_callback,
     _on_touchscreen_event_callback,
     _update_state,
@@ -188,21 +189,18 @@ def test_dials(dials: list[Dial], state: dict[str, dict[str, Any]]) -> None:
     config = Config(pages=[page])
     first_page = config.to_page(0)
 
-    # test dial sorting
-    sorted_dials = first_page.sort_dials()
     assert sorted_dials is not None
     for i in range(len(sorted_dials)):
         assert sorted_dials[i] == config.dial_sorted(i)
 
+    key = 0
     # change number value TURN event
-    d = first_page.dials[0]
+    d = first_page.dials[key]
     # check domain type
     assert d.entity_id is not None
     # check image rendering
-    sorted_key = first_page.get_sorted_key(d)
-    assert isinstance(sorted_key, int)
     d = d.rendered_template_dial(state)
-    icon = d.render_lcd_image(state, sorted_key, (200, 100))
+    icon = d.render_lcd_image(state, key, (200, 100))
     assert isinstance(icon, Image.Image)
     # check dial_value Jinja rendering
     assert d.turn is not None
@@ -258,7 +256,6 @@ async def test_streamdeck_plus(
     assert config.to_page("page_1") == page_1
     assert config.current_page() == page_1
 
-    config.current_page().dials
     dial = config.dial(0)
     assert dial is not None
     dial = dial.rendered_template_dial(state)
@@ -266,28 +263,27 @@ async def test_streamdeck_plus(
     assert dial.turn is not None
     assert dial.turn.service == "input_number.set_value"
 
-    # set TurnProperties as a dictionary
-    dial.turn.properties = {
-        "min": 0,
-        "max": 100,
-        "step": 1,
-        "state": 0.0,
-        "service_attribute": "value",
-    }
+    # set TurnProperties as a TurnProperties object
+    dial.turn.properties = TurnProperties(
+        min=0,
+        max=100,
+        step=1,
+        state=0.0,
+        service_attribute="value",
+    )
 
     # gets attributes of dial and checks if state is correct
     update_dial(mock_deck_plus, 0, config, state)
     dial_val = {
-        "min": dial.turn.properties["min"],
-        "max": dial.turn.properties["max"],
-        "step": dial.turn.properties["step"],
-        "state": dial.turn.properties["state"],
+        "min": dial.turn.properties.min,
+        "max": dial.turn.properties.max,
+        "step": dial.turn.properties.step,
+        "state": dial.turn.properties.state,
     }
     assert isinstance(dial_val, dict)
     dial_state = dial_val["state"]
     assert dial_state is not None
     # Fires dial event and increments state by 1
-    config.current_page().sort_dials()
 
     dial_event = _on_dial_event_callback(websocket_mock, state, config)
     await dial_event(mock_deck_plus, 0, DialEventType.TURN, 1)
@@ -297,12 +293,12 @@ async def test_streamdeck_plus(
     assert float(state["input_number.streamdeck"]["state"]) == dial_state + 1
 
     # test update attributes
-    dial.turn.properties["max"] = 200
-    dial.turn.properties["step"] = 5
+    dial.turn.properties.max = 200
+    dial.turn.properties.step = 5
     updated_attributes = {
-        "min": dial.turn.properties["min"],
-        "max": dial.turn.properties["max"],
-        "step": dial.turn.properties["step"],
+        "min": dial.turn.properties.min,
+        "max": dial.turn.properties.max,
+        "step": dial.turn.properties.step,
     }
     assert updated_attributes["max"] == 200
     assert updated_attributes["step"] == 5
@@ -350,6 +346,7 @@ async def test_touchscreen(
     # Check if you can set max using touchscreen.
     dial = config.dial(0)
     assert dial is not None
+    assert dial.turn is not None
     dial.turn.properties = Mock()
     dial.turn.properties.min = 0
     dial.turn.properties.max = 100
@@ -393,6 +390,7 @@ async def test_touchscreen(
     # Check if disabling touchscreen events works
     dial = config.dial(3)
     assert dial is not None
+    assert dial.turn is not None
     assert dial.allow_touchscreen_events is not True
     dial.turn.properties = Mock()
     dial.turn.properties.min = 0

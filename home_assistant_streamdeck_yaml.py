@@ -104,6 +104,11 @@ class TurnProperties(BaseModel, extra="forbid"): # type: ignore[call-arg]
         description="The current value of the dial."
     )
 
+    @classmethod
+    def templatable(cls: type["_ButtonDialBase"]) -> set[str]:
+        schema = cls.schema()
+        properties = schema["properties"]
+        return {k for k, v in properties.items() if v.get("allow_template", False)}
 
 class ServiceData(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     """Base class for service-related fields and timer management used by Button, DialTurnConfig, and DialPushConfig."""
@@ -582,7 +587,7 @@ class DialTurnConfig(ServiceData, extra="forbid"):  # type: ignore[call-arg]
         dct: dict[str, Any] = {}
         for key, val in self.__dict__.items():
             if key == "properties":
-                props = TurnProperties(**val).dict()
+                props = val.dict()  # val is already a TurnProperties object
                 for k in TurnProperties.templatable():
                     if k in props and isinstance(props[k], str):
                         props[k] = _render_jinja(props[k], complete_state, dial=dial)

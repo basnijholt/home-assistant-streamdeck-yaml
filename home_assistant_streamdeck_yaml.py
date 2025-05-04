@@ -2297,7 +2297,7 @@ async def handle_dial_event(
 
     config_item = dial.turn if event_type == DialEventType.TURN else dial.push
     key = next(k for k, d in enumerate(config.current_page().dials) if d == dial)
-    if not config_item or (event_type == DialEventType.PUSH):
+    if not config_item:
         return
 
     if event_type == DialEventType.TURN and value != 0:  # Skip value=0 to avoid resets

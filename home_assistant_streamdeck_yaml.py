@@ -1033,22 +1033,6 @@ class Page(BaseModel):
     _parent_page_index: int = PrivateAttr([])
     _dials_sorted: list[Dial] = PrivateAttr([])
 
-    def update_all_dials_with_ha_state(
-        self,
-        complete_state: StateDict,
-        deck: StreamDeck,
-    ) -> None:
-        """Updates the dial values with the Home Assistant state."""
-        for key, dial in enumerate(self.dials):
-            if dial.sync_with_ha_state(complete_state):
-                console.log(f"Dial {key} state updated, refreshing LCD")
-                update_dial_lcd(
-                    deck=deck,
-                    key=key,
-                    config=self,
-                    complete_state=complete_state,
-                )
-
     def update_all_dials_with_ha_state_change(
         self,
         complete_state: StateDict,

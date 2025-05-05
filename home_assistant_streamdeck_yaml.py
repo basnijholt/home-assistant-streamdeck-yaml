@@ -805,8 +805,13 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             return False
         entity_state = complete_state.get(self.entity_id)
         new_state = None
-        if entity_state and self.turn.properties.service_attribute:
-            value = entity_state.get("attributes", {}).get(self.turn.properties.service_attribute)
+        if entity_state:
+            if self.turn.properties.service_attribute:
+                value = entity_state.get("attributes", {}).get(
+                    self.turn.properties.service_attribute,
+                )
+            else:
+                value = entity_state.get("state")
             if value is not None:
                 new_state = float(value)
         elif entity_state and "state" in entity_state:
@@ -820,12 +825,13 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             return False
         new_state_data = data.get("new_state")
         new_state = None
-        if (
-            new_state_data
-            and new_state_data.get("state") == "on"
-            and self.turn.properties.service_attribute
-        ):
-            value = new_state_data.get("attributes", {}).get(self.turn.properties.service_attribute)
+        if new_state_data:
+            if self.turn.properties.service_attribute:
+                value = new_state_data.get("attributes", {}).get(
+                    self.turn.properties.service_attribute,
+                )
+            else:
+                value = new_state_data.get("state")
             if value is not None:
                 new_state = float(value)
         return self.turn.process_ha_update(new_state, self.entity_id)

@@ -17,7 +17,9 @@ from home_assistant_streamdeck_yaml import (
     Button,
     Config,
     Dial,
+    DialTurnConfig,
     Page,
+    StateDict,
     TouchscreenEventType,
     TurnProperties,
     _on_dial_event_callback,
@@ -376,3 +378,79 @@ async def test_touchscreen(
         "state": dial.turn.properties.state,
     }
     assert attributes["state"] is not attributes["min"]
+
+
+async def test_dial_updates_with_state(
+    state: StateDict,
+) -> None:
+    """Test that the dial updates properly with Home Assistant state changes."""
+    # Setup configuration with a page containing dials
+    entity_id = "input_number.streamdeck"
+    start_state = 50.0
+    end_state = 100.0
+    dial = Dial(
+        entity_id=entity_id,
+        turn=DialTurnConfig(
+            properties=TurnProperties(
+                min=0,
+                max=100,
+                step=1,
+                state=start_state,
+            ),
+        ),
+    )
+    assert dial.turn is not None
+    assert dial.turn.properties.state == start_state
+    state[entity_id]["state"] = end_state
+    dial.sync_with_ha_state(state)
+    assert dial.turn.properties.state == end_state
+
+
+async def test_dial_updates_with_state_change(
+    mock_deck_plus: Mock,
+    state: StateDict,
+    state_change_msg: dict[str, dict[str, Any]],
+) -> None:
+    """Test that the dial updates properly with Home Assistant state changes."""
+    # Setup configuration with a page containing dials
+    start_state = 50.0
+    dial_config = Dial(
+        entity_id="input_number.streamdeck",
+        turn=DialTurnConfig(
+            properties=TurnProperties(
+                min=0,
+                max=100,
+                step=1,
+                state=start_state,
+            ),
+        ),
+    )
+    page = Page(name="Home", dials=[dial_config])
+    config = Config(pages=[page])
+    assert config._current_page_index == 0
+    assert config.current_page() == page
+
+    # Get the first dial and set its properties
+    dial = config.dial(0)
+    assert dial is not None
+    dial = dial.rendered_template_dial(state)
+    assert dial is not None
+    assert dial.turn is not None
+    assert dial.entity_id == "input_number.streamdeck"
+
+    # Verify initial state
+    assert dial.turn.properties.state == start_state
+
+    # Simulate a state change from Home Assistant
+    print(
+        f"Simulating state change from Home Assistant \n{state=},\n state_change_msg={state_change_msg})",
+    )
+    _update_state(state, state_change_msg, config, mock_deck_plus)
+    print(f"State after update: {state=}")
+    # Verify that the dial's state has been updated
+    updated_state = float(state["input_number.streamdeck"]["state"])
+    dial = config.dial(0)
+    assert dial is not None
+    assert dial.turn is not None
+    assert dial.turn.properties.state == updated_state
+    assert updated_state == 1.0  # Based on the `state_change_msg` fixture

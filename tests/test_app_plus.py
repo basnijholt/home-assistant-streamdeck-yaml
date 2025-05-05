@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 from typing import Any
@@ -454,3 +455,24 @@ async def test_dial_updates_with_state_change(
     assert dial.turn is not None
     assert dial.turn.properties.state == updated_state
     assert updated_state == 1.0  # Based on the `state_change_msg` fixture
+
+
+async def test_restart_timer() -> None:
+    """Test the delay."""
+    delay = 0.1
+    delay_delta = 0.02
+    assert delay > delay_delta
+    less_than_delay = max(0, delay - delay_delta)
+    turn = DialTurnConfig(delay=0.1)
+    assert not turn.is_sleeping()
+    assert turn.start_or_restart_timer()
+    await asyncio.sleep(0)  # TODO: figure out why this is needed
+    assert turn._timer is not None
+    assert turn._timer.is_sleeping
+    assert turn.is_sleeping()
+    await asyncio.sleep(less_than_delay)  # Sleep for less than the delay
+    assert turn.start_or_restart_timer()  # Restart the timer
+    await asyncio.sleep(less_than_delay)  # Sleep for less than the delay
+    assert turn.is_sleeping()
+    await asyncio.sleep(delay_delta)
+    assert not turn.is_sleeping()

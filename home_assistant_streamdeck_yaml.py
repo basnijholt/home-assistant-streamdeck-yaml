@@ -223,7 +223,7 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     icon_mdi: str | None = Field(
         default=None,
         allow_template=True,
-        description="Material Design Icon to display."
+        description="The Material Design Icon to display on the button."
         " If empty, no icon is displayed."
         " See https://mdi.bessarabov.com/ for a list of icons."
         " The SVG icon will be downloaded and cached.",

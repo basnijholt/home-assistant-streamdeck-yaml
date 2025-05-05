@@ -111,7 +111,7 @@ def test_include_file_paths(tmp_path: Path) -> None:
     assert set(included_files) == {included_file1, included_file2}
 
 
-def test_nested_include_with_file_path(tmp_path: Path) -> None:
+def test_nested_include(tmp_path: Path) -> None:
     """Test that safe_load_yaml handles nested !include directives correctly."""
     # Create directory structure
     includes_dir = tmp_path / "includes"

@@ -109,3 +109,65 @@ def test_include_file_paths(tmp_path: Path) -> None:
         "main_key2": {"included_key2": "included_value2"},
     }
     assert set(included_files) == {included_file1, included_file2}
+
+
+def test_nested_include_with_file_path(tmp_path: Path) -> None:
+    """Test that safe_load_yaml handles nested !include directives correctly."""
+    # Create directory structure
+    includes_dir = tmp_path / "includes"
+    nested_dir = includes_dir / "nested"
+    nested_dir.mkdir(parents=True)
+
+    main_file = tmp_path / "config.yaml"
+    main_content = """
+pages:
+  - name: Home
+    dials: !include includes/light_dials.yaml
+"""
+    main_file.write_text(main_content)
+
+    light_dials_file = includes_dir / "light_dials.yaml"
+    light_dials_content = """
+- !include nested/other_dials.yaml
+"""
+    light_dials_file.write_text(light_dials_content)
+
+    other_dials_file = nested_dir / "other_dials.yaml"
+    other_dials_content = """
+entity_id: light.kitchen
+name: Kitchen
+"""
+    other_dials_file.write_text(other_dials_content)
+
+    with main_file.open() as f:
+        result, included_files = safe_load_yaml(f, return_included_paths=True)
+
+    # Expected loaded data
+    expected_data = {
+        "pages": [
+            {
+                "name": "Home",
+                "dials": [
+                    {
+                        "entity_id": "light.kitchen",
+                        "name": "Kitchen",
+                    },
+                ],
+            },
+        ],
+    }
+
+    # Expected included files
+    expected_included_files = [
+        light_dials_file,
+        other_dials_file,
+    ]
+
+    # Assert the loaded data matches the expected structure
+    assert result == expected_data, f"Loaded data does not match expected: {result}"
+
+    # Assert the included files list contains the correct paths
+    assert included_files == expected_included_files, (
+        f"Included files do not match expected: {included_files}, "
+        f"expected: {expected_included_files}"
+    )

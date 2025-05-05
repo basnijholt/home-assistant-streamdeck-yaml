@@ -40,12 +40,14 @@ from rich.table import Table
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.Devices.StreamDeck import DialEventType, TouchscreenEventType
 from StreamDeck.ImageHelpers import PILHelper
+from yaml.nodes import Node as YamlNode
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
 
     import pandas as pd
     from StreamDeck.Devices import StreamDeck
+    from yaml.nodes import Node as YamlNode
 
 
 try:
@@ -2574,21 +2576,27 @@ def safe_load_yaml(
     """Load a YAML file."""
     included_files = []
 
-    def _traverse_yaml(node: dict[str, Any], variables: dict[str, str]) -> None:
+    def _traverse_yaml(node: YamlNode, variables: dict[str, str]) -> Any:
         if isinstance(node, dict):
             for key, value in node.items():
-                if not isinstance(value, dict):
+                if isinstance(value, str):
+                    result = value
                     for var, var_value in variables.items():
-                        if not isinstance(value, str):
-                            continue
-
                         regex_format = rf"\$\{{{var}\}}"
-                        node[key] = re.sub(regex_format, str(var_value), node[key])
+                        result = re.sub(regex_format, str(var_value), result)
+                    node[key] = result
                 else:
-                    _traverse_yaml(value, variables)
-        elif isinstance(node, list):
-            for item in node:
-                _traverse_yaml(item, variables)
+                    node[key] = _traverse_yaml(value, variables)
+            return node
+        if isinstance(node, list):
+            return [_traverse_yaml(item, variables) for item in node]
+        if isinstance(node, str):
+            result = node
+            for var, var_value in variables.items():
+                regex_format = rf"\$\{{{var}\}}"
+                result = re.sub(regex_format, str(var_value), result)
+            return result
+        return node
 
     class IncludeLoader(yaml.SafeLoader):
         """YAML Loader with `!include` constructor."""
@@ -2598,34 +2606,54 @@ def safe_load_yaml(
             self._root = Path(stream.name).parent if hasattr(stream, "name") else Path.cwd()
             super().__init__(stream)
 
-    def _include(loader: IncludeLoader, node: yaml.nodes.Node) -> Any:
-        """Include file referenced at node."""
-        if isinstance(node.value, str):
-            filepath = loader._root / str(loader.construct_scalar(node))  # type: ignore[arg-type]
-            included_files.append(filepath)
-            with filepath.open(encoding=encoding) as included_file:
-                return yaml.load(
-                    included_file,
-                    lambda stream: IncludeLoader(stream),  # type: ignore[arg-type] # noqa: S506
-                )
-        else:
-            mapping = loader.construct_mapping(node, deep=True)  # type: ignore[arg-type]
-            assert mapping is not None
-            filepath = loader._root / str(mapping["file"])
-            included_files.append(filepath)
-            variables = mapping["vars"]
+        def _include(self, node: yaml.nodes.Node) -> Any:
+            """Include file referenced at node."""
+            if isinstance(node.value, str):
+                filepath = self._root / str(self.construct_scalar(node))  # type: ignore[arg-type]
+                included_files.append(filepath)
+                with filepath.open(encoding=encoding) as included_file:
+                    return yaml.load(
+                        included_file,
+                        lambda stream: IncludeLoader(stream),  # type: ignore[arg-type] # noqa: S506
+                    )
+            else:
+                mapping = self.construct_mapping(node, deep=True)  # type: ignore[arg-type]
+                assert mapping is not None
+                filepath = self._root / str(mapping["file"])
+                included_files.append(filepath)
+                variables = mapping["vars"]
 
-            with filepath.open(encoding=encoding) as included_file:
-                loaded_data = yaml.load(
-                    included_file,
-                    lambda stream: IncludeLoader(stream),  # type: ignore[arg-type] # noqa: S506
-                )
-                assert loaded_data is not None
-                assert variables is not None
-                _traverse_yaml(loaded_data, variables)
-                return loaded_data
+                with filepath.open(encoding=encoding) as included_file:
+                    loaded_data = yaml.load(
+                        included_file,
+                        lambda stream: IncludeLoader(stream),  # type: ignore[arg-type] # noqa: S506
+                    )
+                    assert loaded_data is not None
+                    assert variables is not None
+                    _traverse_yaml(loaded_data, variables)
+                    return loaded_data
 
-    IncludeLoader.add_constructor("!include", _include)
+        def construct_sequence(self, node: yaml.SequenceNode, deep: bool = False) -> Any:  # noqa: FBT001 FBT002
+            """Override sequence construction to flatten !include lists."""
+            result = []
+            for subnode in node.value:
+                if isinstance(subnode, yaml.ScalarNode) and subnode.tag == "!include":
+                    # Process !include directive
+                    loaded_data = self._include(subnode)
+                    if isinstance(loaded_data, list):
+                        result.extend(loaded_data)
+                    else:
+                        result.append(loaded_data)
+                else:
+                    # Handle non-include items
+                    constructed = self.construct_object(subnode, deep=deep)
+                    if isinstance(constructed, list):
+                        result.extend(constructed)
+                    else:
+                        result.append(constructed)
+            return result
+
+    IncludeLoader.add_constructor("!include", IncludeLoader._include)
     loaded_data = yaml.load(f, IncludeLoader)  # noqa: S506
     if return_included_paths:
         return loaded_data, included_files

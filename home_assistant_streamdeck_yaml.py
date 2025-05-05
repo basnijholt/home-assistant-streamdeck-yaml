@@ -831,28 +831,26 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             raise ValueError(msg)
         return v
 
-    @staticmethod
-    def _merge_attribute(
-        attr_name: str,
-        turn_dial: LegacyDial | None,
-        push_dial: LegacyDial | None,
-        default: Any | None = None,
-    ) -> Any:
-        """Merge attribute from turn_dial and push_dial, prioritizing turn_dial with fallback to push_dial."""
-        turn_value = getattr(turn_dial, attr_name) if turn_dial else None
-        push_value = getattr(push_dial, attr_name) if push_dial else None
+    def value(self) -> float:
+        """Return the current value of the dial."""
+        turn = self.turn
+        if turn:
+            return turn.properties.state
+        return 0.0
 
-        # Return turn_value if it is not None (or empty for strings)
-        if turn_value is not None and (not isinstance(turn_value, str) or turn_value):
-            return turn_value
-        # Fallback to push_value if it is not None (or empty for strings)
-        if push_value is not None and (not isinstance(push_value, str) or push_value):
-            return push_value
-        # Use field default from Dial model if available, otherwise None
-        field = Dial.__fields__.get(attr_name)
-        if field and field.default is not Undefined:
-            return field.default
-        return default
+    def turn_attr(
+        self,
+        attr: str,
+    ) -> str | float | None:
+        """Return the value of the specified attribute from the dial's turn properties."""
+        if not self or not self.turn:
+            console.log(f"Error getting dial attribute attr='{attr}', dial={self}")
+            return None
+        try:
+            return getattr(self.turn.properties, attr)
+        except AttributeError:
+            console.log(f"Error getting dial attribute attr='{attr}', dial={self}")
+            return None
 
     @classmethod
     def from_legacy_dials(cls, legacy_dials: list[dict]) -> list[Dial]:
@@ -862,20 +860,23 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         combining turn and push configurations. Attributes from the TURN configuration take precedence,
         with fallback to PUSH configuration if unset.
         """
-        # Create LegacyDial instances
-        legacy_dial_instances = [LegacyDial(**item) for item in legacy_dials]
 
-        # Group LegacyDials by entity_id
-        dial_groups: dict[str | None, list[LegacyDial]] = {}
-        for dial in legacy_dial_instances:
-            entity_id = dial.entity_id or None
-            if entity_id not in dial_groups:
-                dial_groups[entity_id] = []
-            dial_groups[entity_id].append(dial)
+        def parse_and_group_dials(legacy_dials: list[dict]) -> dict[str | None, list[LegacyDial]]:
+            """Parse YAML items into LegacyDial instances and group by entity_id."""
+            dial_instances = [LegacyDial(**item) for item in legacy_dials]
+            dial_groups: dict[str | None, list[LegacyDial]] = {}
+            for dial in dial_instances:
+                entity_id = dial.entity_id or None
+                if entity_id not in dial_groups:
+                    dial_groups[entity_id] = []
+                dial_groups[entity_id].append(dial)
+            return dial_groups
 
-        # Convert each group to a single Dial instance
-        new_dials: list[Dial] = []
-        for entity_id, group in dial_groups.items():
+        def create_dial_from_group(
+            entity_id: str | None,
+            group: list[LegacyDial],
+        ) -> Dial | None:
+            """Create a Dial instance from a group of LegacyDial instances."""
             turn_dial = None
             push_dial = None
 
@@ -890,12 +891,34 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                 console.log(
                     f"[yellow]No valid TURN or PUSH configuration for entity_id={entity_id}, skipping[/]",
                 )
-                continue
+                return None
 
-            # Create partial function for merging attributes
-            merge_attr = ft.partial(cls._merge_attribute, turn_dial=turn_dial, push_dial=push_dial)
+            def merge_attribute(
+                attr_name: str,
+                turn_dial: LegacyDial | None,
+                push_dial: LegacyDial | None,
+                default: Any | None = None,
+            ) -> Any:
+                """Merge attribute from turn_dial and push_dial, prioritizing turn_dial with fallback to push_dial."""
+                turn_value = getattr(turn_dial, attr_name) if turn_dial else None
+                push_value = getattr(push_dial, attr_name) if push_dial else None
 
-            # Initialize Dial fields using partial merge_attr
+                # Return turn_value if it is not None (or empty for strings)
+                if turn_value is not None and (not isinstance(turn_value, str) or turn_value):
+                    return turn_value
+                # Fallback to push_value if it is not None (or empty for strings)
+                if push_value is not None and (not isinstance(push_value, str) or push_value):
+                    return push_value
+                # Use field default from Dial model if available, otherwise None
+                field = cls.__fields__.get(attr_name)
+                if field and field.default is not Undefined:
+                    return field.default
+                return default
+
+            # Create merge_attr with bound turn_dial and push_dial
+            merge_attr = ft.partial(merge_attribute, turn_dial=turn_dial, push_dial=push_dial)
+
+            # Initialize Dial fields using merge_attr
             dial_fields = {
                 "entity_id": merge_attr("entity_id"),
                 "linked_entity": merge_attr("linked_entity"),
@@ -914,7 +937,7 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             # Warn if critical visual attributes are unset
             if not dial_fields["text"] and not dial_fields["icon"] and not dial_fields["icon_mdi"]:
                 console.log(
-                    f"[yellow]Warning: No text, icon, or icon_mdi set for dial with entity_id={entity_id}[/]",
+                    f"[yellow]Warning: No text, icon, or icon_mdi set for entity_id={entity_id}[/]",
                 )
 
             # Create turn configuration if turn_dial exists
@@ -945,13 +968,20 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                     delay=push_dial.delay,
                 )
 
-            # Create and add new Dial instance
-            new_dial = cls(
-                **dial_fields,
-                turn=turn_config,
-                push=push_config,
-            )
-            new_dials.append(new_dial)
+            return cls(**dial_fields, turn=turn_config, push=push_config)
+
+        # Parse and group dials
+        dial_groups = parse_and_group_dials(legacy_dials)
+
+        # Convert groups to Dial instances
+        new_dials: list[Dial] = []
+        for entity_id, group in dial_groups.items():
+            dial = create_dial_from_group(
+                entity_id,
+                group,
+            )  # Placeholder, overridden in create_dial_from_group
+            if dial:
+                new_dials.append(dial)
 
         return new_dials
 
@@ -2022,26 +2052,6 @@ def _round(num: float, digits: int) -> int | float:
     return round(num, digits)
 
 
-def _dial_value(dial: Dial | None) -> float:
-    if not dial or not dial.turn:
-        return 0
-    return dial.turn.properties.state
-
-
-def _dial_attr(
-    attr: str,
-    dial: Dial | None = None,
-) -> str | float | None:
-    if not dial or not dial.turn:
-        console.log(f"Error getting dial attribute attr='{attr}', dial={dial}")
-        return None
-    try:
-        return getattr(dial.turn.properties, attr)
-    except AttributeError:
-        console.log(f"Error getting dial attribute attr='{attr}', dial={dial}")
-        return None
-
-
 def _render_jinja(
     text: str,
     complete_state: StateDict,
@@ -2061,6 +2071,15 @@ def _render_jinja(
         env.filters["max"] = _max_filter
         env.filters["is_number"] = _is_number_filter
         template = env.from_string(text)
+
+        # Wrapper for dial.value to handle None
+        def dial_value_wrapper() -> float:
+            return dial.value() if dial is not None else 0.0
+
+        # Wrapper for dial.attr to handle None
+        def dial_attr_wrapper(attr: str) -> str | float | None:
+            return dial.turn_attr(attr) if dial is not None else None
+
         return template.render(
             min=min,
             max=max,
@@ -2069,8 +2088,8 @@ def _render_jinja(
             states=ft.partial(_states, complete_state=complete_state),
             is_state=ft.partial(_is_state, complete_state=complete_state),
             round=_round,
-            dial_value=ft.partial(_dial_value, dial=dial),
-            dial_attr=ft.partial(_dial_attr, dial=dial),
+            dial_value=dial_value_wrapper,
+            dial_attr=dial_attr_wrapper,
         ).strip()
     except jinja2.exceptions.TemplateError as err:
         console.print_exception(show_locals=True)

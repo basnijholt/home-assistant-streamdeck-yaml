@@ -2598,32 +2598,34 @@ def safe_load_yaml(
             self._root = Path(stream.name).parent if hasattr(stream, "name") else Path.cwd()
             super().__init__(stream)
 
-    def _include(loader: IncludeLoader, node: yaml.nodes.Node) -> Any:
-        """Include file referenced at node."""
-        if isinstance(node.value, str):
-            filepath = loader._root / str(loader.construct_scalar(node))  # type: ignore[arg-type]
-            included_files.append(filepath)
-            return yaml.load(
-                filepath.read_text(encoding=encoding),
-                IncludeLoader,  # noqa: S506
-            )
-        else:  # noqa: RET505
-            mapping = loader.construct_mapping(node, deep=True)  # type: ignore[arg-type]
-            assert mapping is not None
-            filepath = loader._root / str(mapping["file"])
-            included_files.append(filepath)
-            variables = mapping["vars"]
+        def _include(self, node: yaml.nodes.Node) -> Any:
+            """Include file referenced at node."""
+            if isinstance(node.value, str):
+                filepath = self._root / str(self.construct_scalar(node))  # type: ignore[arg-type]
+                included_files.append(filepath)
+                with filepath.open(encoding=encoding) as included_file:
+                    return yaml.load(
+                        included_file,
+                        lambda stream: IncludeLoader(stream),  # type: ignore[arg-type] # noqa: S506
+                    )
+            else:
+                mapping = self.construct_mapping(node, deep=True)  # type: ignore[arg-type]
+                assert mapping is not None
+                filepath = self._root / str(mapping["file"])
+                included_files.append(filepath)
+                variables = mapping["vars"]
 
-            loaded_data = yaml.load(
-                filepath.read_text(encoding=encoding),
-                IncludeLoader,  # noqa: S506
-            )
-            assert loaded_data is not None
-            assert variables is not None
-            _traverse_yaml(loaded_data, variables)
-            return loaded_data
+                with filepath.open(encoding=encoding) as included_file:
+                    loaded_data = yaml.load(
+                        included_file,
+                        lambda stream: IncludeLoader(stream),  # type: ignore[arg-type] # noqa: S506 # type: ignore[arg-type]
+                    )
+                    assert loaded_data is not None
+                    assert variables is not None
+                    _traverse_yaml(loaded_data, variables)
+                    return loaded_data
 
-    IncludeLoader.add_constructor("!include", _include)
+    IncludeLoader.add_constructor("!include", IncludeLoader._include)
     loaded_data = yaml.load(f, IncludeLoader)  # noqa: S506
     if return_included_paths:
         return loaded_data, included_files

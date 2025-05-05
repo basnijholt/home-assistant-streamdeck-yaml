@@ -2603,25 +2603,27 @@ def safe_load_yaml(
         if isinstance(node.value, str):
             filepath = loader._root / str(loader.construct_scalar(node))  # type: ignore[arg-type]
             included_files.append(filepath)
-            return yaml.load(
-                filepath.read_text(encoding=encoding),
-                IncludeLoader,  # noqa: S506
-            )
-        else:  # noqa: RET505
+            with filepath.open(encoding=encoding) as included_file:
+                return yaml.load(
+                    included_file,
+                    lambda stream: IncludeLoader(stream),  # type: ignore[arg-type] # noqa: S506
+                )
+        else:
             mapping = loader.construct_mapping(node, deep=True)  # type: ignore[arg-type]
             assert mapping is not None
             filepath = loader._root / str(mapping["file"])
             included_files.append(filepath)
             variables = mapping["vars"]
 
-            loaded_data = yaml.load(
-                filepath.read_text(encoding=encoding),
-                IncludeLoader,  # noqa: S506
-            )
-            assert loaded_data is not None
-            assert variables is not None
-            _traverse_yaml(loaded_data, variables)
-            return loaded_data
+            with filepath.open(encoding=encoding) as included_file:
+                loaded_data = yaml.load(
+                    included_file,
+                    lambda stream: IncludeLoader(stream),  # type: ignore[arg-type] # noqa: S506
+                )
+                assert loaded_data is not None
+                assert variables is not None
+                _traverse_yaml(loaded_data, variables)
+                return loaded_data
 
     IncludeLoader.add_constructor("!include", _include)
     loaded_data = yaml.load(f, IncludeLoader)  # noqa: S506

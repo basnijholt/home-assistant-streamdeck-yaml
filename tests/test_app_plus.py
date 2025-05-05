@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 import pytest
 import websockets
 from PIL import Image
-from StreamDeck.Devices.StreamDeck import DialEventType
+from StreamDeck.Devices.StreamDeck import DialEventType, TouchscreenEventType
 from StreamDeck.Devices.StreamDeckPlus import StreamDeckPlus
 
 from home_assistant_streamdeck_yaml import (
@@ -20,6 +20,7 @@ from home_assistant_streamdeck_yaml import (
     Page,
     _get_blank_image,
     _on_dial_event_callback,
+    _on_touchscreen_event_callback,
     _update_state,
     get_lcd_size,
     get_size_per_dial,
@@ -285,6 +286,93 @@ async def test_streamdeck_plus(
     assert updated_attributes["max"] == 100  # noqa: PLR2004
     assert updated_attributes["step"] == 1
     assert updated_attributes["min"] == 0
+
+
+async def test_touchscreen(
+    mock_deck_plus: Mock,
+    websocket_mock: Mock,
+    state: dict[str, dict[str, Any]],
+    dials: list[Dial],
+) -> None:
+    """Test touchscreen events for dial."""
+    home = Page(
+        name="home",
+        buttons=[
+            Button(special_type="go-to-page", special_type_data="page_1"),
+            Button(special_type="go-to-page", special_type_data="page_anon"),
+        ],
+    )
+
+    page_1 = Page(
+        name="page_1",
+        dials=dials,
+    )
+
+    page_anon = Page(name="page_anon", dials=dials)
+    config = Config(pages=[home, page_1], anonymous_pages=[page_anon])
+    assert config._current_page_index == 0
+    assert config.current_page() == home
+
+    # Check if you can change page using Touchscreen.
+    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
+    await touch_event(
+        mock_deck_plus,
+        TouchscreenEventType.DRAG,
+        {
+            "x": 0,
+            "y": 0,
+            "x_out": 100,
+            "y_out": 0,
+        },
+    )
+
+    assert config.current_page() == page_1
+    # Check if you can set max using touchscreen.
+    config.current_page().sort_dials()
+    dial = config.dial(0)
+    assert dial is not None
+
+    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
+    await touch_event(
+        mock_deck_plus,
+        TouchscreenEventType.LONG,
+        {
+            "x": 100,
+            "y": 50,
+        },
+    )
+    attributes = dial.get_attributes()
+    assert attributes["state"] == attributes["max"]
+
+    # Check if you can set min using touchscreen.
+    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
+    await touch_event(
+        mock_deck_plus,
+        TouchscreenEventType.SHORT,
+        {
+            "x": 100,
+            "y": 50,
+        },
+    )
+    attributes = dial.get_attributes()
+    assert attributes["state"] == attributes["min"]
+
+    # Check if disabling touchscreen events works
+    dial = config.dial(3)
+    assert dial is not None
+    assert dial.allow_touchscreen_events is not True
+
+    touch_event = _on_touchscreen_event_callback(websocket_mock, state, config)
+    await touch_event(
+        mock_deck_plus,
+        TouchscreenEventType.SHORT,
+        {
+            "x": 300,
+            "y": 50,
+        },
+    )
+    attributes = dial.get_attributes()
+    assert attributes["state"] is not attributes["min"]
 
 
 def test_update_all_dials_partial_and_no_dials(mock_deck_plus: Mock) -> None:  # noqa: PLR0915

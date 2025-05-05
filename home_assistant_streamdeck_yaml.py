@@ -1866,17 +1866,13 @@ def _generate_failed_icon(
     )
 
 
-_blank_image_cache: dict[tuple[int, int], bytes] = {}
-
-
+@ft.lru_cache(maxsize=1)
 def _get_blank_image(size: tuple[int, int]) -> bytes:
     """Get or create a blank (black) JPEG image for the given size."""
-    if size not in _blank_image_cache:
-        blank_image: Image.Image = Image.new("RGB", size, (0, 0, 0))
-        img_bytes = io.BytesIO()
-        blank_image.save(img_bytes, format="JPEG")
-        _blank_image_cache[size] = img_bytes.getvalue()
-    return _blank_image_cache[size]
+    blank_image: Image.Image = Image.new("RGB", size, (0, 0, 0))
+    img_bytes = io.BytesIO()
+    blank_image.save(img_bytes, format="JPEG")
+    return img_bytes.getvalue()
 
 
 def get_lcd_size(deck: StreamDeck) -> tuple[int, int]:

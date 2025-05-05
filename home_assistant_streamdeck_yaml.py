@@ -236,8 +236,8 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     icon_mdi_color: str | None = Field(
         default=None,
         allow_template=True,
-        description="Hex color (e.g., #FF0000) for the Material Design Icon."
-        " If empty, derived from text_color with less saturation.",
+        description="The color of the Material Design Icon (in hex format, e.g., '#FF0000')."
+        " If empty, the color is derived from `text_color` but is less saturated (gray is mixed in).",
     )
     icon_gray_when_off: bool = Field(
         default=False,
@@ -249,7 +249,7 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
     def templatable(cls: type[_ButtonDialBase]) -> set[str]:
         schema = cls.schema()
         properties = schema["properties"]
-        return {k for k, v in properties.items() if v.get("allow_template", False)}
+        return {k for k, v in properties.items() if v["allow_template"]}
 
     @classmethod
     def to_pandas_schema_table(cls: type[_ButtonDialBase]) -> pd.DataFrame:

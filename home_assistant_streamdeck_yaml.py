@@ -2576,7 +2576,7 @@ def safe_load_yaml(
     """Load a YAML file."""
     included_files = []
 
-    def _traverse_yaml(node: YamlNode, variables: dict[str, str]) -> Any:
+    def _traverse_yaml(node: YamlNode, variables: dict[str, str]) -> dict | list | str | YamlNode:
         if isinstance(node, dict):
             for key, value in node.items():
                 if isinstance(value, str):

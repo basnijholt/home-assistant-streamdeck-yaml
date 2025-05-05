@@ -767,6 +767,38 @@ class DialPushConfig(ServiceData, extra="forbid"):  # type: ignore[call-arg]
         return DialPushConfig(**dct)
 
 
+class LegacyDial(_ButtonDialBase, ServiceData, extra="forbid"):  # type: ignore[call-arg]
+    """Legacy Dial configuration, for backward compatibility."""
+
+    dial_event_type: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="The event type of the dial that will trigger the service."
+        " Either `DialEventType.TURN` or `DialEventType.PUSH`.",
+    )
+
+    state_attribute: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="The attribute of the entity which gets used for the dial state.",
+        # TODO: use this?
+        # An attribute of an HA entity that the dial should control e.g., brightness for a light.
+    )
+    attributes: dict[str, float] | None = Field(
+        default=None,
+        allow_template=True,
+        description="Sets the attributes of the dial."
+        " `min`: The minimal value of the dial."
+        " `max`: The maximal value of the dial."
+        " `step`: the step size by which the value of the dial is increased by on an event.",
+    )
+    allow_touchscreen_events: bool = Field(
+        default=False,
+        allow_template=True,
+        description="Whether events from the touchscreen are allowed, for example set the minimal value on `SHORT` and set maximal value on `LONG`.",
+    )
+
+
 class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
     """Configuration for a StreamDeck dial, managing turn and push interactions."""
 
@@ -798,6 +830,130 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             msg = f"entity_id {v} must follow the format 'domain.entity_name' (e.g., light.living_room)"
             raise ValueError(msg)
         return v
+
+    @staticmethod
+    def _merge_attribute(
+        attr_name: str,
+        turn_dial: LegacyDial | None,
+        push_dial: LegacyDial | None,
+        default: Any | None = None,
+    ) -> Any:
+        """Merge attribute from turn_dial and push_dial, prioritizing turn_dial with fallback to push_dial."""
+        turn_value = getattr(turn_dial, attr_name) if turn_dial else None
+        push_value = getattr(push_dial, attr_name) if push_dial else None
+
+        # Return turn_value if it is not None (or empty for strings)
+        if turn_value is not None and (not isinstance(turn_value, str) or turn_value):
+            return turn_value
+        # Fallback to push_value if it is not None (or empty for strings)
+        if push_value is not None and (not isinstance(push_value, str) or push_value):
+            return push_value
+        # Use field default from Dial model if available, otherwise None
+        field = Dial.__fields__.get(attr_name)
+        if field and field.default is not Undefined:
+            return field.default
+        return default
+
+    @classmethod
+    def from_legacy_dials(cls, legacy_dials: list[dict]) -> list[Dial]:
+        """Convert a list of LegacyDial YAML configurations to a list of Dial instances.
+
+        Consolidates multiple LegacyDial entries with the same entity_id into a single Dial,
+        combining turn and push configurations. Attributes from the TURN configuration take precedence,
+        with fallback to PUSH configuration if unset.
+        """
+        # Create LegacyDial instances
+        legacy_dial_instances = [LegacyDial(**item) for item in legacy_dials]
+
+        # Group LegacyDials by entity_id
+        dial_groups: dict[str | None, list[LegacyDial]] = {}
+        for dial in legacy_dial_instances:
+            entity_id = dial.entity_id or None
+            if entity_id not in dial_groups:
+                dial_groups[entity_id] = []
+            dial_groups[entity_id].append(dial)
+
+        # Convert each group to a single Dial instance
+        new_dials: list[Dial] = []
+        for entity_id, group in dial_groups.items():
+            turn_dial = None
+            push_dial = None
+
+            # Identify turn and push configurations
+            for dial in group:
+                if dial.dial_event_type == "DialEventType.TURN":
+                    turn_dial = dial
+                elif dial.dial_event_type == "DialEventType.PUSH":
+                    push_dial = dial
+
+            if not turn_dial and not push_dial:
+                console.log(
+                    f"[yellow]No valid TURN or PUSH configuration for entity_id={entity_id}, skipping[/]",
+                )
+                continue
+
+            # Create partial function for merging attributes
+            merge_attr = ft.partial(cls._merge_attribute, turn_dial=turn_dial, push_dial=push_dial)
+
+            # Initialize Dial fields using partial merge_attr
+            dial_fields = {
+                "entity_id": merge_attr("entity_id"),
+                "linked_entity": merge_attr("linked_entity"),
+                "text": merge_attr("text"),
+                "text_color": merge_attr("text_color"),
+                "text_size": merge_attr("text_size"),
+                "text_offset": merge_attr("text_offset"),
+                "icon": merge_attr("icon"),
+                "icon_mdi": merge_attr("icon_mdi"),
+                "icon_background_color": merge_attr("icon_background_color"),
+                "icon_mdi_color": merge_attr("icon_mdi_color"),
+                "icon_gray_when_off": merge_attr("icon_gray_when_off"),
+                "allow_touchscreen_events": merge_attr("allow_touchscreen_events"),
+            }
+
+            # Warn if critical visual attributes are unset
+            if not dial_fields["text"] and not dial_fields["icon"] and not dial_fields["icon_mdi"]:
+                console.log(
+                    f"[yellow]Warning: No text, icon, or icon_mdi set for dial with entity_id={entity_id}[/]",
+                )
+
+            # Create turn configuration if turn_dial exists
+            turn_config = None
+            if turn_dial:
+                turn_properties = TurnProperties(
+                    service_attribute=turn_dial.state_attribute,
+                    min=turn_dial.attributes.get("min", 0.0) if turn_dial.attributes else 0.0,
+                    max=turn_dial.attributes.get("max", 100.0) if turn_dial.attributes else 100.0,
+                    step=turn_dial.attributes.get("step", 1.0) if turn_dial.attributes else 1.0,
+                    state=0.0,  # Default state, as LegacyDial doesn't store it
+                )
+                turn_config = DialTurnConfig(
+                    service=turn_dial.service,
+                    service_data=turn_dial.service_data,
+                    target=turn_dial.target,
+                    delay=turn_dial.delay,
+                    properties=turn_properties,
+                )
+
+            # Create push configuration if push_dial exists
+            push_config = None
+            if push_dial:
+                push_config = DialPushConfig(
+                    service=push_dial.service,
+                    service_data=push_dial.service_data,
+                    target=push_dial.target,
+                    delay=push_dial.delay,
+                )
+
+            # Create and add new Dial instance
+            new_dial = cls(
+                **dial_fields,
+                turn=turn_config,
+                push=push_config,
+            )
+            new_dials.append(new_dial)
+
+        return new_dials
 
     def sync_with_ha_state(self, complete_state: StateDict) -> bool:
         """Sync the dial state with Home Assistant."""
@@ -1119,14 +1275,36 @@ class Config(BaseModel):
         fname: Path,
         yaml_encoding: str | None = None,
     ) -> Config:
-        """Read the configuration file."""
-        with fname.open() as f:
+        """Read the configuration file, converting LegacyDial entries to Dial."""
+        with fname.open(encoding=yaml_encoding) as f:
             data, include_files = safe_load_yaml(
                 f,
                 return_included_paths=True,
                 encoding=yaml_encoding,
             )
-            config = cls(**data)  # type: ignore[arg-type]
+
+            # Preprocess pages to convert LegacyDial entries to Dial
+            if data and "pages" in data:
+                for page in data["pages"]:
+                    if page.get("dials"):
+                        # Check if dials are LegacyDial by inspecting for dial_event_type
+                        is_legacy = any(
+                            isinstance(d, dict) and "dial_event_type" in d for d in page["dials"]
+                        )
+                        if is_legacy:
+                            page["dials"] = Dial.from_legacy_dials(page["dials"])
+
+            # Process anonymous pages similarly
+            if data and "anonymous_pages" in data:
+                for page in data["anonymous_pages"]:
+                    if page.get("dials"):
+                        is_legacy = any(
+                            isinstance(d, dict) and "dial_event_type" in d for d in page["dials"]
+                        )
+                        if is_legacy:
+                            page["dials"] = Dial.from_legacy_dials(page["dials"])
+
+            config = cls(**data)
             config._configuration_file = fname
             config._include_files = include_files
             return config

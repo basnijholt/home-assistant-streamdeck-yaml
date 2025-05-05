@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Any
 from unittest.mock import Mock
 
@@ -18,6 +19,7 @@ from home_assistant_streamdeck_yaml import (
     Button,
     Config,
     Dial,
+    DialPushConfig,
     DialTurnConfig,
     Page,
     StateDict,
@@ -476,3 +478,233 @@ async def test_restart_timer() -> None:
     assert turn.is_sleeping()
     await asyncio.sleep(delay_delta)
     assert not turn.is_sleeping()
+
+
+def test_legacy_dial_conversion() -> None:  # noqa: PLR0915
+    """Test conversion of LegacyDial configurations to Dial instances."""
+    # Test case 1: Both TURN and PUSH configs, TURN has most attributes
+    legacy_dials = [
+        {
+            "entity_id": "light.living_room",
+            "dial_event_type": "DialEventType.TURN",
+            "text": "Brightness",
+            "icon": "brightness.png",
+            "text_color": "#FFFFFF",
+            "icon_mdi": "lightbulb",
+            "state_attribute": "brightness",
+            "attributes": {"min": 0.0, "max": 100.0, "step": 5.0},
+            "service": "light.turn_on",
+            "service_data": {"entity_id": "light.living_room", "brightness": 50},
+        },
+        {
+            "entity_id": "light.living_room",
+            "dial_event_type": "DialEventType.PUSH",
+            "text": "Toggle",  # Should be ignored
+            "icon": "toggle.png",  # Should be ignored
+            "service": "light.toggle",
+            "service_data": {"entity_id": "light.living_room"},
+        },
+    ]
+    dials = Dial.from_legacy_dials(legacy_dials)
+    assert len(dials) == 1, "Expected one consolidated Dial instance"
+    dial = dials[0]
+    assert dial.entity_id == "light.living_room"
+    assert dial.text == "Brightness", "Expected TURN text to take precedence"
+    assert dial.icon == "brightness.png", "Expected TURN icon to take precedence"
+    assert dial.text_color == "#FFFFFF"
+    assert dial.icon_mdi == "lightbulb"
+    assert isinstance(dial.turn, DialTurnConfig)
+    assert dial.turn.properties.service_attribute == "brightness"
+    assert dial.turn.properties.min == 0.0
+    assert dial.turn.properties.max == 100.0  # noqa: PLR2004
+    assert dial.turn.properties.step == 5.0  # noqa: PLR2004
+    assert dial.turn.service == "light.turn_on"
+    assert dial.turn.service_data == {"entity_id": "light.living_room", "brightness": 50}
+    assert isinstance(dial.push, DialPushConfig)
+    assert dial.push.service == "light.toggle"
+    assert dial.push.service_data == {"entity_id": "light.living_room"}
+
+    # Test case 2: Only PUSH config, attributes should be used
+    legacy_dials = [
+        {
+            "entity_id": "switch.kitchen",
+            "dial_event_type": "DialEventType.PUSH",
+            "text": "Toggle Switch",
+            "icon": "switch.png",
+            "text_color": "#000000",
+            "icon_mdi": "power",
+            "service": "switch.toggle",
+            "service_data": {"entity_id": "switch.kitchen"},
+        },
+    ]
+    dials = Dial.from_legacy_dials(legacy_dials)
+    assert len(dials) == 1
+    dial = dials[0]
+    assert dial.entity_id == "switch.kitchen"
+    assert dial.text == "Toggle Switch"
+    assert dial.icon == "switch.png"
+    assert dial.text_color == "#000000"
+    assert dial.icon_mdi == "power"
+    assert dial.turn is None
+    assert isinstance(dial.push, DialPushConfig)
+    assert dial.push.service == "switch.toggle"
+    assert dial.push.service_data == {"entity_id": "switch.kitchen"}
+
+    # Test case 3: TURN with missing attributes, PUSH provides some
+    legacy_dials = [
+        {
+            "entity_id": "fan.bedroom",
+            "dial_event_type": "DialEventType.TURN",
+            "state_attribute": "speed",
+            "attributes": {"min": 0.0, "max": 100.0, "step": 10.0},
+            "service": "fan.set_speed",
+        },
+        {
+            "entity_id": "fan.bedroom",
+            "dial_event_type": "DialEventType.PUSH",
+            "text": "Fan Toggle",
+            "icon": "fan.png",
+            "service": "fan.toggle",
+        },
+    ]
+    dials = Dial.from_legacy_dials(legacy_dials)
+    assert len(dials) == 1
+    dial = dials[0]
+    assert dial.entity_id == "fan.bedroom"
+    assert dial.text == "Fan Toggle", "Expected PUSH text as fallback"
+    assert dial.icon == "fan.png", "Expected PUSH icon as fallback"
+    assert dial.text_color is None
+    assert dial.icon_mdi is None
+    assert isinstance(dial.turn, DialTurnConfig)
+    assert dial.turn.properties.service_attribute == "speed"
+    assert dial.turn.properties.min == 0.0
+    assert dial.turn.properties.max == 100.0  # noqa: PLR2004
+    assert dial.turn.properties.step == 10.0  # noqa: PLR2004
+    assert dial.turn.service == "fan.set_speed"
+    assert isinstance(dial.push, DialPushConfig)
+    assert dial.push.service == "fan.toggle"
+
+    # Test case 4: Multiple entity_ids
+    legacy_dials = [
+        {
+            "entity_id": "light.living_room",
+            "dial_event_type": "DialEventType.TURN",
+            "text": "Brightness",
+            "icon": "brightness.png",
+            "state_attribute": "brightness",
+            "attributes": {"min": 0.0, "max": 100.0, "step": 5.0},
+        },
+        {
+            "entity_id": "switch.kitchen",
+            "dial_event_type": "DialEventType.PUSH",
+            "text": "Toggle Switch",
+            "icon": "switch.png",
+            "service": "switch.toggle",
+        },
+    ]
+    dials = Dial.from_legacy_dials(legacy_dials)
+    assert len(dials) == len(legacy_dials), "Expected two separate Dial instances"
+    light_dial = next(d for d in dials if d.entity_id == "light.living_room")
+    switch_dial = next(d for d in dials if d.entity_id == "switch.kitchen")
+    assert light_dial.text == "Brightness"
+    assert light_dial.icon == "brightness.png"
+    assert isinstance(light_dial.turn, DialTurnConfig)
+    assert light_dial.push is None
+    assert switch_dial.text == "Toggle Switch"
+    assert switch_dial.icon == "switch.png"
+    assert switch_dial.turn is None
+    assert isinstance(switch_dial.push, DialPushConfig)
+
+    # Test case 5: Missing critical attributes
+    legacy_dials = [
+        {
+            "entity_id": "sensor.temperature",
+            "dial_event_type": "DialEventType.TURN",
+            "state_attribute": "value",
+            "attributes": {"min": 0.0, "max": 50.0, "step": 1.0},
+        },
+    ]
+    dials = Dial.from_legacy_dials(legacy_dials)
+    assert len(dials) == 1
+    dial = dials[0]
+    assert dial.entity_id == "sensor.temperature"
+    assert dial.text == "", "Expected default empty text"
+    assert dial.icon is None, "Expected no icon"
+    assert dial.text_color is None
+    assert dial.icon_mdi is None
+    assert isinstance(dial.turn, DialTurnConfig)
+    assert dial.turn.properties.service_attribute == "value"
+    assert dial.push is None
+
+    # Test case 6: Invalid LegacyDial entry
+    legacy_dials = [
+        {
+            "entity_id": "invalid.device",
+            "dial_event_type": "DialEventType.INVALID",  # Invalid event type
+        },
+    ]
+    dials = Dial.from_legacy_dials(legacy_dials)
+    assert len(dials) == 0, "Expected no valid Dial instances from invalid input"
+
+
+def test_old_config_parsing() -> None:
+    """Test parsing an old YAML config with a basic LegacyDial and no buttons."""
+    # Define a simple old YAML config with one LegacyDial
+    min_attr = 0.0
+    max_attr = 100.0
+    step_attr = 5.0
+    old_yaml = f"""
+    pages:
+      - name: Main
+        dials:
+          - entity_id: light.living_room
+            dial_event_type: DialEventType.TURN
+            service: light.turn_on
+            state_attribute: brightness
+            attributes:
+              min: {min_attr}
+              max: {max_attr}
+              step: {step_attr}
+    """
+
+    # Write YAML to a temporary file
+    with NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as temp_file:
+        temp_file.write(old_yaml)
+        temp_file_path = Path(temp_file.name)
+
+    try:
+        # Load the config
+        config = Config.load(temp_file_path, yaml_encoding="utf-8")
+
+        # Validate the resulting Config object
+        assert isinstance(config, Config), "Expected a Config instance"
+        assert len(config.pages) == 1, "Expected one page"
+        assert len(config.anonymous_pages) == 0, "Expected no anonymous pages"
+
+        # Validate the page
+        page = config.pages[0]
+        assert isinstance(page, Page), "Expected a Page instance"
+        assert page.name == "Main", "Expected page name 'Main'"
+        assert len(page.buttons) == 0, "Expected no buttons"
+        assert len(page.dials) == 1, "Expected one dial"
+
+        # Validate the dial
+        dial = page.dials[0]
+
+        # Validate turn configuration
+        assert isinstance(dial.turn, DialTurnConfig), "Expected a DialTurnConfig"
+        assert dial.turn.service == "light.turn_on", "Expected correct service"
+        assert dial.turn.properties.service_attribute == "brightness", (
+            "Expected correct state_attribute"
+        )
+        assert dial.turn.properties.min == min_attr, f"Expected min {min_attr}"
+        assert dial.turn.properties.max == max_attr, f"Expected max {max_attr}"
+        assert dial.turn.properties.step == step_attr, f"Expected step {step_attr}"
+        assert dial.turn.properties.state == 0.0, "Expected default state 0.0"
+
+        # Validate no push configuration
+        assert dial.push is None, "Expected no push configuration"
+
+    finally:
+        # Clean up temporary file
+        temp_file_path.unlink()

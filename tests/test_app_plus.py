@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import io
 import json
 from pathlib import Path
 from typing import Any
@@ -19,6 +18,7 @@ from home_assistant_streamdeck_yaml import (
     Config,
     Dial,
     Page,
+    _get_blank_image,
     _on_dial_event_callback,
     _update_state,
     get_lcd_size,
@@ -287,7 +287,7 @@ async def test_streamdeck_plus(
     assert updated_attributes["min"] == 0
 
 
-def test_update_all_dials_partial_and_no_dials(mock_deck_plus: Mock) -> None:
+def test_update_all_dials_partial_and_no_dials(mock_deck_plus: Mock) -> None:  # noqa: PLR0915
     """Test updating partial dials and clearing unconfigured dial slots."""
     # Create dials programmatically for input_number entities
     dial_number1 = Dial(
@@ -337,14 +337,11 @@ def test_update_all_dials_partial_and_no_dials(mock_deck_plus: Mock) -> None:
         },
     }
 
-    # Generate blank image bytes for verification
+    # Get size per dial and real blank image bytes
     size_per_dial: tuple[int, int] = get_size_per_dial(mock_deck_plus)
-    blank_image: Image.Image = Image.new("RGB", size_per_dial, (0, 0, 0))
-    img_bytes = io.BytesIO()
-    blank_image.save(img_bytes, format="JPEG")
-    blank_image_bytes: bytes = img_bytes.getvalue()
+    blank_image_bytes: bytes = _get_blank_image(size_per_dial)
 
-    # Mock Dial.render_lcd_image and _get_blank_image
+    # Mock Dial.render_lcd_image
     def mock_render_lcd_image(
         self: Any,  # noqa: ARG001
         complete_state: dict[str, Any],  # noqa: ARG001
@@ -355,8 +352,11 @@ def test_update_all_dials_partial_and_no_dials(mock_deck_plus: Mock) -> None:
 
     with (
         patch("home_assistant_streamdeck_yaml.Dial.render_lcd_image", mock_render_lcd_image),
-        patch("home_assistant_streamdeck_yaml._get_blank_image", return_value=blank_image_bytes),
+        patch("home_assistant_streamdeck_yaml._get_blank_image") as mock_get_blank_image,
     ):
+        # Set the patched _get_blank_image to use the real implementation
+        mock_get_blank_image.side_effect = _get_blank_image
+
         # Get the number of dials from the mock
         dial_count: int = mock_deck_plus.dial_count()
 
@@ -367,20 +367,8 @@ def test_update_all_dials_partial_and_no_dials(mock_deck_plus: Mock) -> None:
         assert (
             mock_deck_plus.set_touchscreen_image.call_count == dial_count
         )  # 1 update + (dial_count-1) clears
-        # Debug: Print call_args_list
-        print(
-            "OneDial calls:",
-            [
-                (
-                    call.args[1],
-                    call.args[2],
-                    call.kwargs.get("width"),
-                    call.kwargs.get("height"),
-                    len(call.args[0]),
-                )
-                for call in mock_deck_plus.set_touchscreen_image.call_args_list
-            ],
-        )
+        assert mock_get_blank_image.call_count == 1  # Called once for unconfigured slots
+        mock_get_blank_image.assert_called_with(size_per_dial)
         # Verify update call for dial_key=0
         assert any(
             call.args[1] == 0  # x_pos=0 for dial_key=0
@@ -396,35 +384,25 @@ def test_update_all_dials_partial_and_no_dials(mock_deck_plus: Mock) -> None:
         for dial_key in unconfigured_keys:
             x_offset = dial_key * size_per_dial[0]
             assert any(
-                call.args[1] == x_offset  # x_pos=dial_key * size_per_dial[0]
-                and call.args[2] == 0  # y_pos=0
+                call.args[1] == x_offset
+                and call.args[2] == 0
                 and call.kwargs["width"] == size_per_dial[0]
                 and call.kwargs["height"] == size_per_dial[1]
                 and call.args[0] == blank_image_bytes
                 for call in mock_deck_plus.set_touchscreen_image.call_args_list
             )
+        mock_get_blank_image.reset_mock()
+        mock_deck_plus.set_touchscreen_image.reset_mock()
 
         # Test TwoDials page (2 dials, clear remaining slots)
-        mock_deck_plus.set_touchscreen_image.reset_mock()
         config.to_page("TwoDials")
         config.current_page().sort_dials()
         update_all_dials(mock_deck_plus, config, complete_state)
         assert (
             mock_deck_plus.set_touchscreen_image.call_count == dial_count
         )  # 2 updates + (dial_count-2) clears
-        print(
-            "TwoDials calls:",
-            [
-                (
-                    call.args[1],
-                    call.args[2],
-                    call.kwargs.get("width"),
-                    call.kwargs.get("height"),
-                    len(call.args[0]),
-                )
-                for call in mock_deck_plus.set_touchscreen_image.call_args_list
-            ],
-        )
+        assert mock_get_blank_image.call_count == 1  # Called once for unconfigured slots
+        mock_get_blank_image.assert_called_with(size_per_dial)
         for dial_key in [0, 1]:
             x_offset = dial_key * size_per_dial[0]
             assert any(
@@ -447,26 +425,16 @@ def test_update_all_dials_partial_and_no_dials(mock_deck_plus: Mock) -> None:
                 and call.args[0] == blank_image_bytes
                 for call in mock_deck_plus.set_touchscreen_image.call_args_list
             )
+        mock_get_blank_image.reset_mock()
+        mock_deck_plus.set_touchscreen_image.reset_mock()
 
         # Test NoDials page (clear all slots)
-        mock_deck_plus.set_touchscreen_image.reset_mock()
         config.to_page("NoDials")
         config.current_page().sort_dials()
         update_all_dials(mock_deck_plus, config, complete_state)
         assert mock_deck_plus.set_touchscreen_image.call_count == dial_count  # dial_count clears
-        print(
-            "NoDials calls:",
-            [
-                (
-                    call.args[1],
-                    call.args[2],
-                    call.kwargs.get("width"),
-                    call.kwargs.get("height"),
-                    len(call.args[0]),
-                )
-                for call in mock_deck_plus.set_touchscreen_image.call_args_list
-            ],
-        )
+        assert mock_get_blank_image.call_count == 1  # Called once for all slots
+        mock_get_blank_image.assert_called_with(size_per_dial)
         configured_keys = set()  # NoDials has no dials
         unconfigured_keys = set(range(dial_count)) - configured_keys
         for dial_key in unconfigured_keys:

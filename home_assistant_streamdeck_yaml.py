@@ -882,9 +882,9 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
 
             # Identify turn and push configurations
             for dial in group:
-                if dial.dial_event_type == "TURN":
+                if dial.dial_event_type in ["TURN", "DialEventType.TURN"]:
                     turn_dial = dial
-                elif dial.dial_event_type == "PUSH":
+                elif dial.dial_event_type in ["PUSH", "DialEventType.PUSH"]:
                     push_dial = dial
 
             if not turn_dial and not push_dial:

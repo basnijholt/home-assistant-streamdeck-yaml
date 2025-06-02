@@ -469,7 +469,7 @@ Here are >30 interesting uses for the Stream Deck with Home Assistant (click on 
         {{ next | int }}
       {% endif %}
   text: >-
-    {% set current_brightness = state_attr('light.living_room_lights', 'brightness') or 0 %} 
+    {% set current_brightness = state_attr('light.living_room_lights', 'brightness') or 0 %}
     {% set brightness_pct = (current_brightness / 255) * 100 %}
     {{ brightness_pct | round }}%
 ```

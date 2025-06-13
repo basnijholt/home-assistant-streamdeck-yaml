@@ -407,15 +407,16 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             return f"{temp:.2f}".rstrip("0").rstrip(".")
 
         # Compute climate-specific values for text, icon_mdi, and text_color
-        current_temperature = state.get("attributes", {}).get("temperature")
+        current_temperature = state.get("attributes", {}).get("current_temperature")
+        temperature_setpoint = state.get("attributes", {}).get("temperature")
         current_mode: str | None = state.get("state", None)
         computed_text = (
             ("Climate\n" if display_climate_string else "")
             + (name + "\n" if name else "")
             + format_temp(current_temperature)
             + (
-                f" -> {format_temp(current_temperature)}"
-                if current_mode and current_mode.lower() != "off" and current_temperature
+                f" -> {format_temp(temperature_setpoint)}"
+                if current_mode and current_mode.lower() != "off" and temperature_setpoint
                 else ""
             )
             + "°C\n"

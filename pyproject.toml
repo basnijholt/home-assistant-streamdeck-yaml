@@ -92,6 +92,7 @@ ignore = [
     "TD003",   # Missing issue link on the line following this TODO
     "FIX002",  # Line contains TODO
     "E501",    # Line too long
+    "PLC0415", # import-outside-top-level
 ]
 
 [tool.ruff.lint.per-file-ignores]

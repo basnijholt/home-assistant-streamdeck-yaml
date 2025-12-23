@@ -2359,7 +2359,7 @@ async def _handle_key_press(  # noqa: PLR0912, PLR0915
     elif special_type == "previous-page":
         config.previous_page()
         update_all()
-    elif button.special_type == "close-page":
+    elif special_type == "close-page":
         config.close_page()
         update_all()
     elif special_type == "go-to-page":

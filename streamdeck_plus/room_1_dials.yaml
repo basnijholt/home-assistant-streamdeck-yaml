@@ -1,0 +1,33 @@
+# Example of a light control with a delay and a percentage ring
+- entity_id: light.room_1
+  service: light.turn_on
+  service_data:
+    brightness: '{{ dial_value() | int }}'
+  dial_event_type: TURN
+  text: >
+    {%- set state = dial_value()  -%}
+    {%- set ha_state = states('light.room_1') -%}
+    {%- if ha_state == "off" and dial_value() == 0 -%}
+      {{"off"}}
+    {%- else -%}
+      {{state | int}}
+    {%- endif -%}
+  text_size: 25
+  delay: 0.5
+  icon: >
+    {%- set state = dial_value() -%}
+    {%- set min = dial_attr("min") -%}
+    {%- set max = dial_attr("max") -%}
+    {%- set pct = ((state - min) / (max - min)) * 100 -%}
+    ring:{{ pct | round }}
+  state_attribute: brightness
+  attributes:
+    min: 0
+    max: 100
+    step: 1
+  allow_touchscreen_events: True
+  target:
+    entity_id: light.room_1
+- entity_id: light.room_1
+  service: light.toggle
+  dial_event_type: PUSH

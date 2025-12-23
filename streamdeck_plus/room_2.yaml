@@ -1,0 +1,22 @@
+- special_type: go-to-page
+  special_type_data: home
+  text: |
+    home
+  icon_mdi: "home"
+  text_size: 16
+- entity_id: input_number.test
+  service: input_number.set_value
+  service_data:
+    value: 0
+    entity_id: input_number.test
+  text: |
+    Set
+    0
+- entity_id: input_number.test
+  service: input_number.set_value
+  service_data:
+    value: 100
+    entity_id: input_number.test
+  text: |
+    Set
+    100

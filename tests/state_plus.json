@@ -1,0 +1,105 @@
+{
+    "light.living_room_lights_z2m": {
+        "entity_id": "light.living_room_lights_z2m",
+        "state": "off",
+        "attributes": {
+            "min_color_temp_kelvin": 2202,
+            "max_color_temp_kelvin": 4000,
+            "min_mireds": 250,
+            "max_mireds": 454,
+            "effect_list": [
+                "blink",
+                "breathe",
+                "okay",
+                "channel_change",
+                "candle",
+                "fireplace",
+                "colorloop",
+                "finish_effect",
+                "stop_effect",
+                "stop_hue_effect"
+            ],
+            "supported_color_modes": [
+                "color_temp",
+                "xy"
+            ],
+            "friendly_name": "Living room lights Z2M",
+            "supported_features": 44
+        },
+        "last_changed": "2023-03-18T22:41:34.936069+00:00",
+        "last_updated": "2023-03-18T22:41:34.936069+00:00",
+        "context": {
+            "id": "01GVVE59YFS7AH394T06JRN5AA",
+            "parent_id": null,
+            "user_id": "13984b139dd9426ca31369725c9e23e0"
+        }
+    },
+    "media_player.kef_ls50": {
+        "entity_id": "media_player.kef_ls50",
+        "state": "idle",
+        "attributes": {
+            "source_list": [
+                "Radio Paradise",
+                "TuneIn",
+                "Bluetooth",
+                "HDMI ARC",
+                "Optical Input 1",
+                "Spotify"
+            ],
+            "volume_level": 0.05,
+            "is_volume_muted": false,
+            "media_content_type": "music",
+            "media_position_updated_at": "2023-03-18T23:50:23.896113+00:00",
+            "media_title": "Optical Input 1",
+            "source": "HDMI ARC",
+            "shuffle": false,
+            "master": false,
+            "entity_picture": "/api/media_player_proxy/media_player.kef_ls50",
+            "friendly_name": "KEF LS50",
+            "supported_features": 196157
+        },
+        "last_changed": "2023-03-18T22:49:42.807542+00:00",
+        "last_updated": "2023-03-18T23:50:23.897678+00:00",
+        "context": {
+            "id": "01GVVJ3ACSG3YRQRDQ5R2MD7P5",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    "input_select.sleep_mode": {
+        "entity_id": "input_select.sleep_mode",
+        "state": "off",
+        "attributes": {
+            "options": [
+                "total",
+                "half",
+                "off"
+            ],
+            "editable": false,
+            "icon": "mdi:bed-king"
+        },
+        "last_changed": "2023-03-18T14:00:00.241750+00:00",
+        "last_updated": "2023-03-18T14:00:00.241750+00:00",
+        "context": {
+            "id": "01GVTGA8ZB4R477ZP6YNT3CZR9",
+            "parent_id": null,
+            "user_id": null
+        }
+    },
+    "input_number.streamdeck": {
+        "entity_id": "input_number.streamdeck",
+        "state": 50,
+        "attributes": {
+            "min": 10,
+            "max": 90,
+            "step": 5
+        },
+        "last_changed": "2023-03-18T14:00:00.241750+00:00",
+        "last_updated": "2023-03-18T14:00:00.241750+00:00",
+        "context": {
+            "id": "01GVTGA8KD4R4IAZP6YKT3JZR9",
+            "parent_id": null,
+            "user_id": null
+        }
+    }
+}

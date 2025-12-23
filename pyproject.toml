@@ -1,25 +1,12 @@
 [build-system]
-requires = ["setuptools>=42", "wheel", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools>=42", "wheel", "setuptools_scm[toml]>=6.2", "unidep[toml]"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "home_assistant_streamdeck_yaml"
 description = "Home Assistant on Stream Deck: configured via YAML (with templates) and running on Linux, MacOS, and Windows"
-dynamic = ["version"]
+dynamic = ["version", "dependencies"]
 authors = [{ name = "Bas Nijholt", email = "bas@nijho.lt" }]
-dependencies = [
-    "cairosvg",
-    "jinja2",
-    "lxml",
-    "pillow",
-    "pydantic<2",
-    "python-dotenv",
-    "pyyaml",
-    "requests",
-    "rich",
-    "streamdeck",
-    "websockets",
-]
 requires-python = ">=3.10"
 
 [project.readme]
@@ -36,6 +23,30 @@ colormap = ["matplotlib"]
 
 [project.scripts]
 home-assistant-streamdeck-yaml = "home_assistant_streamdeck_yaml:main"
+
+[tool.unidep]
+channels = ["conda-forge"]
+dependencies = [
+    {pip = "streamdeck"},
+    "cairosvg",
+    "jinja2",
+    "lxml",
+    "pillow",
+    "pydantic<2",
+    "python-dotenv",
+    "pyyaml",
+    "requests",
+    "rich",
+    "websockets",
+    {conda = "libusb"},
+    {conda = "libhidapi"},
+    {conda = "libudev:linux"},
+    {conda = "matplotlib"}, # remove once unidep supports optional dependencies
+]
+platforms = [
+    "linux-64",
+    "linux-aarch64",
+]
 
 [tool.setuptools]
 py-modules = ["home_assistant_streamdeck_yaml"]
@@ -58,11 +69,13 @@ exclude_lines = [
 ]
 
 [tool.black]
-line_length = 88
+line_length = 100
 
 [tool.ruff]
-line-length = 150
+line-length = 100
 target-version = "py39"
+
+[tool.ruff.lint]
 select = ["ALL"]
 ignore = [
     "T20",     # flake8-print
@@ -78,20 +91,22 @@ ignore = [
     "TD002",   # Missing author in TODO; try: `# TODO(<author_name>): ...`
     "TD003",   # Missing issue link on the line following this TODO
     "FIX002",  # Line contains TODO
+    "E501",    # Line too long
+    "PLC0415", # import-outside-top-level
 ]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/*" = ["SLF001"]
 "tests/test_examples.py" = ["E501"]
 ".github/*" = ["INP001"]
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 18
 
 [tool.mypy]
 python_version = "3.10"
 
-[tool.ruff.pep8-naming]
+[tool.ruff.lint.pep8-naming]
 # Allow Pydantic's `@validator` decorator to trigger class method treatment.
 classmethod-decorators = ["classmethod", "pydantic.validator"]
 

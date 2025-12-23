@@ -93,7 +93,7 @@
       "last_modified": "2025-12-11T04:04:52Z",
       "resolved": "github:NixOS/nixpkgs/5d6bdbddb4695a62f0d00a3620b37a15275a5093?lastModified=1765425892&narHash=sha256-jlQpSkg2sK6IJVzTQBDyRxQZgKADC2HKMRfGCSgNMHo%3D"
     },
-    "hidapi@latest": {
+    "hidapi@0.15.0": {
       "last_modified": "2025-11-23T21:50:36Z",
       "resolved": "github:NixOS/nixpkgs/ee09932cedcef15aaf476f9343d1dea2cb77e261#hidapi",
       "source": "devbox-search",

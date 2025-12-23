@@ -2664,30 +2664,28 @@ def safe_load_yaml(
             self._root = Path(stream.name).parent if hasattr(stream, "name") else Path.cwd()
             super().__init__(stream)
 
+    def _load_yaml_include(filepath: Path) -> Any:
+        """Load a YAML file for an !include directive."""
+        with filepath.open(encoding=encoding) as include_file:
+            return yaml.load(include_file, IncludeLoader)  # noqa: S506
+
     def _include(loader: IncludeLoader, node: yaml.nodes.Node) -> Any:
         """Include file referenced at node."""
         if isinstance(node.value, str):
             filepath = loader._root / str(loader.construct_scalar(node))  # type: ignore[arg-type]
             included_files.append(filepath)
-            return yaml.load(
-                filepath.read_text(encoding=encoding),
-                IncludeLoader,  # noqa: S506
-            )
-        else:  # noqa: RET505
-            mapping = loader.construct_mapping(node, deep=True)  # type: ignore[arg-type]
-            assert mapping is not None
-            filepath = loader._root / str(mapping["file"])
-            included_files.append(filepath)
-            variables = mapping["vars"]
+            return _load_yaml_include(filepath)
+        mapping = loader.construct_mapping(node, deep=True)  # type: ignore[arg-type]
+        assert mapping is not None
+        filepath = loader._root / str(mapping["file"])
+        included_files.append(filepath)
+        variables = mapping.get("vars", {})
 
-            loaded_data = yaml.load(
-                filepath.read_text(encoding=encoding),
-                IncludeLoader,  # noqa: S506
-            )
-            assert loaded_data is not None
-            assert variables is not None
+        loaded_data = _load_yaml_include(filepath)
+        assert loaded_data is not None
+        if variables:
             _traverse_yaml(loaded_data, variables)
-            return loaded_data
+        return loaded_data
 
     IncludeLoader.add_constructor("!include", _include)
     loaded_data = yaml.load(f, IncludeLoader)  # noqa: S506

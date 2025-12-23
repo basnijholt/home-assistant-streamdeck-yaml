@@ -17,6 +17,7 @@ from dotenv import dotenv_values
 from PIL import Image
 from pydantic import ValidationError
 from StreamDeck.Devices.StreamDeckOriginal import StreamDeckOriginal
+from websockets.exceptions import ConnectionClosedError  # noqa: F401
 
 from home_assistant_streamdeck_yaml import (
     ASSETS_PATH,
@@ -357,6 +358,7 @@ def test_long_press_target_allowed() -> None:
             "special_type_data": "settings",
         },
     )
+    assert button2.long_press is not None
     assert button2.long_press["target"] == {"area_id": "living_room"}
 
 
@@ -365,7 +367,7 @@ def test_long_press_target_validation() -> None:
 
     Regression test: Validates that target type checking was added.
     """
-    with pytest.raises(ValidationError, match="long_press.target must be a dictionary"):
+    with pytest.raises(ValidationError, match=r"long_press\.target must be a dictionary"):
         Button(
             service="light.turn_on",
             long_press={
@@ -575,8 +577,8 @@ def test_generate_uniform_hex_colors() -> None:
 
 @pytest.fixture
 def websocket_mock() -> Mock:
-    """Mock websocket client connection."""
-    return Mock(spec=websockets.ClientConnection)
+    """Mock websocket client protocol."""
+    return Mock(spec=websockets.WebSocketClientProtocol)
 
 
 async def test_handle_key_press_toggle_light(

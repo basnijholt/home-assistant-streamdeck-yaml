@@ -1881,14 +1881,9 @@ def _get_blank_image(size: tuple[int, int]) -> bytes:
     return img_bytes.getvalue()
 
 
-def get_lcd_size(deck: StreamDeck) -> tuple[int, int]:
-    """Get the LCD touchscreen size."""
-    return deck.touchscreen_image_format()["size"]
-
-
-def get_size_per_dial(deck: StreamDeck) -> tuple[int, int]:
+def _get_size_per_dial(deck: StreamDeck) -> tuple[int, int]:
     """Get the size of each dial's LCD region."""
-    size_lcd: tuple[int, int] = get_lcd_size(deck)
+    size_lcd: tuple[int, int] = deck.touchscreen_image_format()["size"]
     return (size_lcd[0] // deck.dial_count(), size_lcd[1])
 
 
@@ -1926,7 +1921,7 @@ def update_all_dials(
     num_physical: int = deck.dial_count()
     unconfigured_keys: set[int] = set(range(num_physical)) - configured_keys
     if unconfigured_keys:
-        size_per_dial: tuple[int, int] = get_size_per_dial(deck)
+        size_per_dial: tuple[int, int] = _get_size_per_dial(deck)
         lcd_image_bytes: bytes = _get_blank_image(size_per_dial)
         for dial_key in unconfigured_keys:
             dial_offset: int = dial_key * size_per_dial[0]
@@ -1962,7 +1957,7 @@ def update_dial(
         else:
             dial.update_attributes(data)
 
-    size_per_dial = get_size_per_dial(deck)
+    size_per_dial = _get_size_per_dial(deck)
     dial_key = config.current_page().get_sorted_key(dial)
     assert dial_key is not None
     dial_offset = dial_key * size_per_dial[0]

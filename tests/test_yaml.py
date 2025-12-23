@@ -230,3 +230,31 @@ name: Kitchen
         f"Included files do not match expected: {included_files}, "
         f"expected: {expected_included_files}"
     )
+
+
+def test_multiple_includes_in_list(tmp_path: Path) -> None:
+    """Test that safe_load_yaml handles multiple !include directives in a list correctly."""
+    # Create file1.yaml
+    file1_content = "- A\n- B\n"
+    file1_path = tmp_path / "file1.yaml"
+    file1_path.write_text(file1_content, encoding="utf-8")
+
+    # Create file2.yaml
+    file2_content = "- C\n- D\n"
+    file2_path = tmp_path / "file2.yaml"
+    file2_path.write_text(file2_content, encoding="utf-8")
+
+    # Create main.yaml
+    main_content = "- !include file1.yaml\n- !include file2.yaml\n"
+    main_path = tmp_path / "main.yaml"
+    main_path.write_text(main_content, encoding="utf-8")
+
+    # Load the main YAML file
+    with main_path.open(encoding="utf-8") as f:
+        result = safe_load_yaml(f)
+
+    # Expected output
+    expected = ["A", "B", "C", "D"]
+
+    # Assert the result matches the expected output
+    assert result == expected, f"Loaded data does not match expected: {result}"

@@ -1,7 +1,7 @@
 {
   "lockfile_version": "1",
   "packages": {
-    "cairo@latest": {
+    "cairo@1.18.4": {
       "last_modified": "2025-12-21T10:48:17Z",
       "resolved": "github:NixOS/nixpkgs/306ea70f9eb0fb4e040f8540e2deab32ed7e2055#cairo",
       "source": "devbox-search",

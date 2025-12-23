@@ -5,7 +5,7 @@
     "python@3.12",
     "hidapi@latest",
     "libusb1@latest",
-    "cairo@latest"
+    "cairo@1.18.4"
   ],
   "env": {
     "LD_LIBRARY_PATH": "$LD_LIBRARY_PATH:$DEVBOX_PACKAGES_DIR/lib"

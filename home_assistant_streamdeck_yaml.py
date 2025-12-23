@@ -868,6 +868,12 @@ class Config(BaseModel):
             config = cls(**data)  # type: ignore[arg-type]
             config._configuration_file = fname
             config._include_files = include_files
+            if not config.pages:
+                msg = (
+                    f"No pages defined in configuration file '{fname}'. "
+                    "Please add at least one page with buttons."
+                )
+                raise ValueError(msg)
             config.current_page().sort_dials()
             return config
 

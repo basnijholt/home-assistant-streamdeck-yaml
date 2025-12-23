@@ -1,0 +1,29 @@
+# A dial that controls the volume of a tv
+- entity_id: media_player.tv_room_2
+  service: media_player.volume_set
+  service_data:
+    volume_level: '{{ round(dial_value(),2)}}'
+  dial_event_type: TURN
+  icon: >
+    {%- set state = dial_value() -%}
+    {%- set min = dial_attr("min") -%}
+    {%- set max = dial_attr("max") -%}
+    {%- set pct = ((state - min) / (max - min)) * 100 -%}
+    ring:{{ pct | round }}
+  text: >
+    {%- set state = dial_value()  -%}
+    {%- set ha_state = states('media_player.tv_room_2') -%}
+    {%- if ha_state == 'off' -%}
+      {{ 'off' }}
+    {%- else -%}
+      {{ (state * 100) | int }}
+    {%- endif -%}
+  text_size: 20
+  state_attribute: volume_level
+  attributes:
+    min: 0
+    max: 1
+    step: 0.01
+  delay: 0.5
+  target:
+    entity_id: media_player.tv_room_2

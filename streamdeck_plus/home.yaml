@@ -1,0 +1,23 @@
+- special_type: go-to-page
+  special_type_data: room_1
+  text: |
+    room
+    1
+  text_size: 16
+- special_type: go-to-page
+  special_type_data: room_2
+  text: |
+    room
+    2
+  text_size: 16
+- special_type: go-to-page
+  special_type_data: room_anonymous
+  text: |
+    room
+    anonymous
+  text_size: 16
+- special_type: turn-off
+  text: |
+    Turn
+    Off
+  text_size: 16

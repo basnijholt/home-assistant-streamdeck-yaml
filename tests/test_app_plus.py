@@ -19,11 +19,10 @@ from home_assistant_streamdeck_yaml import (
     Dial,
     Page,
     _get_blank_image,
+    _get_size_per_dial,
     _on_dial_event_callback,
     _on_touchscreen_event_callback,
     _update_state,
-    get_lcd_size,
-    get_size_per_dial,
     update_all_dials,
     update_dial,
 )
@@ -426,7 +425,7 @@ def test_update_all_dials_partial_and_no_dials(mock_deck_plus: Mock) -> None:  #
     }
 
     # Get size per dial and real blank image bytes
-    size_per_dial: tuple[int, int] = get_size_per_dial(mock_deck_plus)
+    size_per_dial: tuple[int, int] = _get_size_per_dial(mock_deck_plus)
     blank_image_bytes: bytes = _get_blank_image(size_per_dial)
 
     # Mock Dial.render_lcd_image
@@ -537,17 +536,9 @@ def test_update_all_dials_partial_and_no_dials(mock_deck_plus: Mock) -> None:  #
             )
 
 
-def test_get_lcd_size(mock_deck_plus: Mock) -> None:
-    """Test that get_lcd_size() works properly."""
-    assert get_lcd_size(mock_deck_plus) == (
-        StreamDeckPlus.TOUCHSCREEN_PIXEL_WIDTH,
-        StreamDeckPlus.TOUCHSCREEN_PIXEL_HEIGHT,
-    )
-
-
 def test_get_size_per_dial(mock_deck_plus: Mock) -> None:
-    """Test that get_size_per_dial() works properly."""
-    assert get_size_per_dial(mock_deck_plus) == (
+    """Test that _get_size_per_dial() works properly."""
+    assert _get_size_per_dial(mock_deck_plus) == (
         StreamDeckPlus.TOUCHSCREEN_PIXEL_WIDTH / mock_deck_plus.dial_count(),
         StreamDeckPlus.TOUCHSCREEN_PIXEL_HEIGHT,
     )

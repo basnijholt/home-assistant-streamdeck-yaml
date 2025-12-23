@@ -3,7 +3,7 @@
   "packages": [
     "uv@latest",
     "python@3.12",
-    "hidapi@latest",
+    "hidapi@0.15.0",
     "libusb1@1.0.29",
     "cairo@1.18.4"
   ],

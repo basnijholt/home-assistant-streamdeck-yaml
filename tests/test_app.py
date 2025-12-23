@@ -67,6 +67,18 @@ def test_reload_config() -> None:
     assert c.pages != []
 
 
+def test_load_config_no_pages_raises_error(tmp_path: Path) -> None:
+    """Test that loading a config with no pages raises ValueError.
+
+    Regression test for #280 - previously raised IndexError.
+    """
+    config_file = tmp_path / "empty_config.yaml"
+    config_file.write_text("pages: []")
+
+    with pytest.raises(ValueError, match="No pages defined"):
+        Config.load(config_file, yaml_encoding=DEFAULT_CONFIG_ENCODING)
+
+
 @pytest.fixture
 def state() -> dict[str, dict[str, Any]]:
     """State fixture."""

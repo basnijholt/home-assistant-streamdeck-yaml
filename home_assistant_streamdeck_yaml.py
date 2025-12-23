@@ -2666,54 +2666,54 @@ def safe_load_yaml(
             self._root = Path(stream.name).parent if hasattr(stream, "name") else Path.cwd()
             super().__init__(stream)
 
-    def _load_yaml_include(filepath: Path) -> Any:
-        """Load a YAML file for an !include directive."""
-        with filepath.open(encoding=encoding) as include_file:
-            return yaml.load(include_file, IncludeLoader)  # noqa: S506
+        def _load_include_file(self, filepath: Path) -> Any:
+            """Load a YAML file for an !include directive."""
+            with filepath.open(encoding=encoding) as include_file:
+                return yaml.load(include_file, IncludeLoader)  # noqa: S506
 
-    def _include(loader: IncludeLoader, node: yaml.nodes.Node) -> Any:
-        """Include file referenced at node."""
-        if isinstance(node.value, str):
-            filepath = loader._root / str(loader.construct_scalar(node))  # type: ignore[arg-type]
+        def include(self, node: yaml.nodes.Node) -> Any:
+            """Include file referenced at node."""
+            if isinstance(node.value, str):
+                filepath = self._root / str(self.construct_scalar(node))  # type: ignore[arg-type]
+                included_files.append(filepath)
+                return self._load_include_file(filepath)
+            mapping = self.construct_mapping(node, deep=True)  # type: ignore[arg-type]
+            assert mapping is not None
+            filepath = self._root / str(mapping["file"])
             included_files.append(filepath)
-            return _load_yaml_include(filepath)
-        mapping = loader.construct_mapping(node, deep=True)  # type: ignore[arg-type]
-        assert mapping is not None
-        filepath = loader._root / str(mapping["file"])
-        included_files.append(filepath)
-        variables = mapping.get("vars", {})
+            variables = mapping.get("vars", {})
 
-        loaded_data = _load_yaml_include(filepath)
-        assert loaded_data is not None
-        if variables:
-            _traverse_yaml(loaded_data, variables)
-        return loaded_data
+            loaded_data = self._load_include_file(filepath)
+            assert loaded_data is not None
+            if variables:
+                _traverse_yaml(loaded_data, variables)
+            return loaded_data
 
-    # Add _include as both a class method and constructor for construct_sequence compatibility
-    IncludeLoader._include = lambda self, node: _include(self, node)  # type: ignore[attr-defined]
-
-    def construct_sequence(self: IncludeLoader, node: yaml.SequenceNode, deep: bool = False) -> Any:  # noqa: FBT001 FBT002
-        """Override sequence construction to flatten !include lists."""
-        result = []
-        for subnode in node.value:
-            if isinstance(subnode, yaml.ScalarNode) and subnode.tag == "!include":
-                # Process !include directive
-                loaded_data = self._include(subnode)  # type: ignore[attr-defined]
-                if isinstance(loaded_data, list):
-                    result.extend(loaded_data)
+        def construct_sequence(  # type: ignore[override]
+            self,
+            node: yaml.SequenceNode,
+            deep: bool = False,  # noqa: FBT001, FBT002
+        ) -> Any:
+            """Override sequence construction to flatten !include lists."""
+            result = []
+            for subnode in node.value:
+                if isinstance(subnode, yaml.ScalarNode) and subnode.tag == "!include":
+                    # Process !include directive
+                    loaded_data = self.include(subnode)
+                    if isinstance(loaded_data, list):
+                        result.extend(loaded_data)
+                    else:
+                        result.append(loaded_data)
                 else:
-                    result.append(loaded_data)
-            else:
-                # Handle non-include items
-                constructed = self.construct_object(subnode, deep=deep)
-                if isinstance(constructed, list):
-                    result.extend(constructed)
-                else:
-                    result.append(constructed)
-        return result
+                    # Handle non-include items
+                    constructed = self.construct_object(subnode, deep=deep)
+                    if isinstance(constructed, list):
+                        result.extend(constructed)
+                    else:
+                        result.append(constructed)
+            return result
 
-    IncludeLoader.construct_sequence = construct_sequence  # type: ignore[method-assign, assignment]
-    IncludeLoader.add_constructor("!include", _include)
+    IncludeLoader.add_constructor("!include", IncludeLoader.include)
     loaded_data = yaml.load(f, IncludeLoader)  # noqa: S506
     if return_included_paths:
         return loaded_data, included_files

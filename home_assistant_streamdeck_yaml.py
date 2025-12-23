@@ -1403,6 +1403,7 @@ async def handle_changes(
                     deck.reset()
                     update_all_key_images(deck, config, complete_state)
                     update_all_dials(deck, config, complete_state)
+                    deck.set_brightness(config.brightness)
                 except Exception as e:  # noqa: BLE001
                     console.log(f"Error reloading configuration: {e}")
 
@@ -2248,6 +2249,7 @@ async def _handle_key_press(  # noqa: PLR0912
     elif button.special_type == "reload":
         config.reload()
         update_all()
+        deck.set_brightness(config.brightness)
         return
     elif button.service is not None:
         button = button.rendered_template_button(complete_state)

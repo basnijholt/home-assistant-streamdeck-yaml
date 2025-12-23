@@ -1403,6 +1403,7 @@ async def handle_changes(
                     deck.reset()
                     update_all_key_images(deck, config, complete_state)
                     update_all_dials(deck, config, complete_state)
+                    deck.set_brightness(config.brightness)
                 except Exception as e:  # noqa: BLE001
                     console.log(f"Error reloading configuration: {e}")
 
@@ -1873,7 +1874,8 @@ def update_all_dials(
 ) -> None:
     """Updates all dials."""
     console.log("Called update_all_dials")
-    for key, current_dial in enumerate(config.current_page().dials):
+    current_dials = config.current_page().dials
+    for key, current_dial in enumerate(current_dials):
         assert current_dial is not None
         if current_dial.entity_id is None:
             return
@@ -1884,6 +1886,25 @@ def update_all_dials(
             complete_state,
             complete_state[current_dial.entity_id],
         )
+
+    # Clear unused dial LCD slots when switching to a page with fewer dials
+    if deck.dial_count() > len(current_dials):
+        size_lcd = deck.touchscreen_image_format()["size"]
+        size_per_dial = (size_lcd[0] // deck.dial_count(), size_lcd[1])
+        # Create a black image for clearing
+        black_image = Image.new("RGB", size_per_dial, "black")
+        img_bytes = io.BytesIO()
+        black_image.save(img_bytes, format="JPEG")
+        black_image_bytes = img_bytes.getvalue()
+        for key in range(len(current_dials), deck.dial_count()):
+            dial_offset = key * size_per_dial[0]
+            deck.set_touchscreen_image(
+                black_image_bytes,
+                dial_offset,
+                0,
+                size_per_dial[0],
+                size_per_dial[1],
+            )
 
 
 def update_dial(
@@ -2248,6 +2269,7 @@ async def _handle_key_press(  # noqa: PLR0912
     elif button.special_type == "reload":
         config.reload()
         update_all()
+        deck.set_brightness(config.brightness)
         return
     elif button.service is not None:
         button = button.rendered_template_button(complete_state)

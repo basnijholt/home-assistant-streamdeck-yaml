@@ -2628,7 +2628,7 @@ async def run(
     deck.set_brightness(config.brightness)
     attempt = 0
 
-    while retry_attempts == math.inf or attempt <= retry_attempts:
+    while retry_attempts < 0 or attempt <= retry_attempts:
         try:
             console.log(f"Attempting connection (attempt {attempt + 1})...")
             await _run_connection_session(
@@ -2654,7 +2654,7 @@ async def run(
             console.log(
                 f"[WARNING] WebSocket connection failed: {type(e).__name__}: {e}",
             )
-            if retry_attempts != math.inf and attempt > retry_attempts:
+            if retry_attempts >= 0 and attempt > retry_attempts:
                 console.log("[ERROR] Max retry attempts reached, giving up.")
                 break
             console.log(
@@ -2803,16 +2803,6 @@ def main() -> None:
     system_encoding = locale.getpreferredencoding()
     yaml_encoding = os.getenv("YAML_ENCODING", system_encoding)
 
-    def parse_retry_attempts_arg(val: str) -> float:
-        if val is None:
-            return 0
-        if isinstance(val, str) and val.lower() == "inf":
-            return math.inf
-        try:
-            return int(val)
-        except (ValueError, TypeError):
-            return 0
-
     parser = argparse.ArgumentParser(
         epilog=_help(),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -2836,13 +2826,13 @@ def main() -> None:
     )
     parser.add_argument(
         "--connection-retry-attempts",
-        type=parse_retry_attempts_arg,
+        type=int,
         default=int(os.getenv("CONNECTION_RETRY_ATTEMPTS", "0")),
-        help="Maximum number of connection retry attempts ('inf' for infinite)",
+        help="Maximum number of connection retry attempts (-1 for infinite)",
     )
     parser.add_argument(
         "--connection-retry-delay",
-        type=int,
+        type=float,
         default=float(os.getenv("CONNECTION_RETRY_DELAY", "0")),
         help="Delay between connection retry attempts in seconds",
     )

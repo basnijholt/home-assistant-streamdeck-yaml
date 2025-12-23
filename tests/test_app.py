@@ -67,6 +67,29 @@ def test_reload_config() -> None:
     assert c.pages != []
 
 
+async def test_reload_button_sets_brightness(
+    mock_deck: Mock,
+    websocket_mock: Mock,
+    state: dict[str, dict[str, Any]],
+) -> None:
+    """Test that reload button sets brightness after reloading config.
+
+    Regression test for #235 - brightness was not applied on config reload.
+    """
+    # Create a config with a reload button
+    reload_button = Button(special_type="reload")
+    page = Page(name="test", buttons=[reload_button])
+    config = Config(pages=[page], brightness=75)
+    config._configuration_file = DEFAULT_CONFIG
+
+    # Trigger the reload button press
+    await _handle_key_press(websocket_mock, state, config, reload_button, mock_deck)
+
+    # Verify that set_brightness was called (the value will be from the reloaded config)
+    # The key point is that set_brightness IS called, which was the bug in #235
+    mock_deck.set_brightness.assert_called_once_with(config.brightness)
+
+
 @pytest.fixture
 def state() -> dict[str, dict[str, Any]]:
     """State fixture."""

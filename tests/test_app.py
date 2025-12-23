@@ -498,9 +498,11 @@ def test_light_page() -> None:
     page = _light_page(
         entity_id="light.bedroom",
         n_colors=9,
+        deck_key_count=BUTTONS_PER_PAGE,
         colormap="hsv",
         colors=None,
         color_temp_kelvin=None,
+        brightnesses=None,
     )
     buttons = page.buttons
     assert len(buttons) == BUTTONS_PER_PAGE
@@ -509,9 +511,11 @@ def test_light_page() -> None:
     page = _light_page(
         entity_id="light.bedroom",
         n_colors=9,
+        deck_key_count=BUTTONS_PER_PAGE,
         colormap=None,
         colors=None,
         color_temp_kelvin=None,
+        brightnesses=None,
     )
     buttons = page.buttons
     assert len(buttons) == BUTTONS_PER_PAGE
@@ -533,11 +537,36 @@ def test_light_page() -> None:
     page = _light_page(
         entity_id="light.bedroom",
         n_colors=9,
+        deck_key_count=BUTTONS_PER_PAGE,
         colormap=None,
         colors=hex_colors,
         color_temp_kelvin=None,
+        brightnesses=None,
     )
     buttons = page.buttons
+
+    # Test with custom brightnesses
+    custom_brightnesses = (0, 25, 50, 75, 100)
+    page = _light_page(
+        entity_id="light.bedroom",
+        n_colors=5,
+        deck_key_count=BUTTONS_PER_PAGE,
+        colormap=None,
+        colors=None,
+        color_temp_kelvin=None,
+        brightnesses=custom_brightnesses,
+    )
+    buttons = page.buttons
+    assert len(buttons) == BUTTONS_PER_PAGE
+    # Find the brightness buttons (they have brightness_pct in service_data)
+    brightness_buttons = [
+        b for b in buttons if b.service_data and "brightness_pct" in b.service_data
+    ]
+    assert len(brightness_buttons) == len(custom_brightnesses)
+    # First brightness button (0%) should say "OFF"
+    assert brightness_buttons[0].text == "OFF"
+    # Other buttons should have percentage text
+    assert brightness_buttons[1].text == "25%"
 
 
 def test_url_to_filename() -> None:

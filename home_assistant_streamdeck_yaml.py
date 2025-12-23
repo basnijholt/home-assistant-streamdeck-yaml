@@ -75,6 +75,8 @@ LCD_PIXELS_Y = 100
 LCD_ICON_SIZE_X = 200
 LCD_ICON_SIZE_Y = 100
 
+press_start_times: dict[int, float] = {}  # Dictionary to store press start times per key.
+
 console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
 
@@ -262,11 +264,12 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " If `go-to-page`, the data should be an `int` or `str` (name of the page)."
         " If `light-control`, the data should optionally be a dictionary."
         " The dictionary can contain the following keys:"
-        " The `colors` key and a value a list of max (`n_keys_on_streamdeck - 5`) hex colors."
-        " The `color_temp_kelvin` key and a value a list of max (`n_keys_on_streamdeck - 5`) color temperatures in Kelvin."
+        " The `colors` key and a value a list of max (`n_keys_on_streamdeck - 6`) hex colors."
+        " The `color_temp_kelvin` key and a value a list of max (`n_keys_on_streamdeck - 6`) color temperatures in Kelvin."
         " The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html)"
         " can be used. This requires the `matplotlib` package to be installed. If no"
-        " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",
+        " list of `colors` or `colormap` is specified, 10 equally spaced colors are used."
+        " The `brightnesses` key and a value of brightness level (0-100).",
     )
     long_press: dict[str, Any] | None = Field(
         default=None,
@@ -275,6 +278,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " `service`: The service to call on long press (e.g., 'light.turn_off')."
         " `service_data`: Data to pass to the service (e.g., {'brightness_pct': 10})."
         " `entity_id`: The entity ID to target (e.g., 'light.living_room'), overriding the button's entity_id if specified."
+        " `target`: Target specification for the service call (e.g., {'entity_id': 'light.living_room'})."
         " `special_type`: Special action for long press (e.g., 'next-page', 'light-control')."
         " `special_type_data`: Data for the special type action (e.g., {'colors': ['#FF0000']})."
         " If not specified, the default service or special_type action is used for both short and long presses.",
@@ -455,7 +459,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                 msg = f"With 'light-control', 'special_type_data' must be a dict, not '{v}'"
                 raise AssertionError(msg)
 
-            allowed_keys = {"colors", "colormap", "color_temp_kelvin"}
+            allowed_keys = {"colors", "colormap", "color_temp_kelvin", "brightnesses"}
             invalid_keys = v.keys() - allowed_keys
             if invalid_keys:
                 msg = f"Invalid keys in 'special_type_data', only {allowed_keys} allowed"
@@ -480,6 +484,13 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                         raise AssertionError(msg)  # noqa: TRY004
                 # Cast color_temp_kelvin to tuple (to make it hashable)
                 v["color_temp_kelvin"] = tuple(v["color_temp_kelvin"])
+            if "brightnesses" in v:
+                for brightness in v["brightnesses"]:
+                    if not isinstance(brightness, int):
+                        msg = "All brightnesses must be integers"
+                        raise AssertionError(msg)  # noqa: TRY004
+                # Cast brightnesses to tuple (to make it hashable)
+                v["brightnesses"] = tuple(v["brightnesses"])
 
         return v
 
@@ -1345,9 +1356,11 @@ def _max_contrast_color(hex_color: str) -> str:
 def _light_page(
     entity_id: str,
     n_colors: int,
+    deck_key_count: int,
     colors: tuple[str, ...] | None,
     color_temp_kelvin: tuple[int, ...] | None,
     colormap: str | None,
+    brightnesses: tuple[int, ...] | None,
 ) -> Page:
     """Return a page of buttons for controlling lights."""
     if colormap is None and colors is None:
@@ -1378,13 +1391,13 @@ def _light_page(
         for kelvin in (color_temp_kelvin or ())
     ]
     buttons_brightness = []
-    for brightness in [0, 10, 30, 60, 100]:
+    for brightness in brightnesses if brightnesses is not None else [0, 33, 66, 100]:
         background_color = _scale_hex_color("#FFFFFF", brightness / 100)
         button = Button(
             icon_background_color=background_color,
             service="light.turn_on",
             text_color=_max_contrast_color(background_color),
-            text=f"{brightness}%",
+            text=f"{brightness}%" if brightness > 0 else "OFF",
             service_data={
                 "entity_id": entity_id,
                 "brightness_pct": brightness,
@@ -1392,9 +1405,37 @@ def _light_page(
         )
         buttons_brightness.append(button)
     buttons_back = [Button(special_type="close-page")]
+    number_of_buttons_except_close_and_empty = (
+        len(buttons_colors)
+        + len(buttons_color_temp_kelvin)
+        + len(buttons_brightness)
+        + len(buttons_back)
+    )
+    number_of_empty_buttons = deck_key_count - number_of_buttons_except_close_and_empty
+    if number_of_empty_buttons > 0:
+        buttons_empty = [Button(special_type="empty")] * number_of_empty_buttons
+    else:
+        console.log(
+            f"""
+            Too many buttons on light page. Not showing everything"
+            Deck key count: {deck_key_count}
+            Number of defined buttons: {number_of_buttons_except_close_and_empty}
+            colors: {colors}
+            color_temp_kelvin: {color_temp_kelvin}
+            colormap: {colormap}
+            brightnesses: {brightnesses}
+            """,
+        )
+        buttons_empty = []
+
     return Page(
         name="Lights",
-        buttons=buttons_colors + buttons_color_temp_kelvin + buttons_brightness + buttons_back,
+        buttons=buttons_colors
+        + buttons_color_temp_kelvin
+        + buttons_empty
+        + buttons_brightness
+        + buttons_back,
+        dials=[],
     )
 
 
@@ -1788,6 +1829,7 @@ async def call_service(
     }
     if target is not None:
         subscribe_payload["target"] = target
+
     await websocket.send(json.dumps(subscribe_payload))
 
 
@@ -2384,6 +2426,8 @@ async def _handle_key_press(  # noqa: PLR0912, PLR0915
             colormap=special_type_data.get("colormap", None),
             colors=special_type_data.get("colors", None),
             color_temp_kelvin=special_type_data.get("color_temp_kelvin", None),
+            brightnesses=special_type_data.get("brightnesses", None),
+            deck_key_count=deck.key_count(),
         )
         config.load_page_as_detached(page)
         update_all()

@@ -12,7 +12,7 @@
   },
   "shell": {
     "init_hook": [
-      "uv sync --extra test"
+      "uv sync --all-extras"
     ],
     "scripts": {
       "start": "source .env && uv run python home_assistant_streamdeck_yaml.py",

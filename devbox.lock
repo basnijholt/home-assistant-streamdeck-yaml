@@ -141,9 +141,9 @@
         }
       }
     },
-    "libusb1@latest": {
-      "last_modified": "2025-12-17T01:17:14Z",
-      "resolved": "github:NixOS/nixpkgs/af84f9d270d404c17699522fab95bbf928a2d92f#libusb1",
+    "libusb1@1.0.29": {
+      "last_modified": "2025-12-18T02:44:17Z",
+      "resolved": "github:NixOS/nixpkgs/def3da69945bbe338c373fddad5a1bb49cf199ce#libusb1",
       "source": "devbox-search",
       "version": "1.0.29",
       "systems": {
@@ -209,12 +209,12 @@
               "default": true
             },
             {
-              "name": "doc",
-              "path": "/nix/store/fnsfghd1rqn4ndvp76y0fzr2lhcjzzbs-libusb-1.0.29-doc"
-            },
-            {
               "name": "dev",
               "path": "/nix/store/2wjb7lnk2jhn0m3n1bgmk7p83aznjdm7-libusb-1.0.29-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/fnsfghd1rqn4ndvp76y0fzr2lhcjzzbs-libusb-1.0.29-doc"
             }
           ],
           "store_path": "/nix/store/00s3yaabi3v8y64qq5jwgg5g4dlnmcpq-libusb-1.0.29"

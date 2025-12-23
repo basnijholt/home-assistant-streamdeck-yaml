@@ -4,7 +4,7 @@
     "uv@latest",
     "python@3.12",
     "hidapi@latest",
-    "libusb1@latest",
+    "libusb1@1.0.29",
     "cairo@1.18.4"
   ],
   "env": {

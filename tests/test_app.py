@@ -1476,12 +1476,12 @@ async def test_retry_logic_called_correct_number_of_times() -> None:
             side_effect=OSError("Network is down"),
         ) as mock_setup_ws,
         patch("asyncio.sleep", return_value=None) as mock_sleep,
-        patch("home_assistant_streamdeck_yaml.get_deck") as mock_get_deck,
     ):
-        mock_get_deck.return_value = Mock()
+        mock_deck = Mock()
 
         # Run the function with retry_attempts = 2 to simulate retry logic
         await run(
+            deck=mock_deck,
             host="localhost",
             token="",
             protocol="ws",
@@ -1505,13 +1505,13 @@ async def test_run_exits_immediately_on_zero_retries() -> None:
         patch(
             "home_assistant_streamdeck_yaml.setup_ws",
             side_effect=OSError("Network is down"),
-        ),
-        patch("home_assistant_streamdeck_yaml.get_deck") as mock_get_deck,
+        ) as mock_setup_ws,
     ):
-        mock_get_deck.return_value = Mock()
+        mock_deck = Mock()
 
         # No exception should be raised, and run should return immediately
         await run(
+            deck=mock_deck,
             host="localhost",
             token="",
             protocol="ws",
@@ -1521,7 +1521,7 @@ async def test_run_exits_immediately_on_zero_retries() -> None:
         )
 
         # If setup_ws is called once, it means the retry logic did not retry
-        assert mock_get_deck.called
+        assert mock_setup_ws.call_count == 1
 
 
 def test_page_switch_clears_unused_keys(state: dict[str, dict[str, Any]]) -> None:

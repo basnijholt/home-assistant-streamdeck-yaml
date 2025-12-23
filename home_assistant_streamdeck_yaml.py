@@ -12,7 +12,9 @@ import json
 import locale
 import math
 import re
+import signal
 import ssl
+import sys
 import time
 import warnings
 from contextlib import asynccontextmanager
@@ -44,6 +46,7 @@ from StreamDeck.ImageHelpers import PILHelper
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
+    from types import FrameType
 
     import pandas as pd
     from StreamDeck.Devices import StreamDeck
@@ -2800,6 +2803,7 @@ async def _run_connection_session(
 
 
 async def run(
+    deck: StreamDeck,
     host: str,
     token: str,
     protocol: Literal["wss", "ws"],
@@ -2810,7 +2814,6 @@ async def run(
     allow_weaker_ssl: bool = False,
 ) -> None:
     """Main entry point for the Stream Deck integration, with retry logic."""
-    deck = get_deck()
     deck.set_brightness(config.brightness)
     attempt = 0
 
@@ -2975,6 +2978,17 @@ def _help() -> str:
         return ""
 
 
+def _get_signal_handler(deck: StreamDeck) -> Callable[[int, FrameType | None], None]:
+    def handler(signum: int, frame: FrameType | None) -> None:  # noqa: ARG001
+        console.log(f"Signal caught: {signum=}")
+        deck.reset()
+        deck.close()
+        console.log(f"Closed deck connection {deck=}")
+        sys.exit(0)
+
+    return handler
+
+
 def main() -> None:
     """Start the Stream Deck integration."""
     import argparse
@@ -3035,8 +3049,14 @@ def main() -> None:
     )
     config = Config.load(args.config, yaml_encoding=args.yaml_encoding)
 
+    deck = get_deck()
+    handler = _get_signal_handler(deck)
+    signal.signal(signal.SIGINT, handler)
+    signal.signal(signal.SIGTERM, handler)
+
     asyncio.run(
         run(
+            deck=deck,
             host=args.host,
             token=args.token,
             protocol=args.protocol,

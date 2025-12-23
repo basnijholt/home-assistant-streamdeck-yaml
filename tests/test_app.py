@@ -8,7 +8,7 @@ import sys
 import textwrap
 from pathlib import Path
 from typing import Any
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, call, patch
 
 import pytest
 import websockets
@@ -41,6 +41,7 @@ from home_assistant_streamdeck_yaml import (
     _url_to_filename,
     get_states,
     setup_ws,
+    update_all_key_images,
     update_key_image,
 )
 
@@ -49,20 +50,33 @@ sys.path.append(str(ROOT))
 TEST_STATE_FILENAME = ROOT / "tests" / "state.json"
 IS_CONNECTED_TO_HOMEASSISTANT = False
 BUTTONS_PER_PAGE = 15
+DEFAULT_CONFIG_ENCODING = "utf-8"
 
 
 def test_load_config() -> None:
     """Test Config.load."""
-    Config.load(DEFAULT_CONFIG)
+    Config.load(DEFAULT_CONFIG, yaml_encoding=DEFAULT_CONFIG_ENCODING)
 
 
 def test_reload_config() -> None:
     """Test Config.load."""
-    c = Config.load(DEFAULT_CONFIG)
+    c = Config.load(DEFAULT_CONFIG, yaml_encoding=DEFAULT_CONFIG_ENCODING)
     c.pages = []
     assert c.pages == []
     c.reload()
     assert c.pages != []
+
+
+def test_load_config_no_pages_raises_error(tmp_path: Path) -> None:
+    """Test that loading a config with no pages raises ValueError.
+
+    Regression test for #280 - previously raised IndexError.
+    """
+    config_file = tmp_path / "empty_config.yaml"
+    config_file.write_text("pages: []")
+
+    with pytest.raises(ValueError, match="No pages defined"):
+        Config.load(config_file, yaml_encoding=DEFAULT_CONFIG_ENCODING)
 
 
 @pytest.fixture
@@ -219,6 +233,17 @@ def test_example_config_browsing_pages(config: Config) -> None:
     assert config.button(0) == first_page.buttons[0]
 
 
+def test_example_close_pages(config: Config) -> None:
+    """Test example config close pages."""
+    assert isinstance(config, Config)
+    assert config._current_page_index == 0
+    second_page = config.next_page()
+    assert isinstance(second_page, Page)
+    assert config._current_page_index == 1
+    config.close_page()
+    assert config._current_page_index == 0
+
+
 @pytest.mark.skipif(
     not IS_CONNECTED_TO_HOMEASSISTANT,
     reason="Not connected to Home Assistant",
@@ -254,9 +279,7 @@ def test_buttons(buttons: list[Button], state: dict[str, dict[str, Any]]) -> Non
     page = Page(name="Home", buttons=buttons)
     config = Config(pages=[page])
     first_page = config.to_page(0)
-    rendered_buttons = [
-        button.rendered_template_button(state) for button in first_page.buttons
-    ]
+    rendered_buttons = [button.rendered_template_button(state) for button in first_page.buttons]
 
     b = rendered_buttons[0]  # LIGHT
     assert b.domain == "light"
@@ -421,7 +444,7 @@ def test_light_page() -> None:
     """Test light page."""
     page = _light_page(
         entity_id="light.bedroom",
-        n_colors=10,
+        n_colors=9,
         colormap="hsv",
         colors=None,
         color_temp_kelvin=None,
@@ -432,7 +455,7 @@ def test_light_page() -> None:
 
     page = _light_page(
         entity_id="light.bedroom",
-        n_colors=10,
+        n_colors=9,
         colormap=None,
         colors=None,
         color_temp_kelvin=None,
@@ -456,7 +479,7 @@ def test_light_page() -> None:
 
     page = _light_page(
         entity_id="light.bedroom",
-        n_colors=10,
+        n_colors=9,
         colormap=None,
         colors=hex_colors,
         color_temp_kelvin=None,
@@ -933,6 +956,30 @@ async def test_button_with_target(
             {"switch.wifi_switch": {"state": "off"}},
             "wifi-off",
         ),
+        # Test is_number filter
+        (
+            """
+            {% if state_attr('sensor.temp1', 'temperature') | is_number %}
+            {{ state_attr('sensor.temp1', 'temperature') }}°C
+            {% else %}
+            {{ state_attr('sensor.temp1', 'temperature') }}
+            {% endif %}
+            """,
+            {"sensor.temp1": {"attributes": {"temperature": "unavailable"}}},
+            "unavailable",
+        ),
+        # Test is_number filter
+        (
+            """
+            {% if state_attr('sensor.temp1', 'temperature') | is_number %}
+            {{ state_attr('sensor.temp1', 'temperature') }}°C
+            {% else %}
+            {{ state_attr('sensor.temp1', 'temperature') }}
+            {% endif %}
+            """,
+            {"sensor.temp1": {"attributes": {"temperature": 3.2}}},
+            "3.2°C",
+        ),
     ],
 )
 def test_render_jinja2_from_examples_readme(
@@ -1091,7 +1138,11 @@ async def test_anonymous_page(
     )
     anon = Page(
         name="anon",
-        buttons=[Button(text="yolo"), Button(text="foo", delay=0.1)],
+        buttons=[
+            Button(text="yolo"),
+            Button(text="foo", delay=0.1),
+            Button(special_type="close-page"),
+        ],
     )
     config = Config(pages=[home], anonymous_pages=[anon])
     assert config._current_page_index == 0
@@ -1125,3 +1176,64 @@ async def test_anonymous_page(
     # Should now be the button on the first page
     button = config.button(0)
     assert button.special_type == "go-to-page"
+
+    # Test load_page_as_detached and close_detached_page methods
+    assert config.current_page() == home
+    config.load_page_as_detached(anon)
+    assert config.current_page() == anon
+    config.close_detached_page()
+    assert config.current_page() == home
+
+    # Back to anon page to test that the close button works properly
+    assert config.to_page("anon") == anon
+    await press(mock_deck, 2, key_pressed=True)
+    assert config._detached_page is None
+    assert config.current_page() == home
+
+
+def test_page_switch_clears_unused_keys(state: dict[str, dict[str, Any]]) -> None:
+    """Test that switching pages clears unused keys."""
+    # Setup pages: page1 has 2 buttons, page2 has only 1
+    page1 = Page(name="Page1", buttons=[Button(text="Btn1"), Button(text="Btn2")])
+    page2 = Page(name="Page2", buttons=[Button(text="Btn1 Only")])
+    config = Config(pages=[page1, page2])
+
+    # Patch dependencies: PILHelper for image conversion and DeviceManager to avoid needing a real deck
+    with (
+        patch(
+            "home_assistant_streamdeck_yaml.PILHelper.to_native_format",
+            return_value="mock_image_data",
+        ),
+        patch("home_assistant_streamdeck_yaml.DeviceManager") as mock_device_manager,
+    ):
+        # Configure the mock StreamDeck instance
+        mock_deck_instance = mock_device_manager().enumerate()[0]
+        mock_deck_instance.key_count.return_value = 2
+        mock_deck_instance.key_image_format.return_value = {"size": (72, 72)}
+        # Use MagicMock to easily track calls to set_key_image
+        mock_deck_instance.set_key_image = MagicMock()
+
+        # Start on the first page (page1)
+        assert config._current_page_index == 0
+
+        # Simulate switching to the second page (page2) which has fewer buttons
+        config.to_page(1)
+        assert config._current_page_index == 1
+
+        # Trigger the image update process for the current page
+        # This function should now handle clearing keys not defined on page2
+        update_all_key_images(mock_deck_instance, config, state)
+
+        # Verify that set_key_image was called correctly:
+        # - Key 0 should receive the image for the button on page2.
+        # - Key 1, which had a button on page1 but not page2, should be cleared (sent None).
+        expected_calls = [
+            call(0, "mock_image_data"),
+            call(1, None),
+        ]
+        mock_deck_instance.set_key_image.assert_has_calls(
+            expected_calls,
+            any_order=False,
+        )
+        # Ensure exactly these two calls were made for the 2-key mock deck
+        assert mock_deck_instance.set_key_image.call_count == 2  # noqa: PLR2004

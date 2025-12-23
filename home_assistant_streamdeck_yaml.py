@@ -2646,9 +2646,8 @@ async def run(
             websockets.exceptions.ConnectionClosed,
             websockets.exceptions.InvalidURI,
             websockets.exceptions.InvalidHandshake,
-            OSError,  # Catches socket errors etc.
-            asyncio.TimeoutError,  # If setup_ws implements timeouts
-            ConnectionRefusedError,
+            OSError,  # Catches socket errors, ConnectionRefusedError, etc.
+            asyncio.TimeoutError,
         ) as e:
             attempt += 1
             console.log(

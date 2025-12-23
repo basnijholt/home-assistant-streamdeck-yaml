@@ -4,18 +4,20 @@
     "uv@latest",
     "python@3.12",
     "hidapi@latest",
-    "libusb1@latest"
+    "libusb1@latest",
+    "cairo@latest"
   ],
   "env": {
     "LD_LIBRARY_PATH": "$LD_LIBRARY_PATH:$DEVBOX_PACKAGES_DIR/lib"
   },
   "shell": {
     "init_hook": [
-      "uv sync"
+      "uv sync --extra test"
     ],
     "scripts": {
       "start": "source .env && uv run python home_assistant_streamdeck_yaml.py",
-      "dev": "source .env && uv run python home_assistant_streamdeck_yaml.py"
+      "dev": "source .env && uv run python home_assistant_streamdeck_yaml.py",
+      "test": "uv run python -m pytest"
     }
   }
 }

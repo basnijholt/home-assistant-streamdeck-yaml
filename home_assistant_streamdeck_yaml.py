@@ -2666,8 +2666,8 @@ def safe_load_yaml(
 
     def _load_yaml_include(filepath: Path) -> Any:
         """Load a YAML file for an !include directive."""
-        with filepath.open(encoding=encoding) as f:
-            return yaml.load(f, IncludeLoader)  # noqa: S506
+        with filepath.open(encoding=encoding) as include_file:
+            return yaml.load(include_file, IncludeLoader)  # noqa: S506
 
     def _include(loader: IncludeLoader, node: yaml.nodes.Node) -> Any:
         """Include file referenced at node."""

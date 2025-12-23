@@ -1249,56 +1249,59 @@ async def test_anonymous_page(
     assert config.current_page() == anon
     button = config.button(0)
     assert button.text == "yolo"
-    press = _on_press_callback(websocket_mock, state, config)
 
-    # We need to have a release otherwise it will be timing for a long press
-    async def press_and_release(key: int) -> None:
-        await press(mock_deck, key, key_pressed=True)
-        await press(mock_deck, key, key_pressed=False)
+    # Mock update_key_image to avoid icon rendering affecting press duration timing
+    with patch("home_assistant_streamdeck_yaml.update_key_image"):
+        press = _on_press_callback(websocket_mock, state, config)
 
-    # Click the button
-    await press_and_release(0)
-    # Should now be the button on the first page
-    button = config.button(0)
-    assert button.special_type == "go-to-page"
-    # Back to anon page
-    assert config.to_page("anon") == anon
-    # Click the delay button
-    button = config.button(1)
-    assert button.text == "foo"
-    await press_and_release(1)
-    # Should now still be the button because of the delay
-    assert button.text == "foo"
-    assert config._detached_page is not None
-    assert config.current_page() == anon
-    with patch("home_assistant_streamdeck_yaml.update_all_key_images") as mock:
-        await asyncio.sleep(0.15)  # longer than delay should then switch to home
-        mock.assert_called_once()
-    assert config._detached_page is None
-    assert config.current_page() == home
-    # Should now be the button on the first page
-    button = config.button(0)
-    assert button.special_type == "go-to-page"
+        # We need to have a release otherwise it will be timing for a long press
+        async def press_and_release(key: int) -> None:
+            await press(mock_deck, key, key_pressed=True)
+            await press(mock_deck, key, key_pressed=False)
 
-    # Test load_page_as_detached and close_detached_page methods
-    assert config.current_page() == home
-    config.load_page_as_detached(anon)
-    assert config.current_page() == anon
-    config.close_detached_page()
-    assert config.current_page() == home
+        # Click the button
+        await press_and_release(0)
+        # Should now be the button on the first page
+        button = config.button(0)
+        assert button.special_type == "go-to-page"
+        # Back to anon page
+        assert config.to_page("anon") == anon
+        # Click the delay button
+        button = config.button(1)
+        assert button.text == "foo"
+        await press_and_release(1)
+        # Should now still be the button because of the delay
+        assert button.text == "foo"
+        assert config._detached_page is not None
+        assert config.current_page() == anon
+        with patch("home_assistant_streamdeck_yaml.update_all_key_images") as mock:
+            await asyncio.sleep(0.15)  # longer than delay should then switch to home
+            mock.assert_called_once()
+        assert config._detached_page is None
+        assert config.current_page() == home
+        # Should now be the button on the first page
+        button = config.button(0)
+        assert button.special_type == "go-to-page"
 
-    # Back to anon page to test that the close button works properly
-    assert config.to_page("anon") == anon
-    await press_and_release(2)  # close page button
-    assert config._detached_page is None
-    assert config.current_page() == home
+        # Test load_page_as_detached and close_detached_page methods
+        assert config.current_page() == home
+        config.load_page_as_detached(anon)
+        assert config.current_page() == anon
+        config.close_detached_page()
+        assert config.current_page() == home
 
-    # Test that to_page closes a detached page
-    config.load_page_as_detached(anon)
-    assert config.current_page() == anon
-    config.to_page(home.name)
-    assert config.current_page() == home
-    assert config._detached_page is None
+        # Back to anon page to test that the close button works properly
+        assert config.to_page("anon") == anon
+        await press_and_release(2)  # close page button
+        assert config._detached_page is None
+        assert config.current_page() == home
+
+        # Test that to_page closes a detached page
+        config.load_page_as_detached(anon)
+        assert config.current_page() == anon
+        config.to_page(home.name)
+        assert config.current_page() == home
+        assert config._detached_page is None
 
 
 async def test_retry_logic_called_correct_number_of_times() -> None:

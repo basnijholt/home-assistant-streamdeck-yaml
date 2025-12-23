@@ -69,6 +69,18 @@ def test_reload_config() -> None:
     assert c.pages != []
 
 
+def test_load_config_no_pages_raises_error(tmp_path: Path) -> None:
+    """Test that loading a config with no pages raises ValueError.
+
+    Regression test for #280 - previously raised IndexError.
+    """
+    config_file = tmp_path / "empty_config.yaml"
+    config_file.write_text("pages: []")
+
+    with pytest.raises(ValueError, match="No pages defined"):
+        Config.load(config_file, yaml_encoding=DEFAULT_CONFIG_ENCODING)
+
+
 @pytest.fixture
 def state() -> dict[str, dict[str, Any]]:
     """State fixture."""
@@ -269,9 +281,7 @@ def test_buttons(buttons: list[Button], state: dict[str, dict[str, Any]]) -> Non
     page = Page(name="Home", buttons=buttons)
     config = Config(pages=[page])
     first_page = config.to_page(0)
-    rendered_buttons = [
-        button.rendered_template_button(state) for button in first_page.buttons
-    ]
+    rendered_buttons = [button.rendered_template_button(state) for button in first_page.buttons]
 
     b = rendered_buttons[0]  # LIGHT
     assert b.domain == "light"
@@ -365,6 +375,7 @@ def mock_deck() -> Mock:
     }
 
     deck_mock.key_count.return_value = 15
+    deck_mock.dial_count.return_value = 0
 
     # Add the context manager methods
     deck_mock.__enter__ = Mock(return_value=deck_mock)
@@ -948,6 +959,30 @@ async def test_button_with_target(
             {"switch.wifi_switch": {"state": "off"}},
             "wifi-off",
         ),
+        # Test is_number filter
+        (
+            """
+            {% if state_attr('sensor.temp1', 'temperature') | is_number %}
+            {{ state_attr('sensor.temp1', 'temperature') }}°C
+            {% else %}
+            {{ state_attr('sensor.temp1', 'temperature') }}
+            {% endif %}
+            """,
+            {"sensor.temp1": {"attributes": {"temperature": "unavailable"}}},
+            "unavailable",
+        ),
+        # Test is_number filter
+        (
+            """
+            {% if state_attr('sensor.temp1', 'temperature') | is_number %}
+            {{ state_attr('sensor.temp1', 'temperature') }}°C
+            {% else %}
+            {{ state_attr('sensor.temp1', 'temperature') }}
+            {% endif %}
+            """,
+            {"sensor.temp1": {"attributes": {"temperature": 3.2}}},
+            "3.2°C",
+        ),
     ],
 )
 def test_render_jinja2_from_examples_readme(
@@ -1157,6 +1192,13 @@ async def test_anonymous_page(
     await press(mock_deck, 2, key_pressed=True)
     assert config._detached_page is None
     assert config.current_page() == home
+
+    # Test that to_page closes a detached page
+    config.load_page_as_detached(anon)
+    assert config.current_page() == anon
+    config.to_page(home.name)
+    assert config.current_page() == home
+    assert config._detached_page is None
 
 
 async def test_retry_logic_called_correct_number_of_times() -> None:

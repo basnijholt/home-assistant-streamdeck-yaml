@@ -12,6 +12,7 @@ import json
 import locale
 import math
 import re
+import ssl
 import time
 import warnings
 from contextlib import asynccontextmanager
@@ -415,7 +416,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         if icon_convert_to_grayscale:
             image = _convert_to_grayscale(image)
 
-        _add_text(
+        return _add_text_to_image(
             image=image,
             font_filename=font_filename,
             text_size=self.text_size,
@@ -423,44 +424,29 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             text_color=text_color if not key_pressed else "green",
             text_offset=self.text_offset,
         )
-        return image
 
-    @validator("special_type_data")
-    def _validate_special_type(  # noqa: PLR0912
-        cls: type[Button],
-        v: Any,
-        values: dict[str, Any],
-    ) -> Any:
-        """Validate the special_type_data."""
-        special_type = values["special_type"]
+    @staticmethod
+    def _validate_special_type_data(special_type: str, v: Any) -> Any:  # noqa: PLR0912
         if special_type == "go-to-page" and not isinstance(v, (int, str)):
-            msg = (
-                "If special_type is go-to-page, special_type_data must be an int or str"
-            )
+            msg = "If special_type is go-to-page, special_type_data must be an int or str"
             raise AssertionError(msg)
-        if (
-            special_type in {"next-page", "previous-page", "empty", "turn-off"}
-            and v is not None
-        ):
+        if special_type in {"next-page", "previous-page", "empty", "turn-off"} and v is not None:
             msg = f"special_type_data needs to be empty with {special_type=}"
             raise AssertionError(msg)
+
         if special_type == "light-control":
             if v is None:
                 v = {}
             if not isinstance(v, dict):
-                msg = (
-                    "With 'light-control', 'special_type_data' must"
-                    f" be a dict, not '{v}'"
-                )
+                msg = f"With 'light-control', 'special_type_data' must be a dict, not '{v}'"
                 raise AssertionError(msg)
-            # Can only have the following keys: colors and colormap
+
             allowed_keys = {"colors", "colormap", "color_temp_kelvin"}
             invalid_keys = v.keys() - allowed_keys
             if invalid_keys:
-                msg = (
-                    f"Invalid keys in 'special_type_data', only {allowed_keys} allowed"
-                )
+                msg = f"Invalid keys in 'special_type_data', only {allowed_keys} allowed"
                 raise AssertionError(msg)
+
             # If colors is present, it must be a list of strings
             if "colors" in v:
                 if not isinstance(v["colors"], (tuple, list)):
@@ -472,6 +458,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                         raise AssertionError(msg)  # noqa: TRY004
                 # Cast colors to tuple (to make it hashable)
                 v["colors"] = tuple(v["colors"])
+
             if "color_temp_kelvin" in v:
                 for kelvin in v["color_temp_kelvin"]:
                     if not isinstance(kelvin, int):
@@ -479,7 +466,18 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                         raise AssertionError(msg)  # noqa: TRY004
                 # Cast color_temp_kelvin to tuple (to make it hashable)
                 v["color_temp_kelvin"] = tuple(v["color_temp_kelvin"])
+
         return v
+
+    @validator("special_type_data")
+    def _validate_special_type(
+        cls: type[Button],
+        v: Any,
+        values: dict[str, Any],
+    ) -> Any:
+        """Validate the special_type_data."""
+        special_type = values["special_type"]
+        return cls._validate_special_type_data(special_type, v)
 
     def maybe_start_or_cancel_timer(
         self,
@@ -652,10 +650,7 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             text_color = dial.text_color or "white"
 
             assert dial.entity_id is not None
-            if (
-                complete_state[dial.entity_id]["state"] == "off"
-                and dial.icon_gray_when_off
-            ):
+            if complete_state[dial.entity_id]["state"] == "off" and dial.icon_gray_when_off:
                 icon_convert_to_grayscale = True
 
             if image is None:
@@ -671,7 +666,7 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             if icon_convert_to_grayscale:
                 image = _convert_to_grayscale(image)
 
-            _add_text(
+            return _add_text_to_image(
                 image=image,
                 font_filename=font_filename,
                 text_size=self.text_size,
@@ -679,7 +674,6 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                 text_color=text_color,
                 text_offset=self.text_offset,
             )
-            return image  # noqa: TRY300
 
         except ValueError as e:
             console.log(e)
@@ -882,6 +876,12 @@ class Config(BaseModel):
             config = cls(**data)  # type: ignore[arg-type]
             config._configuration_file = fname
             config._include_files = include_files
+            if not config.pages:
+                msg = (
+                    f"No pages defined in configuration file '{fname}'. "
+                    "Please add at least one page with buttons."
+                )
+                raise ValueError(msg)
             config.current_page().sort_dials()
             return config
 
@@ -982,11 +982,11 @@ class Config(BaseModel):
 
     def to_page(self, page: int | str) -> Page:
         """Go to a page based on the page name or index."""
+        self.close_detached_page()
         if isinstance(page, int):
             self._parent_page_index = self._current_page_index
             self._current_page_index = page
             return self.current_page()
-
         for i, p in enumerate(self.pages):
             if p.name == page:
                 self._current_page_index = i
@@ -1249,7 +1249,7 @@ def _generate_uniform_hex_colors(n_colors: int) -> tuple[str, ...]:
 
     def hsv_to_hex(hsv: tuple[float, float, float]) -> str:
         """Convert an HSV color tuple to a hex color string."""
-        rgb = tuple(int(round(x * 255)) for x in colorsys.hsv_to_rgb(*hsv))
+        rgb = tuple(round(x * 255) for x in colorsys.hsv_to_rgb(*hsv))
         return "#{:02x}{:02x}{:02x}".format(*rgb)
 
     hues = generate_hues(n_colors)
@@ -1324,10 +1324,7 @@ def _light_page(
     buttons_back = [Button(special_type="close-page")]
     return Page(
         name="Lights",
-        buttons=buttons_colors
-        + buttons_color_temp_kelvin
-        + buttons_brightness
-        + buttons_back,
+        buttons=buttons_colors + buttons_color_temp_kelvin + buttons_brightness + buttons_back,
     )
 
 
@@ -1336,13 +1333,19 @@ async def setup_ws(
     host: str,
     token: str,
     protocol: Literal["wss", "ws"],
-) -> websockets.WebSocketClientProtocol:
+    *,
+    allow_weaker_ssl: bool = False,
+) -> websockets.ClientConnection:
     """Set up the connection to Home Assistant."""
     uri = f"{protocol}://{host}/api/websocket"
+    connect_args: dict[str, Any] = {"max_size": 10485760}  # limit size to 10 MiB
+    if protocol == "wss":
+        ssl_context = ssl.create_default_context()
+        connect_args["ssl"] = ssl_context
+
     while True:
         try:
-            # limit size to 10 MiB
-            async with websockets.connect(uri, max_size=10485760) as websocket:
+            async with websockets.connect(uri, **connect_args) as websocket:
                 # Send an authentication message to Home Assistant
                 auth_payload = {"type": "auth", "access_token": token}
                 await websocket.send(json.dumps(auth_payload))
@@ -1356,11 +1359,14 @@ async def setup_ws(
             # Connection was reset, retrying in 3 seconds
             console.print_exception(show_locals=True)
             console.log("Connection was reset, retrying in 3 seconds")
+            if allow_weaker_ssl:
+                ssl_context.set_ciphers("DEFAULT@SECLEVEL=1")
+                console.log("Using weaker SSL settings")
             await asyncio.sleep(5)
 
 
 async def subscribe_state_changes(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
 ) -> None:
     """Subscribe to the state change events."""
     subscribe_payload = {
@@ -1372,7 +1378,7 @@ async def subscribe_state_changes(
 
 
 async def handle_changes(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     deck: StreamDeck,
     config: Config,
@@ -1403,9 +1409,7 @@ async def handle_changes(
         last_modified_time = edit_time(config._configuration_file)
         while True:
             files = [config._configuration_file, *config._include_files]
-            if config.auto_reload and any(
-                edit_time(fn) > last_modified_time for fn in files
-            ):
+            if config.auto_reload and any(edit_time(fn) > last_modified_time for fn in files):
                 console.log("Configuration file has been modified, reloading")
                 last_modified_time = max(edit_time(fn) for fn in files)
                 try:
@@ -1591,6 +1595,22 @@ def _max_filter(value: float, other_value: float) -> float:
     return max(value, other_value)
 
 
+def _is_number_filter(value: Any | None) -> bool:
+    """Check if a value is a number (int, float, or string representation of a number)."""
+    if value is None:
+        return False
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return True
+    if isinstance(value, str):
+        try:
+            float(value)
+        except ValueError:
+            return False
+        else:
+            return True
+    return False
+
+
 def _round(num: float, digits: int) -> int | float:
     """Returns rounded value with number of digits."""
     return round(num, digits)
@@ -1640,6 +1660,7 @@ def _render_jinja(
         )
         env.filters["min"] = _min_filter
         env.filters["max"] = _max_filter
+        env.filters["is_number"] = _is_number_filter
         template = env.from_string(text)
         return template.render(
             min=min,
@@ -1658,7 +1679,7 @@ def _render_jinja(
         return text
 
 
-async def get_states(websocket: websockets.WebSocketClientProtocol) -> dict[str, Any]:
+async def get_states(websocket: websockets.ClientConnection) -> dict[str, Any]:
     """Get the current state of all entities."""
     _id = _next_id()
     subscribe_payload = {"type": "get_states", "id": _id}
@@ -1670,7 +1691,7 @@ async def get_states(websocket: websockets.WebSocketClientProtocol) -> dict[str,
             return {state["entity_id"]: state for state in data["result"]}
 
 
-async def unsubscribe(websocket: websockets.WebSocketClientProtocol, id_: int) -> None:
+async def unsubscribe(websocket: websockets.ClientConnection, id_: int) -> None:
     """Unsubscribe from an event."""
     subscribe_payload = {
         "id": _next_id(),
@@ -1681,7 +1702,7 @@ async def unsubscribe(websocket: websockets.WebSocketClientProtocol, id_: int) -
 
 
 async def call_service(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     service: str,
     data: dict[str, Any],
     target: dict[str, Any] | None = None,
@@ -1707,8 +1728,7 @@ def _rgb_to_hex(rgb: tuple[int, int, int]) -> str:
 
 def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     # Remove '#' if present
-    if hex_color.startswith("#"):
-        hex_color = hex_color[1:]
+    hex_color = hex_color.removeprefix("#")
 
     # Convert hexadecimal to RGB
     r, g, b = tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
@@ -1740,7 +1760,7 @@ def _download_and_save_mdi(icon_mdi: str) -> Path:
         return filename_svg
     svg_content = _download(url)
     try:
-        etree.fromstring(svg_content)  # noqa: S320
+        etree.fromstring(svg_content)
     except etree.XMLSyntaxError:
         msg = (f"Invalid SVG: {url}, `svg_content` starts with: {svg_content[:100]!r}",)
         console.log(f"[b red]{msg}[/]")
@@ -1791,30 +1811,57 @@ def _init_icon(
     return Image.new("RGB", size, rgb_color)
 
 
-def _add_text(
+@ft.lru_cache(maxsize=1000)
+def _generate_text_image(
     *,
-    image: Image.Image,
     font_filename: str,
     text_size: int,
     text: str,
     text_color: str,
     text_offset: int = 0,
-) -> None:
+    size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
+) -> Image.Image:
+    """Render text onto a transparent image and return it for compositing."""
     if text_size == 0:
         console.log(f"Text size is 0, not drawing text: {text!r}")
-        return
-    draw = ImageDraw.Draw(image)
+        return Image.new("RGBA", size, (0, 0, 0, 0))
+
+    text_image = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(text_image)
     font = ImageFont.truetype(str(ASSETS_PATH / font_filename), text_size)
     draw.text(
-        (image.width / 2, image.height / 2 + text_offset),
+        (size[0] / 2, size[1] / 2 + text_offset),
         text=text,
         font=font,
         anchor="ms",
         fill=text_color,
         align="center",
     )
+    return text_image
 
 
+def _add_text_to_image(
+    image: Image.Image,
+    *,
+    font_filename: str,
+    text_size: int,
+    text: str,
+    text_color: str,
+    text_offset: int = 0,
+) -> Image.Image:
+    """Combine two images."""
+    text_image = _generate_text_image(
+        font_filename=font_filename,
+        text_size=text_size,
+        text=text,
+        text_color=text_color,
+        text_offset=text_offset,
+        size=image.size,
+    )
+    return Image.alpha_composite(image.convert("RGBA"), text_image).convert("RGB")
+
+
+@ft.lru_cache(maxsize=1)
 def _generate_failed_icon(
     size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
 ) -> Image.Image:
@@ -1824,14 +1871,28 @@ def _generate_failed_icon(
     font_filename = DEFAULT_FONT
     text_size = int(min(size) * 0.15)  # Adjust font size based on the icon size
     icon = Image.new("RGB", size, background_color)
-    _add_text(
+    return _add_text_to_image(
         image=icon,
         font_filename=font_filename,
         text_size=text_size,
         text="Rendering\nfailed",
         text_color=text_color,
     )
-    return icon
+
+
+@ft.lru_cache(maxsize=1)
+def _get_blank_image(size: tuple[int, int]) -> bytes:
+    """Get or create a blank (black) JPEG image for the given size."""
+    blank_image: Image.Image = Image.new("RGB", size, (0, 0, 0))
+    img_bytes = io.BytesIO()
+    blank_image.save(img_bytes, format="JPEG")
+    return img_bytes.getvalue()
+
+
+def _get_size_per_dial(deck: StreamDeck) -> tuple[int, int]:
+    """Get the size of each dial's LCD region."""
+    size_lcd: tuple[int, int] = deck.touchscreen_image_format()["size"]
+    return (size_lcd[0] // deck.dial_count(), size_lcd[1])
 
 
 def update_all_dials(
@@ -1839,12 +1900,23 @@ def update_all_dials(
     config: Config,
     complete_state: StateDict,
 ) -> None:
-    """Updates all dials."""
+    """Updates configured dials and clears unconfigured dial slots."""
     console.log("Called update_all_dials")
+
+    # Track configured dial keys
+    configured_keys: set[int] = set()
+
+    # Update configured dials
     for key, current_dial in enumerate(config.current_page().dials):
         assert current_dial is not None
         if current_dial.entity_id is None:
-            return
+            console.log(f"Dial {key} has no entity_id, skipping")
+            continue
+        dial_key: int | None = config.current_page().get_sorted_key(current_dial)
+        if dial_key is None:
+            console.log(f"Dial {key} has no valid dial_key, skipping")
+            continue
+        configured_keys.add(dial_key)
         update_dial(
             deck,
             key,
@@ -1852,6 +1924,23 @@ def update_all_dials(
             complete_state,
             complete_state[current_dial.entity_id],
         )
+
+    # Clear unconfigured dial slots
+    num_physical: int = deck.dial_count()
+    unconfigured_keys: set[int] = set(range(num_physical)) - configured_keys
+    if unconfigured_keys:
+        size_per_dial: tuple[int, int] = _get_size_per_dial(deck)
+        lcd_image_bytes: bytes = _get_blank_image(size_per_dial)
+        for dial_key in unconfigured_keys:
+            dial_offset: int = dial_key * size_per_dial[0]
+            deck.set_touchscreen_image(
+                lcd_image_bytes,
+                dial_offset,
+                0,
+                width=size_per_dial[0],
+                height=size_per_dial[1],
+            )
+        console.log(f"Cleared unconfigured dial slots: {unconfigured_keys}")
 
 
 def update_dial(
@@ -1876,15 +1965,14 @@ def update_dial(
         else:
             dial.update_attributes(data)
 
-    size_lcd = deck.touchscreen_image_format()["size"]
-    size_per_dial = (size_lcd[0] // deck.dial_count(), size_lcd[1])
+    size_per_dial = _get_size_per_dial(deck)
     dial_key = config.current_page().get_sorted_key(dial)
     assert dial_key is not None
     dial_offset = dial_key * size_per_dial[0]
     image = dial.render_lcd_image(
         complete_state=complete_state,
-        size=(size_per_dial),
-        key=config.current_page().get_sorted_key(dial),  # type: ignore[arg-type]
+        size=size_per_dial,
+        key=dial_key,
     )
     img_bytes = io.BytesIO()
     image.save(img_bytes, format="JPEG")
@@ -1893,8 +1981,8 @@ def update_dial(
         lcd_image_bytes,
         dial_offset,
         0,
-        size_per_dial[0],
-        size_per_dial[1],
+        width=size_per_dial[0],
+        height=size_per_dial[1],
     )
 
 
@@ -1974,13 +2062,11 @@ def turn_off(config: Config, deck: StreamDeck) -> None:
 
 async def _sync_input_boolean(
     state_entity_id: str | None,
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     state: Literal["on", "off"],
 ) -> None:
     """Sync the input boolean state with the Stream Deck."""
-    if (state_entity_id is not None) and (
-        state_entity_id.split(".")[0] == "input_boolean"
-    ):
+    if (state_entity_id is not None) and (state_entity_id.split(".")[0] == "input_boolean"):
         await call_service(
             websocket,
             f"input_boolean.turn_{state}",
@@ -1990,7 +2076,7 @@ async def _sync_input_boolean(
 
 
 def _on_touchscreen_event_callback(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
 ) -> Callable[
@@ -2018,17 +2104,13 @@ def _on_touchscreen_event_callback(
         else:
             # Short touch: Sets dial value to minimal value
             # Long touch: Sets dial to maximal value
-            lcd_icon_size = (
-                deck.touchscreen_image_format()["size"][0] / deck.dial_count()
-            )
+            lcd_icon_size = deck.touchscreen_image_format()["size"][0] / deck.dial_count()
             icon_pos = value["x"] // lcd_icon_size
             dials = config.dial_sorted(int(icon_pos))
             assert dials is not None
 
             selected_dial = (
-                dials[0]
-                if dials[0].dial_event_type == DialEventType.TURN.name
-                else dials[1]
+                dials[0] if dials[0].dial_event_type == DialEventType.TURN.name else dials[1]
             )
             assert selected_dial is not None
 
@@ -2053,7 +2135,7 @@ def _on_touchscreen_event_callback(
 
 
 async def handle_dial_event(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
     dial: tuple[Dial, Dial | None],
@@ -2113,7 +2195,7 @@ async def handle_dial_event(
 
 
 def _on_dial_event_callback(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
 ) -> Callable[
@@ -2174,7 +2256,7 @@ def _on_dial_event_callback(
 
 
 async def _handle_key_press(  # noqa: PLR0912
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
     button: Button,
@@ -2241,7 +2323,7 @@ async def _handle_key_press(  # noqa: PLR0912
 
 
 def _on_press_callback(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
 ) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:
@@ -2391,7 +2473,7 @@ def _convert_svg_to_png(
     fill_color = _scale_hex_color(color, opacity)
 
     try:
-        svg_tree = etree.fromstring(svg_content)  # noqa: S320
+        svg_tree = etree.fromstring(svg_content)
         svg_tree.attrib["fill"] = fill_color
         svg_tree.attrib["style"] = f"background-color: {background_color}"
         modified_svg_content = etree.tostring(svg_tree)
@@ -2415,9 +2497,7 @@ def _convert_svg_to_png(
     )
 
     image = (
-        Image.open(io.BytesIO(png_content))
-        if png_content
-        else Image.new("RGBA", size, fill_color)
+        Image.open(io.BytesIO(png_content)) if png_content else Image.new("RGBA", size, fill_color)
     )
 
     im = ImageOps.expand(image, border=(margin, margin), fill="black")
@@ -2502,9 +2582,11 @@ async def _run_connection_session(
     protocol: Literal["wss", "ws"],
     config: Config,
     deck: StreamDeck,
+    *,
+    allow_weaker_ssl: bool = False,
 ) -> None:
     """Handles a single connection session with Home Assistant."""
-    async with setup_ws(host, token, protocol) as websocket:
+    async with setup_ws(host, token, protocol, allow_weaker_ssl=allow_weaker_ssl) as websocket:
         try:
             complete_state = await get_states(websocket)
 
@@ -2538,6 +2620,8 @@ async def run(
     config: Config,
     retry_attempts: int = 0,
     retry_delay: float = 0.0,
+    *,
+    allow_weaker_ssl: bool = False,
 ) -> None:
     """Main entry point for the Stream Deck integration, with retry logic."""
     deck = get_deck()
@@ -2547,7 +2631,14 @@ async def run(
     while retry_attempts == math.inf or attempt <= retry_attempts:
         try:
             console.log(f"Attempting connection (attempt {attempt + 1})...")
-            await _run_connection_session(host, token, protocol, config, deck)
+            await _run_connection_session(
+                host,
+                token,
+                protocol,
+                config,
+                deck,
+                allow_weaker_ssl=allow_weaker_ssl,
+            )
             console.log("Connection session ended cleanly.")
             break
 
@@ -2588,6 +2679,34 @@ def _rich_table_str(df: pd.DataFrame) -> str:
     return console.file.getvalue()
 
 
+# Define YAML node type
+YamlNode = dict[str, Any] | list[Any] | str | int | float | bool | None
+
+
+def _traverse_yaml(node: YamlNode, variables: dict[str, str]) -> YamlNode:
+    """Substitute variables in YAML node."""
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if isinstance(value, str):
+                result = value
+                for var, var_value in variables.items():
+                    regex_format = rf"\$\{{{var}\}}"
+                    result = re.sub(regex_format, str(var_value), result)
+                node[key] = result
+            else:
+                node[key] = _traverse_yaml(value, variables)
+        return node
+    if isinstance(node, list):
+        return [_traverse_yaml(item, variables) for item in node]
+    if isinstance(node, str):
+        result = node
+        for var, var_value in variables.items():
+            regex_format = rf"\$\{{{var}\}}"
+            result = re.sub(regex_format, str(var_value), result)
+        return result
+    return node
+
+
 def safe_load_yaml(
     f: TextIO | str,
     *,
@@ -2595,60 +2714,64 @@ def safe_load_yaml(
     encoding: str | None = None,
 ) -> Any | tuple[Any, list]:
     """Load a YAML file."""
-    included_files = []
-
-    def _traverse_yaml(node: dict[str, Any], variables: dict[str, str]) -> None:
-        if isinstance(node, dict):
-            for key, value in node.items():
-                if not isinstance(value, dict):
-                    for var, var_value in variables.items():
-                        if not isinstance(value, str):
-                            continue
-
-                        regex_format = rf"\$\{{{var}\}}"
-                        node[key] = re.sub(regex_format, str(var_value), node[key])
-                else:
-                    _traverse_yaml(value, variables)
-        elif isinstance(node, list):
-            for item in node:
-                _traverse_yaml(item, variables)
+    included_files: list[Path] = []
 
     class IncludeLoader(yaml.SafeLoader):
         """YAML Loader with `!include` constructor."""
 
         def __init__(self, stream: Any) -> None:
             """Initialize IncludeLoader."""
-            self._root = (
-                Path(stream.name).parent if hasattr(stream, "name") else Path.cwd()
-            )
+            self._root = Path(stream.name).parent if hasattr(stream, "name") else Path.cwd()
             super().__init__(stream)
 
-    def _include(loader: IncludeLoader, node: yaml.nodes.Node) -> Any:
-        """Include file referenced at node."""
-        if isinstance(node.value, str):
-            filepath = loader._root / str(loader.construct_scalar(node))  # type: ignore[arg-type]
-            included_files.append(filepath)
-            return yaml.load(
-                filepath.read_text(encoding=encoding),
-                IncludeLoader,  # noqa: S506
-            )
-        else:  # noqa: RET505
-            mapping = loader.construct_mapping(node, deep=True)  # type: ignore[arg-type]
-            assert mapping is not None
-            filepath = loader._root / str(mapping["file"])
-            included_files.append(filepath)
-            variables = mapping["vars"]
+        def _load_include_file(self, filepath: Path) -> Any:
+            """Load a YAML file for an !include directive."""
+            with filepath.open(encoding=encoding) as include_file:
+                return yaml.load(include_file, IncludeLoader)  # noqa: S506
 
-            loaded_data = yaml.load(
-                filepath.read_text(encoding=encoding),
-                IncludeLoader,  # noqa: S506
-            )
+        def include(self, node: yaml.nodes.Node) -> Any:
+            """Include file referenced at node."""
+            if isinstance(node.value, str):
+                filepath = self._root / str(self.construct_scalar(node))  # type: ignore[arg-type]
+                included_files.append(filepath)
+                return self._load_include_file(filepath)
+            mapping = self.construct_mapping(node, deep=True)  # type: ignore[arg-type]
+            assert mapping is not None
+            filepath = self._root / str(mapping["file"])
+            included_files.append(filepath)
+            variables = mapping.get("vars", {})
+
+            loaded_data = self._load_include_file(filepath)
             assert loaded_data is not None
-            assert variables is not None
-            _traverse_yaml(loaded_data, variables)
+            if variables:
+                _traverse_yaml(loaded_data, variables)
             return loaded_data
 
-    IncludeLoader.add_constructor("!include", _include)
+        def construct_sequence(  # type: ignore[override]
+            self,
+            node: yaml.SequenceNode,
+            deep: bool = False,  # noqa: FBT001, FBT002
+        ) -> Any:
+            """Override sequence construction to flatten !include lists."""
+            result = []
+            for subnode in node.value:
+                if isinstance(subnode, yaml.ScalarNode) and subnode.tag == "!include":
+                    # Process !include directive
+                    loaded_data = self.include(subnode)
+                    if isinstance(loaded_data, list):
+                        result.extend(loaded_data)
+                    else:
+                        result.append(loaded_data)
+                else:
+                    # Handle non-include items
+                    constructed = self.construct_object(subnode, deep=deep)
+                    if isinstance(constructed, list):
+                        result.extend(constructed)
+                    else:
+                        result.append(constructed)
+            return result
+
+    IncludeLoader.add_constructor("!include", IncludeLoader.include)
     loaded_data = yaml.load(f, IncludeLoader)  # noqa: S506
     if return_included_paths:
         return loaded_data, included_files
@@ -2706,7 +2829,6 @@ def main() -> None:
         default=yaml_encoding,
         help=f"Specify encoding for YAML files (default is system encoding or from environment variable YAML_ENCODING (default: {yaml_encoding})",
     )
-
     parser.add_argument(
         "--protocol",
         default=os.environ.get("WEBSOCKET_PROTOCOL", "wss"),
@@ -2724,10 +2846,17 @@ def main() -> None:
         default=float(os.getenv("CONNECTION_RETRY_DELAY", "0")),
         help="Delay between connection retry attempts in seconds",
     )
+    parser.add_argument(
+        "--allow-weaker-ssl",
+        action="store_true",
+        help="Allow less secure SSL (security level 1) for compatibility with slower hardware (e.g., RPi Zero).",
+    )
     args = parser.parse_args()
+    if os.getenv("ALLOW_WEAKER_SSL", "").lower().startswith(("y", "t", "1")):
+        args.allow_weaker_ssl = True
     console.log(f"Using version {__version__} of the Home Assistant Stream Deck.")
     console.log(
-        f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}",
+        f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}, {args.allow_weaker_ssl=}",
     )
     config = Config.load(args.config, yaml_encoding=args.yaml_encoding)
 
@@ -2739,6 +2868,7 @@ def main() -> None:
             config=config,
             retry_attempts=args.connection_retry_attempts,
             retry_delay=args.connection_retry_delay,
+            allow_weaker_ssl=args.allow_weaker_ssl,
         ),
     )
 

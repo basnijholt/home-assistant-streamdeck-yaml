@@ -40,14 +40,12 @@ from rich.table import Table
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.Devices.StreamDeck import DialEventType, TouchscreenEventType
 from StreamDeck.ImageHelpers import PILHelper
-from yaml.nodes import Node as YamlNode
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
 
     import pandas as pd
     from StreamDeck.Devices import StreamDeck
-    from yaml.nodes import Node as YamlNode
 
 
 try:
@@ -2692,7 +2690,7 @@ def safe_load_yaml(
         return loaded_data
 
     # Add _include as both a class method and constructor for construct_sequence compatibility
-    IncludeLoader._include = lambda self, node: _include(self, node)
+    IncludeLoader._include = lambda self, node: _include(self, node)  # type: ignore[attr-defined]
 
     def construct_sequence(self: IncludeLoader, node: yaml.SequenceNode, deep: bool = False) -> Any:  # noqa: FBT001 FBT002
         """Override sequence construction to flatten !include lists."""
@@ -2700,7 +2698,7 @@ def safe_load_yaml(
         for subnode in node.value:
             if isinstance(subnode, yaml.ScalarNode) and subnode.tag == "!include":
                 # Process !include directive
-                loaded_data = self._include(subnode)
+                loaded_data = self._include(subnode)  # type: ignore[attr-defined]
                 if isinstance(loaded_data, list):
                     result.extend(loaded_data)
                 else:
@@ -2714,7 +2712,7 @@ def safe_load_yaml(
                     result.append(constructed)
         return result
 
-    IncludeLoader.construct_sequence = construct_sequence  # type: ignore[method-assign]
+    IncludeLoader.construct_sequence = construct_sequence  # type: ignore[method-assign, assignment]
     IncludeLoader.add_constructor("!include", _include)
     loaded_data = yaml.load(f, IncludeLoader)  # noqa: S506
     if return_included_paths:

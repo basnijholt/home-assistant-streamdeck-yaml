@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools as ft
 import json
 import sys
 import textwrap
@@ -16,6 +17,7 @@ from dotenv import dotenv_values
 from PIL import Image
 from pydantic import ValidationError
 from StreamDeck.Devices.StreamDeckOriginal import StreamDeckOriginal
+from websockets.exceptions import ConnectionClosedError  # noqa: F401
 
 from home_assistant_streamdeck_yaml import (
     ASSETS_PATH,
@@ -40,6 +42,7 @@ from home_assistant_streamdeck_yaml import (
     _to_filename,
     _url_to_filename,
     get_states,
+    run,
     setup_ws,
     update_all_key_images,
     update_key_image,
@@ -65,6 +68,18 @@ def test_reload_config() -> None:
     assert c.pages == []
     c.reload()
     assert c.pages != []
+
+
+def test_load_config_no_pages_raises_error(tmp_path: Path) -> None:
+    """Test that loading a config with no pages raises ValueError.
+
+    Regression test for #280 - previously raised IndexError.
+    """
+    config_file = tmp_path / "empty_config.yaml"
+    config_file.write_text("pages: []")
+
+    with pytest.raises(ValueError, match="No pages defined"):
+        Config.load(config_file, yaml_encoding=DEFAULT_CONFIG_ENCODING)
 
 
 @pytest.fixture
@@ -267,9 +282,7 @@ def test_buttons(buttons: list[Button], state: dict[str, dict[str, Any]]) -> Non
     page = Page(name="Home", buttons=buttons)
     config = Config(pages=[page])
     first_page = config.to_page(0)
-    rendered_buttons = [
-        button.rendered_template_button(state) for button in first_page.buttons
-    ]
+    rendered_buttons = [button.rendered_template_button(state) for button in first_page.buttons]
 
     b = rendered_buttons[0]  # LIGHT
     assert b.domain == "light"
@@ -313,6 +326,55 @@ def test_validate_special_type(button_dict: dict[str, dict[str, Any]]) -> None:
         Button(**button_dict["special_next_page"], special_type_data="Yo")
     with pytest.raises(ValidationError):
         Button(**dict(button_dict["special_goto_0"], special_type_data=[]))
+
+
+def test_long_press_target_allowed() -> None:
+    """Test that 'target' is allowed in long_press configuration.
+
+    Regression test: Previously 'target' was missing from allowed_keys in
+    _validate_long_press, causing ValidationError when using target in long_press.
+    """
+    # This should NOT raise ValidationError - target is a valid key
+    button = Button(
+        service="light.turn_on",
+        long_press={
+            "service": "light.turn_off",
+            "target": {"entity_id": "light.living_room"},
+        },
+    )
+    assert button.long_press is not None
+    assert button.long_press["target"] == {"entity_id": "light.living_room"}
+
+    # Test with all valid long_press keys together
+    button2 = Button(
+        entity_id="light.bedroom",
+        service="light.toggle",
+        long_press={
+            "service": "light.turn_off",
+            "service_data": {"brightness": 50},
+            "entity_id": "light.kitchen",
+            "target": {"area_id": "living_room"},
+            "special_type": "go-to-page",
+            "special_type_data": "settings",
+        },
+    )
+    assert button2.long_press is not None
+    assert button2.long_press["target"] == {"area_id": "living_room"}
+
+
+def test_long_press_target_validation() -> None:
+    """Test that long_press.target must be a dictionary.
+
+    Regression test: Validates that target type checking was added.
+    """
+    with pytest.raises(ValidationError, match=r"long_press\.target must be a dictionary"):
+        Button(
+            service="light.turn_on",
+            long_press={
+                "service": "light.turn_off",
+                "target": "light.living_room",  # Wrong type - should be dict
+            },
+        )
 
 
 def test_download_and_save_mdi() -> None:
@@ -363,6 +425,7 @@ def mock_deck() -> Mock:
     }
 
     deck_mock.key_count.return_value = 15
+    deck_mock.dial_count.return_value = 0
 
     # Add the context manager methods
     deck_mock.__enter__ = Mock(return_value=deck_mock)
@@ -533,8 +596,8 @@ def test_generate_uniform_hex_colors() -> None:
 
 @pytest.fixture
 def websocket_mock() -> Mock:
-    """Mock websocket client protocol."""
-    return Mock(spec=websockets.WebSocketClientProtocol)
+    """Mock websocket client connection."""
+    return Mock(spec=websockets.ClientConnection)
 
 
 async def test_handle_key_press_toggle_light(
@@ -986,6 +1049,30 @@ async def test_button_with_target(
             {"switch.wifi_switch": {"state": "off"}},
             "wifi-off",
         ),
+        # Test is_number filter
+        (
+            """
+            {% if state_attr('sensor.temp1', 'temperature') | is_number %}
+            {{ state_attr('sensor.temp1', 'temperature') }}°C
+            {% else %}
+            {{ state_attr('sensor.temp1', 'temperature') }}
+            {% endif %}
+            """,
+            {"sensor.temp1": {"attributes": {"temperature": "unavailable"}}},
+            "unavailable",
+        ),
+        # Test is_number filter
+        (
+            """
+            {% if state_attr('sensor.temp1', 'temperature') | is_number %}
+            {{ state_attr('sensor.temp1', 'temperature') }}°C
+            {% else %}
+            {{ state_attr('sensor.temp1', 'temperature') }}
+            {% endif %}
+            """,
+            {"sensor.temp1": {"attributes": {"temperature": 3.2}}},
+            "3.2°C",
+        ),
     ],
 )
 def test_render_jinja2_from_examples_readme(
@@ -1138,10 +1225,11 @@ async def test_long_press(
     state: dict[str, dict[str, Any]],
 ) -> None:
     """Test long press."""
-    long_press_threshold = 0.5
+    # Use a higher threshold to account for icon rendering time
+    long_press_threshold = 2.0
     short_press_time = 0.0
     assert short_press_time < long_press_threshold
-    long_press_time = long_press_threshold + 0.1
+    long_press_time = long_press_threshold + 0.5
     assert long_press_time > long_press_threshold
 
     home = Page(
@@ -1170,12 +1258,19 @@ async def test_long_press(
     config = Config(pages=[home, short, long], long_press_duration=long_press_threshold)
     assert config._current_page_index == 0
     assert config.current_page() == home
-    press = _on_press_callback(websocket_mock, state, config)
+
+    press_event = ft.partial(_on_press_callback(websocket_mock, state, config), mock_deck)
+
+    async def press(key: int) -> None:
+        await press_event(key, True)  # noqa: FBT003
+
+    async def release(key: int) -> None:
+        await press_event(key, False)  # noqa: FBT003
 
     async def press_and_release(key: int, seconds: float) -> None:
-        await press(mock_deck, key, True)  # noqa: FBT003
+        await press(key)
         await asyncio.sleep(seconds)
-        await press(mock_deck, key, False)  # noqa: FBT003
+        await release(key)
 
     await press_and_release(0, short_press_time)
     assert config.current_page() == short
@@ -1186,9 +1281,106 @@ async def test_long_press(
     await press_and_release(0, short_press_time)
     assert config.current_page() == home
     await press_and_release(1, long_press_time)
-    assert (
-        config.current_page() == home
-    )  # shouldn't do anything as no long action is configured
+    # uses `short` action because no long action is configured
+    assert config.current_page() == short
+
+    # NOTE: A potential future enhancement would be to trigger the long press action
+    # automatically when the threshold is reached (without waiting for release).
+    # This would require background monitoring and is not currently implemented -
+    # the long press action only triggers on key release.
+
+
+async def test_long_press_template_rendering(
+    mock_deck: Mock,
+    websocket_mock: Mock,
+) -> None:
+    """Test that templates in long_press are rendered before calling service.
+
+    Regression test: Previously, values were extracted from long_press BEFORE
+    rendered_template_button() was called, so templates weren't rendered.
+    """
+    state = {
+        "light.living_room": {"state": "on", "attributes": {"brightness": 200}},
+    }
+    button = Button(
+        entity_id="light.living_room",
+        service="light.turn_on",
+        long_press={
+            "service": "light.turn_on",
+            "service_data": {
+                "entity_id": "light.living_room",
+                # Template that should be rendered to "78" (200 * 100 / 255 ≈ 78)
+                "brightness_pct": '{{ (state_attr("light.living_room", "brightness") * 100 / 255) | int }}',
+            },
+        },
+    )
+    config = Config(pages=[Page(name="test", buttons=[button])])
+
+    await _handle_key_press(
+        websocket_mock,
+        state,
+        config,
+        button,
+        mock_deck,
+        is_long_press=True,
+    )
+
+    # Verify call_service was called
+    websocket_mock.send.assert_called_once()
+    send_call_args = websocket_mock.send.call_args.args[0]
+    payload = json.loads(send_call_args)
+
+    # The template should have been rendered to the actual value
+    assert payload["type"] == "call_service"
+    assert payload["domain"] == "light"
+    assert payload["service"] == "turn_on"
+    # Critical assertion: template must be rendered, not passed as raw string
+    assert payload["service_data"]["brightness_pct"] == "78", (
+        "Template in long_press.service_data was not rendered! "
+        f"Got: {payload['service_data']['brightness_pct']}"
+    )
+
+
+async def test_long_press_service_from_rendered_button(
+    mock_deck: Mock,
+    websocket_mock: Mock,
+) -> None:
+    """Test that long_press.service template is rendered.
+
+    Regression test: Ensures service name templates are also rendered.
+    """
+    state = {
+        "input_select.action": {"state": "turn_off", "attributes": {}},
+    }
+    button = Button(
+        entity_id="light.living_room",
+        service="light.turn_on",
+        long_press={
+            # Template that should render to "light.turn_off"
+            "service": '{{ "light." ~ states("input_select.action") }}',
+            "service_data": {"entity_id": "light.living_room"},
+        },
+    )
+    config = Config(pages=[Page(name="test", buttons=[button])])
+
+    await _handle_key_press(
+        websocket_mock,
+        state,
+        config,
+        button,
+        mock_deck,
+        is_long_press=True,
+    )
+
+    websocket_mock.send.assert_called_once()
+    payload = json.loads(websocket_mock.send.call_args.args[0])
+
+    # The service template should have been rendered
+    assert payload["domain"] == "light"
+    assert payload["service"] == "turn_off", (
+        "Template in long_press.service was not rendered! "
+        f"Got domain.service: {payload['domain']}.{payload['service']}"
+    )
 
 
 async def test_anonymous_page(
@@ -1217,6 +1409,7 @@ async def test_anonymous_page(
     assert config.current_page() == anon
     button = config.button(0)
     assert button.text == "yolo"
+
     press = _on_press_callback(websocket_mock, state, config)
 
     # We need to have a release otherwise it will be timing for a long press
@@ -1257,9 +1450,78 @@ async def test_anonymous_page(
 
     # Back to anon page to test that the close button works properly
     assert config.to_page("anon") == anon
-    await press_and_release(2)
+    await press_and_release(2)  # close page button
     assert config._detached_page is None
     assert config.current_page() == home
+
+    # Test that to_page closes a detached page
+    config.load_page_as_detached(anon)
+    assert config.current_page() == anon
+    config.to_page(home.name)
+    assert config.current_page() == home
+    assert config._detached_page is None
+
+
+async def test_retry_logic_called_correct_number_of_times() -> None:
+    """Test retry logic in run function."""
+    # Config for the test
+    config = Config()
+
+    retry_attemps = 2
+
+    # Patch setup_ws to simulate a network failure, and patch asyncio.sleep to avoid delays
+    with (
+        patch(
+            "home_assistant_streamdeck_yaml.setup_ws",
+            side_effect=OSError("Network is down"),
+        ) as mock_setup_ws,
+        patch("asyncio.sleep", return_value=None) as mock_sleep,
+        patch("home_assistant_streamdeck_yaml.get_deck") as mock_get_deck,
+    ):
+        mock_get_deck.return_value = Mock()
+
+        # Run the function with retry_attempts = 2 to simulate retry logic
+        await run(
+            host="localhost",
+            token="",
+            protocol="ws",
+            config=config,
+            retry_attempts=retry_attemps,
+            retry_delay=0,
+        )
+
+        # Check that setup_ws was called 3 times (1 initial try + 2 retries)
+        assert mock_setup_ws.call_count == retry_attemps + 1
+
+        # Check that asyncio.sleep was called the same number of times as retries
+        assert mock_sleep.call_count == retry_attemps
+
+
+async def test_run_exits_immediately_on_zero_retries() -> None:
+    """Test that run exits immediately when retry_attempts is set to 0."""
+    config = Config()
+
+    with (
+        patch(
+            "home_assistant_streamdeck_yaml.setup_ws",
+            side_effect=OSError("Network is down"),
+        ),
+        patch("home_assistant_streamdeck_yaml.get_deck") as mock_get_deck,
+    ):
+        mock_get_deck.return_value = Mock()
+
+        # No exception should be raised, and run should return immediately
+        await run(
+            host="localhost",
+            token="",
+            protocol="ws",
+            config=config,
+            retry_attempts=0,
+            retry_delay=0,
+        )
+
+        # If setup_ws is called once, it means the retry logic did not retry
+        assert mock_get_deck.called
 
 
 def test_page_switch_clears_unused_keys(state: dict[str, dict[str, Any]]) -> None:

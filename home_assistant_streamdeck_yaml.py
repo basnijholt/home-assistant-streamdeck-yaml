@@ -974,11 +974,11 @@ class Config(BaseModel):
 
     def to_page(self, page: int | str) -> Page:
         """Go to a page based on the page name or index."""
+        self.close_detached_page()
         if isinstance(page, int):
             self._parent_page_index = self._current_page_index
             self._current_page_index = page
             return self.current_page()
-
         for i, p in enumerate(self.pages):
             if p.name == page:
                 self._current_page_index = i

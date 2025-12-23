@@ -1190,6 +1190,13 @@ async def test_anonymous_page(
     assert config._detached_page is None
     assert config.current_page() == home
 
+    # Test that to_page closes a detached page
+    config.load_page_as_detached(anon)
+    assert config.current_page() == anon
+    config.to_page(home.name)
+    assert config.current_page() == home
+    assert config._detached_page is None
+
 
 def test_page_switch_clears_unused_keys(state: dict[str, dict[str, Any]]) -> None:
     """Test that switching pages clears unused keys."""

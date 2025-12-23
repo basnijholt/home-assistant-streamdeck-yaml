@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools as ft
 import json
 import sys
 import textwrap
@@ -327,6 +328,55 @@ def test_validate_special_type(button_dict: dict[str, dict[str, Any]]) -> None:
         Button(**dict(button_dict["special_goto_0"], special_type_data=[]))
 
 
+def test_long_press_target_allowed() -> None:
+    """Test that 'target' is allowed in long_press configuration.
+
+    Regression test: Previously 'target' was missing from allowed_keys in
+    _validate_long_press, causing ValidationError when using target in long_press.
+    """
+    # This should NOT raise ValidationError - target is a valid key
+    button = Button(
+        service="light.turn_on",
+        long_press={
+            "service": "light.turn_off",
+            "target": {"entity_id": "light.living_room"},
+        },
+    )
+    assert button.long_press is not None
+    assert button.long_press["target"] == {"entity_id": "light.living_room"}
+
+    # Test with all valid long_press keys together
+    button2 = Button(
+        entity_id="light.bedroom",
+        service="light.toggle",
+        long_press={
+            "service": "light.turn_off",
+            "service_data": {"brightness": 50},
+            "entity_id": "light.kitchen",
+            "target": {"area_id": "living_room"},
+            "special_type": "go-to-page",
+            "special_type_data": "settings",
+        },
+    )
+    assert button2.long_press is not None
+    assert button2.long_press["target"] == {"area_id": "living_room"}
+
+
+def test_long_press_target_validation() -> None:
+    """Test that long_press.target must be a dictionary.
+
+    Regression test: Validates that target type checking was added.
+    """
+    with pytest.raises(ValidationError, match=r"long_press\.target must be a dictionary"):
+        Button(
+            service="light.turn_on",
+            long_press={
+                "service": "light.turn_off",
+                "target": "light.living_room",  # Wrong type - should be dict
+            },
+        )
+
+
 def test_download_and_save_mdi() -> None:
     """Test whether function downloads MDI correctly."""
     # might be cached
@@ -540,7 +590,14 @@ async def test_handle_key_press_toggle_light(
     """Test handle_key_press toggle light."""
     button = config.button(0)
     assert button is not None
-    await _handle_key_press(websocket_mock, state, config, button, mock_deck)
+    await _handle_key_press(
+        websocket_mock,
+        state,
+        config,
+        button,
+        mock_deck,
+        is_long_press=False,
+    )
 
     websocket_mock.send.assert_called_once()
     send_call_args = websocket_mock.send.call_args.args[0]
@@ -561,7 +618,14 @@ async def test_handle_key_press_next_page(
     """Test handle_key_press next page."""
     button = config.button(14)
     assert button is not None
-    await _handle_key_press(websocket_mock, state, config, button, mock_deck)
+    await _handle_key_press(
+        websocket_mock,
+        state,
+        config,
+        button,
+        mock_deck,
+        is_long_press=False,
+    )
 
     # No service should be called
     websocket_mock.send.assert_not_called()
@@ -586,7 +650,14 @@ async def test_button_with_target(
     _button = config.button(0)
     assert _button is not None
     assert _button.service == "media_player.join"
-    await _handle_key_press(websocket_mock, {}, config, _button, mock_deck)
+    await _handle_key_press(
+        websocket_mock,
+        {},
+        config,
+        _button,
+        mock_deck,
+        is_long_press=False,
+    )
     # Check that the send method was called with the correct payload
     called_payload = json.loads(websocket_mock.send.call_args.args[0])
     expected_payload = {
@@ -1129,6 +1200,170 @@ def test_to_markdown_table() -> None:
     assert isinstance(table, str)
 
 
+async def test_long_press(
+    mock_deck: Mock,
+    websocket_mock: Mock,
+    state: dict[str, dict[str, Any]],
+) -> None:
+    """Test long press."""
+    # Use a higher threshold to account for icon rendering time
+    long_press_threshold = 2.0
+    short_press_time = 0.0
+    assert short_press_time < long_press_threshold
+    long_press_time = long_press_threshold + 0.5
+    assert long_press_time > long_press_threshold
+
+    home = Page(
+        name="home",
+        buttons=[
+            Button(
+                special_type="go-to-page",
+                special_type_data="short",
+                long_press={"special_type": "go-to-page", "special_type_data": "long"},
+            ),
+            Button(special_type="go-to-page", special_type_data="short"),
+        ],
+    )
+    short = Page(
+        name="short",
+        buttons=[
+            Button(text="short", special_type="go-to-page", special_type_data="home"),
+        ],
+    )
+    long = Page(
+        name="long",
+        buttons=[
+            Button(text="long", special_type="go-to-page", special_type_data="home"),
+        ],
+    )
+    config = Config(pages=[home, short, long], long_press_duration=long_press_threshold)
+    assert config._current_page_index == 0
+    assert config.current_page() == home
+
+    press_event = ft.partial(_on_press_callback(websocket_mock, state, config), mock_deck)
+
+    async def press(key: int) -> None:
+        await press_event(key, True)  # noqa: FBT003
+
+    async def release(key: int) -> None:
+        await press_event(key, False)  # noqa: FBT003
+
+    async def press_and_release(key: int, seconds: float) -> None:
+        await press(key)
+        await asyncio.sleep(seconds)
+        await release(key)
+
+    await press_and_release(0, short_press_time)
+    assert config.current_page() == short
+    await press_and_release(0, short_press_time)
+    assert config.current_page() == home
+    await press_and_release(0, long_press_time)
+    assert config.current_page() == long
+    await press_and_release(0, short_press_time)
+    assert config.current_page() == home
+    await press_and_release(1, long_press_time)
+    # uses `short` action because no long action is configured
+    assert config.current_page() == short
+
+    # NOTE: A potential future enhancement would be to trigger the long press action
+    # automatically when the threshold is reached (without waiting for release).
+    # This would require background monitoring and is not currently implemented -
+    # the long press action only triggers on key release.
+
+
+async def test_long_press_template_rendering(
+    mock_deck: Mock,
+    websocket_mock: Mock,
+) -> None:
+    """Test that templates in long_press are rendered before calling service.
+
+    Regression test: Previously, values were extracted from long_press BEFORE
+    rendered_template_button() was called, so templates weren't rendered.
+    """
+    state = {
+        "light.living_room": {"state": "on", "attributes": {"brightness": 200}},
+    }
+    button = Button(
+        entity_id="light.living_room",
+        service="light.turn_on",
+        long_press={
+            "service": "light.turn_on",
+            "service_data": {
+                "entity_id": "light.living_room",
+                # Template that should be rendered to "78" (200 * 100 / 255 ≈ 78)
+                "brightness_pct": '{{ (state_attr("light.living_room", "brightness") * 100 / 255) | int }}',
+            },
+        },
+    )
+    config = Config(pages=[Page(name="test", buttons=[button])])
+
+    await _handle_key_press(
+        websocket_mock,
+        state,
+        config,
+        button,
+        mock_deck,
+        is_long_press=True,
+    )
+
+    # Verify call_service was called
+    websocket_mock.send.assert_called_once()
+    send_call_args = websocket_mock.send.call_args.args[0]
+    payload = json.loads(send_call_args)
+
+    # The template should have been rendered to the actual value
+    assert payload["type"] == "call_service"
+    assert payload["domain"] == "light"
+    assert payload["service"] == "turn_on"
+    # Critical assertion: template must be rendered, not passed as raw string
+    assert payload["service_data"]["brightness_pct"] == "78", (
+        "Template in long_press.service_data was not rendered! "
+        f"Got: {payload['service_data']['brightness_pct']}"
+    )
+
+
+async def test_long_press_service_from_rendered_button(
+    mock_deck: Mock,
+    websocket_mock: Mock,
+) -> None:
+    """Test that long_press.service template is rendered.
+
+    Regression test: Ensures service name templates are also rendered.
+    """
+    state = {
+        "input_select.action": {"state": "turn_off", "attributes": {}},
+    }
+    button = Button(
+        entity_id="light.living_room",
+        service="light.turn_on",
+        long_press={
+            # Template that should render to "light.turn_off"
+            "service": '{{ "light." ~ states("input_select.action") }}',
+            "service_data": {"entity_id": "light.living_room"},
+        },
+    )
+    config = Config(pages=[Page(name="test", buttons=[button])])
+
+    await _handle_key_press(
+        websocket_mock,
+        state,
+        config,
+        button,
+        mock_deck,
+        is_long_press=True,
+    )
+
+    websocket_mock.send.assert_called_once()
+    payload = json.loads(websocket_mock.send.call_args.args[0])
+
+    # The service template should have been rendered
+    assert payload["domain"] == "light"
+    assert payload["service"] == "turn_off", (
+        "Template in long_press.service was not rendered! "
+        f"Got domain.service: {payload['domain']}.{payload['service']}"
+    )
+
+
 async def test_anonymous_page(
     mock_deck: Mock,
     websocket_mock: Mock,
@@ -1155,9 +1390,16 @@ async def test_anonymous_page(
     assert config.current_page() == anon
     button = config.button(0)
     assert button.text == "yolo"
+
     press = _on_press_callback(websocket_mock, state, config)
+
+    # We need to have a release otherwise it will be timing for a long press
+    async def press_and_release(key: int) -> None:
+        await press(mock_deck, key, key_pressed=True)
+        await press(mock_deck, key, key_pressed=False)
+
     # Click the button
-    await press(mock_deck, 0, key_pressed=True)
+    await press_and_release(0)
     # Should now be the button on the first page
     button = config.button(0)
     assert button.special_type == "go-to-page"
@@ -1166,7 +1408,7 @@ async def test_anonymous_page(
     # Click the delay button
     button = config.button(1)
     assert button.text == "foo"
-    await press(mock_deck, 1, key_pressed=True)
+    await press_and_release(1)
     # Should now still be the button because of the delay
     assert button.text == "foo"
     assert config._detached_page is not None
@@ -1189,7 +1431,7 @@ async def test_anonymous_page(
 
     # Back to anon page to test that the close button works properly
     assert config.to_page("anon") == anon
-    await press(mock_deck, 2, key_pressed=True)
+    await press_and_release(2)  # close page button
     assert config._detached_page is None
     assert config.current_page() == home
 

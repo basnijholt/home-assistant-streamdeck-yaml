@@ -34,8 +34,8 @@ TEST_STATE_FILENAME = ROOT / "tests" / "state_plus.json"
 # TESTS FOR STREAM DECK PLUS
 @pytest.fixture
 def websocket_mock() -> Mock:
-    """Mock websocket client protocol."""
-    return Mock(spec=websockets.WebSocketClientProtocol)
+    """Mock websocket client connection."""
+    return Mock(spec=websockets.ClientConnection)
 
 
 @pytest.fixture

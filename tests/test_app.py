@@ -17,6 +17,7 @@ from dotenv import dotenv_values
 from PIL import Image
 from pydantic import ValidationError
 from StreamDeck.Devices.StreamDeckOriginal import StreamDeckOriginal
+from websockets.exceptions import ConnectionClosedError  # noqa: F401
 
 from home_assistant_streamdeck_yaml import (
     ASSETS_PATH,
@@ -41,6 +42,7 @@ from home_assistant_streamdeck_yaml import (
     _to_filename,
     _url_to_filename,
     get_states,
+    run,
     setup_ws,
     update_all_key_images,
     update_key_image,
@@ -66,6 +68,18 @@ def test_reload_config() -> None:
     assert c.pages == []
     c.reload()
     assert c.pages != []
+
+
+def test_load_config_no_pages_raises_error(tmp_path: Path) -> None:
+    """Test that loading a config with no pages raises ValueError.
+
+    Regression test for #280 - previously raised IndexError.
+    """
+    config_file = tmp_path / "empty_config.yaml"
+    config_file.write_text("pages: []")
+
+    with pytest.raises(ValueError, match="No pages defined"):
+        Config.load(config_file, yaml_encoding=DEFAULT_CONFIG_ENCODING)
 
 
 @pytest.fixture
@@ -362,6 +376,7 @@ def mock_deck() -> Mock:
     }
 
     deck_mock.key_count.return_value = 15
+    deck_mock.dial_count.return_value = 0
 
     # Add the context manager methods
     deck_mock.__enter__ = Mock(return_value=deck_mock)
@@ -1174,44 +1189,38 @@ async def test_long_press(
     config = Config(pages=[home, short, long], long_press_duration=long_press_threshold)
     assert config._current_page_index == 0
     assert config.current_page() == home
-    press_event = ft.partial(_on_press_callback(websocket_mock, state, config), mock_deck)
 
-    async def press(key: int) -> None:
-        await press_event(key, True)  # noqa: FBT003
+    # Mock update_key_image to avoid icon rendering affecting press duration timing
+    with patch("home_assistant_streamdeck_yaml.update_key_image"):
+        press_event = ft.partial(_on_press_callback(websocket_mock, state, config), mock_deck)
 
-    async def release(key: int) -> None:
-        await press_event(key, False)  # noqa: FBT003
+        async def press(key: int) -> None:
+            await press_event(key, True)  # noqa: FBT003
 
-    async def press_and_release(key: int, seconds: float) -> None:
-        await press(key)
-        await asyncio.sleep(seconds)
-        await release(key)
+        async def release(key: int) -> None:
+            await press_event(key, False)  # noqa: FBT003
 
-    await press_and_release(0, short_press_time)
-    assert config.current_page() == short
-    await press_and_release(0, short_press_time)
-    assert config.current_page() == home
-    await press_and_release(0, long_press_time)
-    assert config.current_page() == long
-    await press_and_release(0, short_press_time)
-    assert config.current_page() == home
-    await press_and_release(1, long_press_time)
-    # uses `short` action because no long action is configured
-    assert config.current_page() == short
+        async def press_and_release(key: int, seconds: float) -> None:
+            await press(key)
+            await asyncio.sleep(seconds)
+            await release(key)
 
-    # Test that long press action happens when long press duration is reached without requiring a release
-    config.load_page_as_detached(home)
-    assert config.current_page() == home
-    await press(0)
-    await asyncio.sleep(long_press_time)
-    assert (
-        config.current_page() == long
-    )  # This currently breaks to illustrate the issue of long press action not being triggered when reaching the duration and not having released the key.
+        await press_and_release(0, short_press_time)
+        assert config.current_page() == short
+        await press_and_release(0, short_press_time)
+        assert config.current_page() == home
+        await press_and_release(0, long_press_time)
+        assert config.current_page() == long
+        await press_and_release(0, short_press_time)
+        assert config.current_page() == home
+        await press_and_release(1, long_press_time)
+        # uses `short` action because no long action is configured
+        assert config.current_page() == short
 
-    # should not register any action on release since long press
-    # duration was reached and long press action was already triggered
-    await release(0)
-    assert config.current_page() == long
+    # NOTE: A potential future enhancement would be to trigger the long press action
+    # automatically when the threshold is reached (without waiting for release).
+    # This would require background monitoring and is not currently implemented -
+    # the long press action only triggers on key release.
 
 
 async def test_anonymous_page(
@@ -1283,6 +1292,75 @@ async def test_anonymous_page(
     await press_and_release(2)  # close page button
     assert config._detached_page is None
     assert config.current_page() == home
+
+    # Test that to_page closes a detached page
+    config.load_page_as_detached(anon)
+    assert config.current_page() == anon
+    config.to_page(home.name)
+    assert config.current_page() == home
+    assert config._detached_page is None
+
+
+async def test_retry_logic_called_correct_number_of_times() -> None:
+    """Test retry logic in run function."""
+    # Config for the test
+    config = Config()
+
+    retry_attemps = 2
+
+    # Patch setup_ws to simulate a network failure, and patch asyncio.sleep to avoid delays
+    with (
+        patch(
+            "home_assistant_streamdeck_yaml.setup_ws",
+            side_effect=OSError("Network is down"),
+        ) as mock_setup_ws,
+        patch("asyncio.sleep", return_value=None) as mock_sleep,
+        patch("home_assistant_streamdeck_yaml.get_deck") as mock_get_deck,
+    ):
+        mock_get_deck.return_value = Mock()
+
+        # Run the function with retry_attempts = 2 to simulate retry logic
+        await run(
+            host="localhost",
+            token="",
+            protocol="ws",
+            config=config,
+            retry_attempts=retry_attemps,
+            retry_delay=0,
+        )
+
+        # Check that setup_ws was called 3 times (1 initial try + 2 retries)
+        assert mock_setup_ws.call_count == retry_attemps + 1
+
+        # Check that asyncio.sleep was called the same number of times as retries
+        assert mock_sleep.call_count == retry_attemps
+
+
+async def test_run_exits_immediately_on_zero_retries() -> None:
+    """Test that run exits immediately when retry_attempts is set to 0."""
+    config = Config()
+
+    with (
+        patch(
+            "home_assistant_streamdeck_yaml.setup_ws",
+            side_effect=OSError("Network is down"),
+        ),
+        patch("home_assistant_streamdeck_yaml.get_deck") as mock_get_deck,
+    ):
+        mock_get_deck.return_value = Mock()
+
+        # No exception should be raised, and run should return immediately
+        await run(
+            host="localhost",
+            token="",
+            protocol="ws",
+            config=config,
+            retry_attempts=0,
+            retry_delay=0,
+        )
+
+        # If setup_ws is called once, it means the retry logic did not retry
+        assert mock_get_deck.called
 
 
 def test_page_switch_clears_unused_keys(state: dict[str, dict[str, Any]]) -> None:

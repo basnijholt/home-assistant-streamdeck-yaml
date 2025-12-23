@@ -373,6 +373,7 @@ def mock_deck() -> Mock:
     }
 
     deck_mock.key_count.return_value = 15
+    deck_mock.dial_count.return_value = 0
 
     # Add the context manager methods
     deck_mock.__enter__ = Mock(return_value=deck_mock)

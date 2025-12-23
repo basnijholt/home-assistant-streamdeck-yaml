@@ -1872,17 +1872,48 @@ def _generate_failed_icon(
     )
 
 
+@ft.lru_cache(maxsize=1)
+def _get_blank_image(size: tuple[int, int]) -> bytes:
+    """Get or create a blank (black) JPEG image for the given size."""
+    blank_image: Image.Image = Image.new("RGB", size, (0, 0, 0))
+    img_bytes = io.BytesIO()
+    blank_image.save(img_bytes, format="JPEG")
+    return img_bytes.getvalue()
+
+
+def get_lcd_size(deck: StreamDeck) -> tuple[int, int]:
+    """Get the LCD touchscreen size."""
+    return deck.touchscreen_image_format()["size"]
+
+
+def get_size_per_dial(deck: StreamDeck) -> tuple[int, int]:
+    """Get the size of each dial's LCD region."""
+    size_lcd: tuple[int, int] = get_lcd_size(deck)
+    return (size_lcd[0] // deck.dial_count(), size_lcd[1])
+
+
 def update_all_dials(
     deck: StreamDeck,
     config: Config,
     complete_state: StateDict,
 ) -> None:
-    """Updates all dials."""
+    """Updates configured dials and clears unconfigured dial slots."""
     console.log("Called update_all_dials")
+
+    # Track configured dial keys
+    configured_keys: set[int] = set()
+
+    # Update configured dials
     for key, current_dial in enumerate(config.current_page().dials):
         assert current_dial is not None
         if current_dial.entity_id is None:
-            return
+            console.log(f"Dial {key} has no entity_id, skipping")
+            continue
+        dial_key: int | None = config.current_page().get_sorted_key(current_dial)
+        if dial_key is None:
+            console.log(f"Dial {key} has no valid dial_key, skipping")
+            continue
+        configured_keys.add(dial_key)
         update_dial(
             deck,
             key,
@@ -1890,6 +1921,23 @@ def update_all_dials(
             complete_state,
             complete_state[current_dial.entity_id],
         )
+
+    # Clear unconfigured dial slots
+    num_physical: int = deck.dial_count()
+    unconfigured_keys: set[int] = set(range(num_physical)) - configured_keys
+    if unconfigured_keys:
+        size_per_dial: tuple[int, int] = get_size_per_dial(deck)
+        lcd_image_bytes: bytes = _get_blank_image(size_per_dial)
+        for dial_key in unconfigured_keys:
+            dial_offset: int = dial_key * size_per_dial[0]
+            deck.set_touchscreen_image(
+                lcd_image_bytes,
+                dial_offset,
+                0,
+                width=size_per_dial[0],
+                height=size_per_dial[1],
+            )
+        console.log(f"Cleared unconfigured dial slots: {unconfigured_keys}")
 
 
 def update_dial(
@@ -1914,15 +1962,14 @@ def update_dial(
         else:
             dial.update_attributes(data)
 
-    size_lcd = deck.touchscreen_image_format()["size"]
-    size_per_dial = (size_lcd[0] // deck.dial_count(), size_lcd[1])
+    size_per_dial = get_size_per_dial(deck)
     dial_key = config.current_page().get_sorted_key(dial)
     assert dial_key is not None
     dial_offset = dial_key * size_per_dial[0]
     image = dial.render_lcd_image(
         complete_state=complete_state,
-        size=(size_per_dial),
-        key=config.current_page().get_sorted_key(dial),  # type: ignore[arg-type]
+        size=size_per_dial,
+        key=dial_key,
     )
     img_bytes = io.BytesIO()
     image.save(img_bytes, format="JPEG")
@@ -1931,8 +1978,8 @@ def update_dial(
         lcd_image_bytes,
         dial_offset,
         0,
-        size_per_dial[0],
-        size_per_dial[1],
+        width=size_per_dial[0],
+        height=size_per_dial[1],
     )
 
 

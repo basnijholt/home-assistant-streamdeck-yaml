@@ -67,6 +67,18 @@ def test_reload_config() -> None:
     assert c.pages != []
 
 
+def test_load_config_no_pages_raises_error(tmp_path: Path) -> None:
+    """Test that loading a config with no pages raises ValueError.
+
+    Regression test for #280 - previously raised IndexError.
+    """
+    config_file = tmp_path / "empty_config.yaml"
+    config_file.write_text("pages: []")
+
+    with pytest.raises(ValueError, match="No pages defined"):
+        Config.load(config_file, yaml_encoding=DEFAULT_CONFIG_ENCODING)
+
+
 @pytest.fixture
 def state() -> dict[str, dict[str, Any]]:
     """State fixture."""
@@ -361,6 +373,7 @@ def mock_deck() -> Mock:
     }
 
     deck_mock.key_count.return_value = 15
+    deck_mock.dial_count.return_value = 0
 
     # Add the context manager methods
     deck_mock.__enter__ = Mock(return_value=deck_mock)
@@ -1177,6 +1190,13 @@ async def test_anonymous_page(
     await press(mock_deck, 2, key_pressed=True)
     assert config._detached_page is None
     assert config.current_page() == home
+
+    # Test that to_page closes a detached page
+    config.load_page_as_detached(anon)
+    assert config.current_page() == anon
+    config.to_page(home.name)
+    assert config.current_page() == home
+    assert config._detached_page is None
 
 
 def test_page_switch_clears_unused_keys(state: dict[str, dict[str, Any]]) -> None:

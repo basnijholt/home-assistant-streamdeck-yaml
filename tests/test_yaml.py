@@ -2,6 +2,7 @@
 
 from io import StringIO
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 import yaml
@@ -109,6 +110,64 @@ def test_include_file_paths(tmp_path: Path) -> None:
         "main_key2": {"included_key2": "included_value2"},
     }
     assert set(included_files) == {included_file1, included_file2}
+
+
+def test_variable_substitution_in_include(tmp_path: Path) -> None:
+    """Test variable substitution in included YAML files."""
+    config_content = """
+    brightness: 100
+    state_entity_id: binary_sensor.anyone_home
+    auto_reload: true
+    return_to_home_after_no_presses:
+      duration: 10
+      home_page: Home
+    pages:
+      - !include {file: includes/light_page_plus.yaml, vars: {name: living-room-lights, eid: light.living_room}}
+    """
+    light_page_plus_content = """
+    name: ${name}
+    dials:
+      - entity_id: ${eid}
+        service: light.turn_on
+        service_data:
+          color_temp_kelvin: '{{ dial_value() | int}}'
+        icon: >
+          light-temperature-bar:
+        text: Color Temp
+        state_attribute: color_temp_kelvin
+        allow_touchscreen_events: true
+        delay: 0.5
+        dial_event_type: TURN
+        attributes:
+          step: 500
+          min: 2202
+          max: 6535
+    """
+
+    # Create directory structure
+    includes_dir = tmp_path / "includes"
+    includes_dir.mkdir()
+    config_file = tmp_path / "config.yaml"
+    light_page_plus_file = includes_dir / "light_page_plus.yaml"
+
+    config_file.write_text(config_content)
+    light_page_plus_file.write_text(light_page_plus_content)
+
+    # Load config with safe_load_yaml
+    with config_file.open() as f:
+        data = safe_load_yaml(f)
+
+    # Assert that data is a dictionary to satisfy MyPy
+    data = cast("dict[str, Any]", data)
+
+    assert data["pages"][0]["dials"][0]["entity_id"] == "light.living_room", (
+        "Failed to substitute ${eid} with light.living_room in entity_id"
+    )
+
+    # Additional check: name field should be substituted correctly
+    assert data["pages"][0]["name"] == "living-room-lights", (
+        "Failed to substitute ${eid} with light.living_room in name"
+    )
 
 
 def test_nested_include(tmp_path: Path) -> None:

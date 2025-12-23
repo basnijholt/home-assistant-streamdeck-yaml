@@ -427,32 +427,28 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             text_offset=self.text_offset,
         )
 
-    @validator("special_type_data")
-    def _validate_special_type(  # noqa: PLR0912
-        cls: type[Button],
-        v: Any,
-        values: dict[str, Any],
-    ) -> Any:
-        """Validate the special_type_data."""
-        special_type = values["special_type"]
+    @staticmethod
+    def _validate_special_type_data(special_type: str, v: Any) -> Any:  # noqa: PLR0912
         if special_type == "go-to-page" and not isinstance(v, (int, str)):
             msg = "If special_type is go-to-page, special_type_data must be an int or str"
             raise AssertionError(msg)
         if special_type in {"next-page", "previous-page", "empty", "turn-off"} and v is not None:
             msg = f"special_type_data needs to be empty with {special_type=}"
             raise AssertionError(msg)
+
         if special_type == "light-control":
             if v is None:
                 v = {}
             if not isinstance(v, dict):
                 msg = f"With 'light-control', 'special_type_data' must be a dict, not '{v}'"
                 raise AssertionError(msg)
-            # Can only have the following keys: colors and colormap
+
             allowed_keys = {"colors", "colormap", "color_temp_kelvin"}
             invalid_keys = v.keys() - allowed_keys
             if invalid_keys:
                 msg = f"Invalid keys in 'special_type_data', only {allowed_keys} allowed"
                 raise AssertionError(msg)
+
             # If colors is present, it must be a list of strings
             if "colors" in v:
                 if not isinstance(v["colors"], (tuple, list)):
@@ -464,6 +460,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                         raise AssertionError(msg)  # noqa: TRY004
                 # Cast colors to tuple (to make it hashable)
                 v["colors"] = tuple(v["colors"])
+
             if "color_temp_kelvin" in v:
                 for kelvin in v["color_temp_kelvin"]:
                     if not isinstance(kelvin, int):
@@ -471,7 +468,18 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                         raise AssertionError(msg)  # noqa: TRY004
                 # Cast color_temp_kelvin to tuple (to make it hashable)
                 v["color_temp_kelvin"] = tuple(v["color_temp_kelvin"])
+
         return v
+
+    @validator("special_type_data")
+    def _validate_special_type(
+        cls: type[Button],
+        v: Any,
+        values: dict[str, Any],
+    ) -> Any:
+        """Validate the special_type_data."""
+        special_type = values["special_type"]
+        return cls._validate_special_type_data(special_type, v)
 
     def maybe_start_or_cancel_timer(
         self,
@@ -870,6 +878,12 @@ class Config(BaseModel):
             config = cls(**data)  # type: ignore[arg-type]
             config._configuration_file = fname
             config._include_files = include_files
+            if not config.pages:
+                msg = (
+                    f"No pages defined in configuration file '{fname}'. "
+                    "Please add at least one page with buttons."
+                )
+                raise ValueError(msg)
             config.current_page().sort_dials()
             return config
 
@@ -970,11 +984,11 @@ class Config(BaseModel):
 
     def to_page(self, page: int | str) -> Page:
         """Go to a page based on the page name or index."""
+        self.close_detached_page()
         if isinstance(page, int):
             self._parent_page_index = self._current_page_index
             self._current_page_index = page
             return self.current_page()
-
         for i, p in enumerate(self.pages):
             if p.name == page:
                 self._current_page_index = i
@@ -1868,17 +1882,43 @@ def _generate_failed_icon(
     )
 
 
+@ft.lru_cache(maxsize=1)
+def _get_blank_image(size: tuple[int, int]) -> bytes:
+    """Get or create a blank (black) JPEG image for the given size."""
+    blank_image: Image.Image = Image.new("RGB", size, (0, 0, 0))
+    img_bytes = io.BytesIO()
+    blank_image.save(img_bytes, format="JPEG")
+    return img_bytes.getvalue()
+
+
+def _get_size_per_dial(deck: StreamDeck) -> tuple[int, int]:
+    """Get the size of each dial's LCD region."""
+    size_lcd: tuple[int, int] = deck.touchscreen_image_format()["size"]
+    return (size_lcd[0] // deck.dial_count(), size_lcd[1])
+
+
 def update_all_dials(
     deck: StreamDeck,
     config: Config,
     complete_state: StateDict,
 ) -> None:
-    """Updates all dials."""
+    """Updates configured dials and clears unconfigured dial slots."""
     console.log("Called update_all_dials")
+
+    # Track configured dial keys
+    configured_keys: set[int] = set()
+
+    # Update configured dials
     for key, current_dial in enumerate(config.current_page().dials):
         assert current_dial is not None
         if current_dial.entity_id is None:
-            return
+            console.log(f"Dial {key} has no entity_id, skipping")
+            continue
+        dial_key: int | None = config.current_page().get_sorted_key(current_dial)
+        if dial_key is None:
+            console.log(f"Dial {key} has no valid dial_key, skipping")
+            continue
+        configured_keys.add(dial_key)
         update_dial(
             deck,
             key,
@@ -1886,6 +1926,23 @@ def update_all_dials(
             complete_state,
             complete_state[current_dial.entity_id],
         )
+
+    # Clear unconfigured dial slots
+    num_physical: int = deck.dial_count()
+    unconfigured_keys: set[int] = set(range(num_physical)) - configured_keys
+    if unconfigured_keys:
+        size_per_dial: tuple[int, int] = _get_size_per_dial(deck)
+        lcd_image_bytes: bytes = _get_blank_image(size_per_dial)
+        for dial_key in unconfigured_keys:
+            dial_offset: int = dial_key * size_per_dial[0]
+            deck.set_touchscreen_image(
+                lcd_image_bytes,
+                dial_offset,
+                0,
+                width=size_per_dial[0],
+                height=size_per_dial[1],
+            )
+        console.log(f"Cleared unconfigured dial slots: {unconfigured_keys}")
 
 
 def update_dial(
@@ -1910,15 +1967,14 @@ def update_dial(
         else:
             dial.update_attributes(data)
 
-    size_lcd = deck.touchscreen_image_format()["size"]
-    size_per_dial = (size_lcd[0] // deck.dial_count(), size_lcd[1])
+    size_per_dial = _get_size_per_dial(deck)
     dial_key = config.current_page().get_sorted_key(dial)
     assert dial_key is not None
     dial_offset = dial_key * size_per_dial[0]
     image = dial.render_lcd_image(
         complete_state=complete_state,
-        size=(size_per_dial),
-        key=config.current_page().get_sorted_key(dial),  # type: ignore[arg-type]
+        size=size_per_dial,
+        key=dial_key,
     )
     img_bytes = io.BytesIO()
     image.save(img_bytes, format="JPEG")
@@ -1927,8 +1983,8 @@ def update_dial(
         lcd_image_bytes,
         dial_offset,
         0,
-        size_per_dial[0],
-        size_per_dial[1],
+        width=size_per_dial[0],
+        height=size_per_dial[1],
     )
 
 
@@ -2567,6 +2623,34 @@ def _rich_table_str(df: pd.DataFrame) -> str:
     return console.file.getvalue()
 
 
+# Define YAML node type
+YamlNode = dict[str, Any] | list[Any] | str | int | float | bool | None
+
+
+def _traverse_yaml(node: YamlNode, variables: dict[str, str]) -> YamlNode:
+    """Substitute variables in YAML node."""
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if isinstance(value, str):
+                result = value
+                for var, var_value in variables.items():
+                    regex_format = rf"\$\{{{var}\}}"
+                    result = re.sub(regex_format, str(var_value), result)
+                node[key] = result
+            else:
+                node[key] = _traverse_yaml(value, variables)
+        return node
+    if isinstance(node, list):
+        return [_traverse_yaml(item, variables) for item in node]
+    if isinstance(node, str):
+        result = node
+        for var, var_value in variables.items():
+            regex_format = rf"\$\{{{var}\}}"
+            result = re.sub(regex_format, str(var_value), result)
+        return result
+    return node
+
+
 def safe_load_yaml(
     f: TextIO | str,
     *,
@@ -2574,29 +2658,7 @@ def safe_load_yaml(
     encoding: str | None = None,
 ) -> Any | tuple[Any, list]:
     """Load a YAML file."""
-    included_files = []
-
-    def _traverse_yaml(node: YamlNode, variables: dict[str, str]) -> dict | list | str | YamlNode:
-        if isinstance(node, dict):
-            for key, value in node.items():
-                if isinstance(value, str):
-                    result = value
-                    for var, var_value in variables.items():
-                        regex_format = rf"\$\{{{var}\}}"
-                        result = re.sub(regex_format, str(var_value), result)
-                    node[key] = result
-                else:
-                    node[key] = _traverse_yaml(value, variables)
-            return node
-        if isinstance(node, list):
-            return [_traverse_yaml(item, variables) for item in node]
-        if isinstance(node, str):
-            result = node
-            for var, var_value in variables.items():
-                regex_format = rf"\$\{{{var}\}}"
-                result = re.sub(regex_format, str(var_value), result)
-            return result
-        return node
+    included_files: list[Path] = []
 
     class IncludeLoader(yaml.SafeLoader):
         """YAML Loader with `!include` constructor."""
@@ -2606,54 +2668,54 @@ def safe_load_yaml(
             self._root = Path(stream.name).parent if hasattr(stream, "name") else Path.cwd()
             super().__init__(stream)
 
-        def _include(self, node: yaml.nodes.Node) -> Any:
-            """Include file referenced at node."""
-            if isinstance(node.value, str):
-                filepath = self._root / str(self.construct_scalar(node))  # type: ignore[arg-type]
-                included_files.append(filepath)
-                with filepath.open(encoding=encoding) as included_file:
-                    return yaml.load(
-                        included_file,
-                        lambda stream: IncludeLoader(stream),  # type: ignore[arg-type] # noqa: S506
-                    )
-            else:
-                mapping = self.construct_mapping(node, deep=True)  # type: ignore[arg-type]
-                assert mapping is not None
-                filepath = self._root / str(mapping["file"])
-                included_files.append(filepath)
-                variables = mapping["vars"]
+    def _load_yaml_include(filepath: Path) -> Any:
+        """Load a YAML file for an !include directive."""
+        with filepath.open(encoding=encoding) as include_file:
+            return yaml.load(include_file, IncludeLoader)  # noqa: S506
 
-                with filepath.open(encoding=encoding) as included_file:
-                    loaded_data = yaml.load(
-                        included_file,
-                        lambda stream: IncludeLoader(stream),  # type: ignore[arg-type] # noqa: S506
-                    )
-                    assert loaded_data is not None
-                    assert variables is not None
-                    _traverse_yaml(loaded_data, variables)
-                    return loaded_data
+    def _include(loader: IncludeLoader, node: yaml.nodes.Node) -> Any:
+        """Include file referenced at node."""
+        if isinstance(node.value, str):
+            filepath = loader._root / str(loader.construct_scalar(node))  # type: ignore[arg-type]
+            included_files.append(filepath)
+            return _load_yaml_include(filepath)
+        mapping = loader.construct_mapping(node, deep=True)  # type: ignore[arg-type]
+        assert mapping is not None
+        filepath = loader._root / str(mapping["file"])
+        included_files.append(filepath)
+        variables = mapping.get("vars", {})
 
-        def construct_sequence(self, node: yaml.SequenceNode, deep: bool = False) -> Any:  # noqa: FBT001 FBT002
-            """Override sequence construction to flatten !include lists."""
-            result = []
-            for subnode in node.value:
-                if isinstance(subnode, yaml.ScalarNode) and subnode.tag == "!include":
-                    # Process !include directive
-                    loaded_data = self._include(subnode)
-                    if isinstance(loaded_data, list):
-                        result.extend(loaded_data)
-                    else:
-                        result.append(loaded_data)
+        loaded_data = _load_yaml_include(filepath)
+        assert loaded_data is not None
+        if variables:
+            _traverse_yaml(loaded_data, variables)
+        return loaded_data
+
+    # Add _include as both a class method and constructor for construct_sequence compatibility
+    IncludeLoader._include = lambda self, node: _include(self, node)
+
+    def construct_sequence(self: IncludeLoader, node: yaml.SequenceNode, deep: bool = False) -> Any:  # noqa: FBT001 FBT002
+        """Override sequence construction to flatten !include lists."""
+        result = []
+        for subnode in node.value:
+            if isinstance(subnode, yaml.ScalarNode) and subnode.tag == "!include":
+                # Process !include directive
+                loaded_data = self._include(subnode)
+                if isinstance(loaded_data, list):
+                    result.extend(loaded_data)
                 else:
-                    # Handle non-include items
-                    constructed = self.construct_object(subnode, deep=deep)
-                    if isinstance(constructed, list):
-                        result.extend(constructed)
-                    else:
-                        result.append(constructed)
-            return result
+                    result.append(loaded_data)
+            else:
+                # Handle non-include items
+                constructed = self.construct_object(subnode, deep=deep)
+                if isinstance(constructed, list):
+                    result.extend(constructed)
+                else:
+                    result.append(constructed)
+        return result
 
-    IncludeLoader.add_constructor("!include", IncludeLoader._include)
+    IncludeLoader.construct_sequence = construct_sequence  # type: ignore[method-assign]
+    IncludeLoader.add_constructor("!include", _include)
     loaded_data = yaml.load(f, IncludeLoader)  # noqa: S506
     if return_included_paths:
         return loaded_data, included_files

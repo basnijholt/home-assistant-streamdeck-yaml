@@ -17,7 +17,6 @@ from dotenv import dotenv_values
 from PIL import Image
 from pydantic import ValidationError
 from StreamDeck.Devices.StreamDeckOriginal import StreamDeckOriginal
-from websockets.exceptions import ConnectionClosedError  # noqa: F401
 
 from home_assistant_streamdeck_yaml import (
     ASSETS_PATH,
@@ -576,8 +575,8 @@ def test_generate_uniform_hex_colors() -> None:
 
 @pytest.fixture
 def websocket_mock() -> Mock:
-    """Mock websocket client protocol."""
-    return Mock(spec=websockets.WebSocketClientProtocol)
+    """Mock websocket client connection."""
+    return Mock(spec=websockets.ClientConnection)
 
 
 async def test_handle_key_press_toggle_light(

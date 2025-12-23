@@ -302,16 +302,18 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         complete_state: StateDict,
     ) -> Button:
         """Return a button with the rendered text."""
+
+        def render_value(val: Any) -> Any:
+            """Recursively render templates in values."""
+            if isinstance(val, dict):
+                return {k: render_value(v) for k, v in val.items()}
+            return _render_jinja(val, complete_state)
+
         dct = self.dict(exclude_unset=True)
         for key in self.templatable():
             if key not in dct:
                 continue
-            val = dct[key]
-            if isinstance(val, dict):  # e.g., service_data, target
-                for k, v in val.items():
-                    val[k] = _render_jinja(v, complete_state)
-            else:
-                dct[key] = _render_jinja(val, complete_state)  # type: ignore[assignment]
+            dct[key] = render_value(dct[key])
         return Button(**dct)
 
     def try_render_icon(
@@ -502,6 +504,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             "service",
             "service_data",
             "entity_id",
+            "target",
             "special_type",
             "special_type_data",
         }
@@ -517,6 +520,9 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             raise AssertionError(msg)
         if "entity_id" in v and not isinstance(v["entity_id"], str):
             msg = "long_press.entity_id must be a string"
+            raise AssertionError(msg)
+        if "target" in v and not isinstance(v["target"], dict):
+            msg = "long_press.target must be a dictionary"
             raise AssertionError(msg)
         if "special_type" in v:
             allowed_special_types = get_args(SpecialType)
@@ -2388,10 +2394,22 @@ async def _handle_key_press(  # noqa: PLR0912, PLR0915
         return
     elif service is not None:
         button = button.rendered_template_button(complete_state)
+        # Re-extract values from rendered button to get template-rendered values
+        if is_long_press and button.long_press:
+            service = button.long_press.get("service") or button.service
+            service_data = button.long_press.get("service_data")
+            entity_id = button.long_press.get("entity_id", button.entity_id)
+            target = button.long_press.get("target", button.target)
+        else:
+            service = button.service
+            service_data = button.service_data
+            entity_id = button.entity_id
+            target = button.target
         if service_data is None:
             service_data = {}
             if entity_id is not None:
                 service_data["entity_id"] = entity_id
+        console.log(f"Calling service {service} with data {service_data}")
         assert service is not None  # for mypy
         await call_service(websocket, service, service_data, target)
 
@@ -2463,7 +2481,7 @@ def _on_press_callback(
 
 
 async def _try_handle_key_press(
-    websocket: websockets.WebSocketClientProtocol,
+    websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
     button: Button,

@@ -1157,10 +1157,11 @@ async def test_long_press(
     state: dict[str, dict[str, Any]],
 ) -> None:
     """Test long press."""
-    long_press_threshold = 0.5
+    # Use a higher threshold to account for icon rendering time
+    long_press_threshold = 2.0
     short_press_time = 0.0
     assert short_press_time < long_press_threshold
-    long_press_time = long_press_threshold + 0.1
+    long_press_time = long_press_threshold + 0.5
     assert long_press_time > long_press_threshold
 
     home = Page(
@@ -1190,32 +1191,30 @@ async def test_long_press(
     assert config._current_page_index == 0
     assert config.current_page() == home
 
-    # Mock update_key_image to avoid icon rendering affecting press duration timing
-    with patch("home_assistant_streamdeck_yaml.update_key_image"):
-        press_event = ft.partial(_on_press_callback(websocket_mock, state, config), mock_deck)
+    press_event = ft.partial(_on_press_callback(websocket_mock, state, config), mock_deck)
 
-        async def press(key: int) -> None:
-            await press_event(key, True)  # noqa: FBT003
+    async def press(key: int) -> None:
+        await press_event(key, True)  # noqa: FBT003
 
-        async def release(key: int) -> None:
-            await press_event(key, False)  # noqa: FBT003
+    async def release(key: int) -> None:
+        await press_event(key, False)  # noqa: FBT003
 
-        async def press_and_release(key: int, seconds: float) -> None:
-            await press(key)
-            await asyncio.sleep(seconds)
-            await release(key)
+    async def press_and_release(key: int, seconds: float) -> None:
+        await press(key)
+        await asyncio.sleep(seconds)
+        await release(key)
 
-        await press_and_release(0, short_press_time)
-        assert config.current_page() == short
-        await press_and_release(0, short_press_time)
-        assert config.current_page() == home
-        await press_and_release(0, long_press_time)
-        assert config.current_page() == long
-        await press_and_release(0, short_press_time)
-        assert config.current_page() == home
-        await press_and_release(1, long_press_time)
-        # uses `short` action because no long action is configured
-        assert config.current_page() == short
+    await press_and_release(0, short_press_time)
+    assert config.current_page() == short
+    await press_and_release(0, short_press_time)
+    assert config.current_page() == home
+    await press_and_release(0, long_press_time)
+    assert config.current_page() == long
+    await press_and_release(0, short_press_time)
+    assert config.current_page() == home
+    await press_and_release(1, long_press_time)
+    # uses `short` action because no long action is configured
+    assert config.current_page() == short
 
     # NOTE: A potential future enhancement would be to trigger the long press action
     # automatically when the threshold is reached (without waiting for release).
@@ -1250,58 +1249,56 @@ async def test_anonymous_page(
     button = config.button(0)
     assert button.text == "yolo"
 
-    # Mock update_key_image to avoid icon rendering affecting press duration timing
-    with patch("home_assistant_streamdeck_yaml.update_key_image"):
-        press = _on_press_callback(websocket_mock, state, config)
+    press = _on_press_callback(websocket_mock, state, config)
 
-        # We need to have a release otherwise it will be timing for a long press
-        async def press_and_release(key: int) -> None:
-            await press(mock_deck, key, key_pressed=True)
-            await press(mock_deck, key, key_pressed=False)
+    # We need to have a release otherwise it will be timing for a long press
+    async def press_and_release(key: int) -> None:
+        await press(mock_deck, key, key_pressed=True)
+        await press(mock_deck, key, key_pressed=False)
 
-        # Click the button
-        await press_and_release(0)
-        # Should now be the button on the first page
-        button = config.button(0)
-        assert button.special_type == "go-to-page"
-        # Back to anon page
-        assert config.to_page("anon") == anon
-        # Click the delay button
-        button = config.button(1)
-        assert button.text == "foo"
-        await press_and_release(1)
-        # Should now still be the button because of the delay
-        assert button.text == "foo"
-        assert config._detached_page is not None
-        assert config.current_page() == anon
-        with patch("home_assistant_streamdeck_yaml.update_all_key_images") as mock:
-            await asyncio.sleep(0.15)  # longer than delay should then switch to home
-            mock.assert_called_once()
-        assert config._detached_page is None
-        assert config.current_page() == home
-        # Should now be the button on the first page
-        button = config.button(0)
-        assert button.special_type == "go-to-page"
+    # Click the button
+    await press_and_release(0)
+    # Should now be the button on the first page
+    button = config.button(0)
+    assert button.special_type == "go-to-page"
+    # Back to anon page
+    assert config.to_page("anon") == anon
+    # Click the delay button
+    button = config.button(1)
+    assert button.text == "foo"
+    await press_and_release(1)
+    # Should now still be the button because of the delay
+    assert button.text == "foo"
+    assert config._detached_page is not None
+    assert config.current_page() == anon
+    with patch("home_assistant_streamdeck_yaml.update_all_key_images") as mock:
+        await asyncio.sleep(0.15)  # longer than delay should then switch to home
+        mock.assert_called_once()
+    assert config._detached_page is None
+    assert config.current_page() == home
+    # Should now be the button on the first page
+    button = config.button(0)
+    assert button.special_type == "go-to-page"
 
-        # Test load_page_as_detached and close_detached_page methods
-        assert config.current_page() == home
-        config.load_page_as_detached(anon)
-        assert config.current_page() == anon
-        config.close_detached_page()
-        assert config.current_page() == home
+    # Test load_page_as_detached and close_detached_page methods
+    assert config.current_page() == home
+    config.load_page_as_detached(anon)
+    assert config.current_page() == anon
+    config.close_detached_page()
+    assert config.current_page() == home
 
-        # Back to anon page to test that the close button works properly
-        assert config.to_page("anon") == anon
-        await press_and_release(2)  # close page button
-        assert config._detached_page is None
-        assert config.current_page() == home
+    # Back to anon page to test that the close button works properly
+    assert config.to_page("anon") == anon
+    await press_and_release(2)  # close page button
+    assert config._detached_page is None
+    assert config.current_page() == home
 
-        # Test that to_page closes a detached page
-        config.load_page_as_detached(anon)
-        assert config.current_page() == anon
-        config.to_page(home.name)
-        assert config.current_page() == home
-        assert config._detached_page is None
+    # Test that to_page closes a detached page
+    config.load_page_as_detached(anon)
+    assert config.current_page() == anon
+    config.to_page(home.name)
+    assert config.current_page() == home
+    assert config._detached_page is None
 
 
 async def test_retry_logic_called_correct_number_of_times() -> None:

@@ -328,6 +328,54 @@ def test_validate_special_type(button_dict: dict[str, dict[str, Any]]) -> None:
         Button(**dict(button_dict["special_goto_0"], special_type_data=[]))
 
 
+def test_long_press_target_allowed() -> None:
+    """Test that 'target' is allowed in long_press configuration.
+
+    Regression test: Previously 'target' was missing from allowed_keys in
+    _validate_long_press, causing ValidationError when using target in long_press.
+    """
+    # This should NOT raise ValidationError - target is a valid key
+    button = Button(
+        service="light.turn_on",
+        long_press={
+            "service": "light.turn_off",
+            "target": {"entity_id": "light.living_room"},
+        },
+    )
+    assert button.long_press is not None
+    assert button.long_press["target"] == {"entity_id": "light.living_room"}
+
+    # Test with all valid long_press keys together
+    button2 = Button(
+        entity_id="light.bedroom",
+        service="light.toggle",
+        long_press={
+            "service": "light.turn_off",
+            "service_data": {"brightness": 50},
+            "entity_id": "light.kitchen",
+            "target": {"area_id": "living_room"},
+            "special_type": "go-to-page",
+            "special_type_data": "settings",
+        },
+    )
+    assert button2.long_press["target"] == {"area_id": "living_room"}
+
+
+def test_long_press_target_validation() -> None:
+    """Test that long_press.target must be a dictionary.
+
+    Regression test: Validates that target type checking was added.
+    """
+    with pytest.raises(ValidationError, match="long_press.target must be a dictionary"):
+        Button(
+            service="light.turn_on",
+            long_press={
+                "service": "light.turn_off",
+                "target": "light.living_room",  # Wrong type - should be dict
+            },
+        )
+
+
 def test_download_and_save_mdi() -> None:
     """Test whether function downloads MDI correctly."""
     # might be cached
@@ -1220,6 +1268,99 @@ async def test_long_press(
     # automatically when the threshold is reached (without waiting for release).
     # This would require background monitoring and is not currently implemented -
     # the long press action only triggers on key release.
+
+
+async def test_long_press_template_rendering(
+    mock_deck: Mock,
+    websocket_mock: Mock,
+) -> None:
+    """Test that templates in long_press are rendered before calling service.
+
+    Regression test: Previously, values were extracted from long_press BEFORE
+    rendered_template_button() was called, so templates weren't rendered.
+    """
+    state = {
+        "light.living_room": {"state": "on", "attributes": {"brightness": 200}},
+    }
+    button = Button(
+        entity_id="light.living_room",
+        service="light.turn_on",
+        long_press={
+            "service": "light.turn_on",
+            "service_data": {
+                "entity_id": "light.living_room",
+                # Template that should be rendered to "78" (200 * 100 / 255 ≈ 78)
+                "brightness_pct": '{{ (state_attr("light.living_room", "brightness") * 100 / 255) | int }}',
+            },
+        },
+    )
+    config = Config(pages=[Page(name="test", buttons=[button])])
+
+    await _handle_key_press(
+        websocket_mock,
+        state,
+        config,
+        button,
+        mock_deck,
+        is_long_press=True,
+    )
+
+    # Verify call_service was called
+    websocket_mock.send.assert_called_once()
+    send_call_args = websocket_mock.send.call_args.args[0]
+    payload = json.loads(send_call_args)
+
+    # The template should have been rendered to the actual value
+    assert payload["type"] == "call_service"
+    assert payload["domain"] == "light"
+    assert payload["service"] == "turn_on"
+    # Critical assertion: template must be rendered, not passed as raw string
+    assert payload["service_data"]["brightness_pct"] == "78", (
+        "Template in long_press.service_data was not rendered! "
+        f"Got: {payload['service_data']['brightness_pct']}"
+    )
+
+
+async def test_long_press_service_from_rendered_button(
+    mock_deck: Mock,
+    websocket_mock: Mock,
+) -> None:
+    """Test that long_press.service template is rendered.
+
+    Regression test: Ensures service name templates are also rendered.
+    """
+    state = {
+        "input_select.action": {"state": "turn_off", "attributes": {}},
+    }
+    button = Button(
+        entity_id="light.living_room",
+        service="light.turn_on",
+        long_press={
+            # Template that should render to "light.turn_off"
+            "service": '{{ "light." ~ states("input_select.action") }}',
+            "service_data": {"entity_id": "light.living_room"},
+        },
+    )
+    config = Config(pages=[Page(name="test", buttons=[button])])
+
+    await _handle_key_press(
+        websocket_mock,
+        state,
+        config,
+        button,
+        mock_deck,
+        is_long_press=True,
+    )
+
+    websocket_mock.send.assert_called_once()
+    payload = json.loads(websocket_mock.send.call_args.args[0])
+
+    # The service template should have been rendered
+    assert payload["domain"] == "light"
+    assert payload["service"] == "turn_off", (
+        "Template in long_press.service was not rendered! "
+        f"Got domain.service: {payload['domain']}.{payload['service']}"
+    )
 
 
 async def test_anonymous_page(

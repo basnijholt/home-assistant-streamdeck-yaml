@@ -716,3 +716,106 @@ def test_get_size_per_dial(mock_deck_plus: Mock) -> None:
         StreamDeckPlus.TOUCHSCREEN_PIXEL_WIDTH / mock_deck_plus.dial_count(),
         StreamDeckPlus.TOUCHSCREEN_PIXEL_HEIGHT,
     )
+
+
+def test_turn_properties_validators() -> None:
+    """Test TurnProperties validation rules."""
+    # Test empty string to None for service_attribute
+    props = TurnProperties(service_attribute="", min=0, max=100)
+    assert props.service_attribute is None
+
+    # Test empty string to 0.0 for numeric fields
+    props = TurnProperties(min="", max=100, step="")  # type: ignore[arg-type]
+    assert props.min == 0.0
+    assert props.step == 0.0
+
+    # Test min < max validation
+    with pytest.raises(ValueError, match=r"max .* must be greater than min"):
+        TurnProperties(min=100, max=50)
+
+    # Test step <= range validation
+    with pytest.raises(ValueError, match=r"abs\(step\) .* must be <= max - min"):
+        TurnProperties(min=0, max=10, step=20)
+
+
+def test_dial_turn_config_get_validated_range() -> None:
+    """Test that invalid min/max range is auto-corrected at runtime."""
+    # Create with valid range first
+    turn_config = DialTurnConfig(
+        properties=TurnProperties(min=0, max=100, step=1),
+    )
+    # Then set invalid range directly (bypassing validator)
+    turn_config.properties.min = 100.0
+    turn_config.properties.max = 50.0  # Invalid: max < min
+
+    min_val, max_val = turn_config._get_validated_range()
+    assert max_val == min_val + 1  # Auto-fixed to 101.0
+    assert turn_config.properties.max == 101.0  # noqa: PLR2004  # Persisted
+
+
+def test_dial_turn_config_clamp_state() -> None:
+    """Test state clamping at min/max boundaries."""
+    turn_config = DialTurnConfig(
+        properties=TurnProperties(min=0, max=100, step=1, state=50),
+    )
+
+    # Clamp at max boundary
+    changed = turn_config._clamp_and_set_state(150.0, 0.0, 100.0)
+    assert changed is True
+    assert turn_config.properties.state == 100.0  # noqa: PLR2004
+
+    # Clamp at min boundary
+    changed = turn_config._clamp_and_set_state(-50.0, 0.0, 100.0)
+    assert changed is True
+    assert turn_config.properties.state == 0.0
+
+    # No change when within range and same value
+    turn_config.properties.state = 50.0
+    changed = turn_config._clamp_and_set_state(50.0, 0.0, 100.0)
+    assert changed is False
+
+
+def test_dial_entity_id_validation() -> None:
+    """Test entity_id validation in Dial class."""
+    # Valid entity_id
+    dial = Dial(entity_id="light.living_room")
+    assert dial.entity_id == "light.living_room"
+
+    # Invalid: uppercase letters
+    with pytest.raises(ValueError, match="must follow the format"):
+        Dial(entity_id="Light.Living_Room")
+
+    # Invalid: missing domain separator
+    with pytest.raises(ValueError, match="must follow the format"):
+        Dial(entity_id="light_living_room")
+
+    # None is valid
+    dial = Dial(entity_id=None)
+    assert dial.entity_id is None
+
+
+def test_dial_extract_state_value() -> None:
+    """Test _extract_state_value helper method."""
+    dial = Dial(
+        entity_id="light.test",
+        turn=DialTurnConfig(
+            properties=TurnProperties(service_attribute="brightness"),
+        ),
+    )
+
+    # Extract from attributes
+    state_data = {"state": "on", "attributes": {"brightness": 128}}
+    assert dial._extract_state_value(state_data) == 128.0  # noqa: PLR2004
+
+    # Extract from state when no service_attribute
+    assert dial.turn is not None
+    dial.turn.properties.service_attribute = None
+    state_data = {"state": "50"}
+    assert dial._extract_state_value(state_data) == 50.0  # noqa: PLR2004
+
+    # Handle None state_data
+    assert dial._extract_state_value(None) is None
+
+    # Handle invalid value gracefully
+    state_data = {"state": "unavailable"}
+    assert dial._extract_state_value(state_data) is None

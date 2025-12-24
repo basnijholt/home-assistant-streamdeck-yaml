@@ -253,9 +253,10 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
 
     @classmethod
     def templatable(cls: type[_ButtonDialBase]) -> set[str]:
+        """Return set of attribute names that support Jinja templating."""
         schema = cls.schema()
         properties = schema["properties"]
-        return {k for k, v in properties.items() if v["allow_template"]}
+        return {k for k, v in properties.items() if v.get("allow_template", False)}
 
     @classmethod
     def to_pandas_schema_table(cls: type[_ButtonDialBase]) -> pd.DataFrame:
@@ -609,10 +610,10 @@ class Button(_ButtonDialBase, ServiceData, extra="forbid"):  # type: ignore[call
 
     @classmethod
     def templatable(cls: type[Button]) -> set[str]:
-        """Return if an attribute is templatable, which is if the type-annotation is str."""
+        """Return set of attribute names that support Jinja templating."""
         schema = cls.schema()
         properties = schema["properties"]
-        allowed_keys = {k for k, v in properties.items() if v["allow_template"]}
+        allowed_keys = {k for k, v in properties.items() if v.get("allow_template", False)}
         return allowed_keys | {"long_press"}
 
     def sleep_button_and_image(
@@ -737,13 +738,6 @@ class DialTurnConfig(ServiceData, extra="forbid"):  # type: ignore[call-arg]
                 dct[key] = _render_jinja(val, complete_state, dial)  # type: ignore[assignment]
         return DialTurnConfig(**dct)
 
-    @classmethod
-    def templatable(cls: type[DialTurnConfig]) -> set[str]:
-        """Return if an attribute is templatable, which is if the type-annotation is str."""
-        schema = cls.schema()
-        properties = schema["properties"]
-        return {k for k, v in properties.items() if v.get("allow_template", False)}
-
     def _get_validated_range(self) -> tuple[float, float]:
         """Get validated min/max range, auto-fixing invalid ranges."""
         min_val = float(self.properties.min)
@@ -804,7 +798,6 @@ class DialTurnConfig(ServiceData, extra="forbid"):  # type: ignore[call-arg]
             min_val, max_val = self._get_validated_range()
             new_state = current_state + value * step
             new_state = min(max_val, max(min_val, new_state))
-            console.log(f"Before update: state={self.properties.state}")
             self.properties.state = new_state
             console.log(
                 f"Updated turn state to {new_state} on physical turn "
@@ -833,12 +826,10 @@ class DialPushConfig(ServiceData, extra="forbid"):  # type: ignore[call-arg]
             if isinstance(val, str):
                 dct[key] = _render_jinja(val, complete_state, dial=dial)
             elif isinstance(val, dict):
-                dct[key] = (
-                    {
-                        k: _render_jinja(v, complete_state, dial=dial) if isinstance(v, str) else v
-                        for k, v in val.items()
-                    },
-                )
+                dct[key] = {
+                    k: _render_jinja(v, complete_state, dial=dial) if isinstance(v, str) else v
+                    for k, v in val.items()
+                }
             else:
                 dct[key] = val
         return DialPushConfig(**dct)
@@ -920,7 +911,7 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         attr: str,
     ) -> str | float | None:
         """Return the value of the specified attribute from the dial's turn properties."""
-        if not self or not self.turn:
+        if not self.turn:
             console.log(f"Error getting dial attribute attr='{attr}', dial={self}")
             return None
         try:
@@ -1141,21 +1132,18 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         """Render the image for the LCD."""
         try:
             image = None
-
-            # Ensure dial context is set
-            dial = self
             icon = (
-                _render_jinja(self.icon, complete_state, dial=dial)
+                _render_jinja(self.icon, complete_state, dial=self)
                 if isinstance(self.icon, str)
                 else self.icon
             )
             text = (
-                _render_jinja(self.text, complete_state, dial=dial)
+                _render_jinja(self.text, complete_state, dial=self)
                 if isinstance(self.text, str)
                 else self.text
             )
             text_color = (
-                _render_jinja(self.text_color, complete_state, dial=dial)
+                _render_jinja(self.text_color, complete_state, dial=self)
                 if isinstance(self.text_color, str)
                 else self.text_color or "white"
             )

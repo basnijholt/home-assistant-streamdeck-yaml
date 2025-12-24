@@ -1629,3 +1629,80 @@ def test_empty_text_render(state: dict[str, dict[str, Any]]) -> None:
     button_text = Button(text="Hello")
     button_text_rendered = button_text.rendered_template_button(state)
     assert button_text_rendered.text == "Hello"
+
+
+def test_brightness_entity_id(mock_deck: Mock) -> None:
+    """Test brightness_entity_id syncs brightness from Home Assistant entity.
+
+    Tests the brightness_entity_id feature from PR #173.
+    """
+    from home_assistant_streamdeck_yaml import _sync_brightness_from_entity
+
+    # Test basic config with brightness_entity_id
+    config = Config(brightness_entity_id="input_number.streamdeck_brightness")
+    assert config.brightness_entity_id == "input_number.streamdeck_brightness"
+    assert config.brightness == 100  # noqa: PLR2004
+
+    # Test _sync_brightness_from_entity with valid brightness
+    state = {"input_number.streamdeck_brightness": {"state": "75"}}
+    config._is_on = True
+    _sync_brightness_from_entity(
+        "input_number.streamdeck_brightness",
+        state,
+        config,
+        mock_deck,
+    )
+    assert config.brightness == 75  # noqa: PLR2004
+    mock_deck.set_brightness.assert_called_with(75)
+
+    # Test with float value (HA sometimes returns floats)
+    mock_deck.reset_mock()
+    state = {"input_number.streamdeck_brightness": {"state": "50.0"}}
+    _sync_brightness_from_entity(
+        "input_number.streamdeck_brightness",
+        state,
+        config,
+        mock_deck,
+    )
+    assert config.brightness == 50  # noqa: PLR2004
+    mock_deck.set_brightness.assert_called_with(50)
+
+    # Test with invalid brightness (out of range)
+    mock_deck.reset_mock()
+    state = {"input_number.streamdeck_brightness": {"state": "150"}}
+    _sync_brightness_from_entity(
+        "input_number.streamdeck_brightness",
+        state,
+        config,
+        mock_deck,
+    )
+    # Should not change brightness when out of range
+    mock_deck.set_brightness.assert_not_called()
+
+    # Test with missing entity
+    mock_deck.reset_mock()
+    _sync_brightness_from_entity(
+        "input_number.nonexistent",
+        {},
+        config,
+        mock_deck,
+    )
+    mock_deck.set_brightness.assert_not_called()
+
+    # Test with None brightness_entity_id
+    mock_deck.reset_mock()
+    _sync_brightness_from_entity(None, state, config, mock_deck)
+    mock_deck.set_brightness.assert_not_called()
+
+    # Test when deck is off (should update config but not call set_brightness)
+    mock_deck.reset_mock()
+    config._is_on = False
+    state = {"input_number.streamdeck_brightness": {"state": "25"}}
+    _sync_brightness_from_entity(
+        "input_number.streamdeck_brightness",
+        state,
+        config,
+        mock_deck,
+    )
+    assert config.brightness == 25  # noqa: PLR2004
+    mock_deck.set_brightness.assert_not_called()  # Don't set when off

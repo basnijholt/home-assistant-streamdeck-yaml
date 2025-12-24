@@ -1737,25 +1737,18 @@ async def test_inactivity_timer_basic(mock_deck: Mock) -> None:
     config._is_on = True
     reset_inactivity_timer(config, mock_deck)
     # No task should be created when disabled
-    try:
-        task = reset_inactivity_timer.task_handle  # type: ignore[attr-defined]
-        # If we get here and it's not None, that's a problem
-        # But initially there's no attribute, so we catch that
-        assert task is None or task.done()
-    except AttributeError:
-        pass  # Expected - no task handle when disabled
+    assert config._inactivity_task is None
 
     # Test with timer enabled
     config = Config(inactivity_time=0.1)  # Very short for testing
     config._is_on = True
     reset_inactivity_timer(config, mock_deck)
     # Task should be created
-    task = reset_inactivity_timer.task_handle  # type: ignore[attr-defined]
-    assert task is not None
-    assert not task.done()
+    assert config._inactivity_task is not None
+    assert not config._inactivity_task.done()
 
     # Cancel the task to clean up
-    task.cancel()
+    config._inactivity_task.cancel()
 
 
 async def test_inactivity_timer_cancels_previous(mock_deck: Mock) -> None:
@@ -1768,17 +1761,21 @@ async def test_inactivity_timer_cancels_previous(mock_deck: Mock) -> None:
 
     # Start first timer
     reset_inactivity_timer(config, mock_deck)
-    first_task = reset_inactivity_timer.task_handle  # type: ignore[attr-defined]
+    first_task = config._inactivity_task
     assert first_task is not None
 
     # Reset timer (simulating user activity)
     reset_inactivity_timer(config, mock_deck)
-    second_task = reset_inactivity_timer.task_handle  # type: ignore[attr-defined]
+    second_task = config._inactivity_task
 
-    # First task should be cancelled or cancelling
-    assert first_task.cancelling() or first_task.cancelled() or first_task.done()
+    # Give event loop a chance to process the cancellation
+    await asyncio.sleep(0)
+
+    # First task should be cancelled or done (cancel was called on it)
+    assert first_task.cancelled() or first_task.done()
     # Second task should be different and running
     assert second_task is not first_task
+    assert second_task is not None
     assert not second_task.done()
 
     # Clean up

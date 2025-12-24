@@ -962,6 +962,7 @@ class Config(BaseModel):
     _detached_page: Page | None = PrivateAttr(default=None)
     _configuration_file: Path | None = PrivateAttr(default=None)
     _include_files: list[Path] = PrivateAttr(default_factory=list)
+    _inactivity_task: asyncio.Task | None = PrivateAttr(default=None)
 
     @classmethod
     def load(
@@ -1516,7 +1517,7 @@ def reset_inactivity_timer(
 ) -> None:
     """Turn off the Stream Deck after inactivity."""
 
-    async def turn_off_timer(config: Config, deck: StreamDeck) -> None:
+    async def turn_off_timer() -> None:
         if config.inactivity_time > 0:
             await asyncio.sleep(config.inactivity_time)
             console.log(
@@ -1524,16 +1525,11 @@ def reset_inactivity_timer(
             )
             turn_off(config, deck)
 
-    try:
-        task_handle = reset_inactivity_timer.task_handle  # type: ignore[attr-defined]
-    except AttributeError:
-        task_handle = None
-
-    if task_handle is not None:
-        task_handle.cancel()
+    if config._inactivity_task is not None:
+        config._inactivity_task.cancel()
 
     if config.inactivity_time > 0:
-        reset_inactivity_timer.task_handle = asyncio.create_task(turn_off_timer(config, deck))  # type: ignore[attr-defined]
+        config._inactivity_task = asyncio.create_task(turn_off_timer())
 
 
 async def handle_changes(

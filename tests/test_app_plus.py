@@ -819,3 +819,19 @@ def test_dial_extract_state_value() -> None:
     # Handle invalid value gracefully
     state_data = {"state": "unavailable"}
     assert dial._extract_state_value(state_data) is None
+
+
+def test_dial_push_config_rendered_template(state: StateDict) -> None:
+    """Test DialPushConfig.rendered_template returns dict, not tuple."""
+    push_config = DialPushConfig(
+        service="light.toggle",
+        service_data={"entity_id": "light.test", "brightness": "{{ 50 }}"},
+    )
+    dial = Dial(entity_id="light.test", push=push_config)
+    rendered = push_config.rendered_template(state, dial)
+
+    # Verify service_data is a dict, not a tuple (regression test for bug fix)
+    assert isinstance(rendered.service_data, dict), (
+        f"Expected dict, got {type(rendered.service_data)}"
+    )
+    assert rendered.service_data["entity_id"] == "light.test"

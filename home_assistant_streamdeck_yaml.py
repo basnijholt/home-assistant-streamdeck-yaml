@@ -938,6 +938,11 @@ class Config(BaseModel):
         default=100,
         description="The default brightness of the Stream Deck (0-100).",
     )
+    brightness_entity_id: str | None = Field(
+        default=None,
+        description="The entity ID to sync display brightness with (0-100). For"
+        " example `input_number.streamdeck_brightness`.",
+    )
     auto_reload: bool = Field(
         default=False,
         description="If True, the configuration YAML file will automatically"
@@ -1580,6 +1585,16 @@ def _update_state(
             eid = event_data["entity_id"]
             complete_state[eid] = event_data["new_state"]
 
+            # Handle the brightness entity
+            if eid == config.brightness_entity_id:
+                _sync_brightness_from_entity(
+                    config.brightness_entity_id,
+                    complete_state,
+                    config,
+                    deck,
+                )
+                return
+
             # Handle the state entity (turning on/off display)
             if eid == config.state_entity_id:
                 is_on = complete_state[config.state_entity_id]["state"] == "on"
@@ -2200,6 +2215,32 @@ async def _sync_input_boolean(
         )
 
 
+def _sync_brightness_from_entity(
+    brightness_entity_id: str | None,
+    complete_state: StateDict,
+    config: Config,
+    deck: StreamDeck,
+) -> None:
+    """Sync the brightness from a Home Assistant entity to the Stream Deck."""
+    if brightness_entity_id is None:
+        return
+    if brightness_entity_id not in complete_state:
+        console.log(f"Brightness entity {brightness_entity_id} not found in state")
+        return
+    try:
+        brightness = int(float(complete_state[brightness_entity_id]["state"]))
+    except (ValueError, TypeError):
+        console.log(f"Invalid brightness state for {brightness_entity_id}")
+        return
+    if 0 <= brightness <= 100:  # noqa: PLR2004
+        console.log(f"Setting brightness from {brightness_entity_id}: {brightness}%")
+        config.brightness = brightness
+        if config._is_on:
+            deck.set_brightness(brightness)
+    else:
+        console.log(f"Invalid brightness value {brightness}, must be 0-100")
+
+
 def _on_touchscreen_event_callback(
     websocket: websockets.ClientConnection,
     complete_state: StateDict,
@@ -2788,6 +2829,14 @@ async def _run_connection_session(
     async with setup_ws(host, token, protocol, allow_weaker_ssl=allow_weaker_ssl) as websocket:
         try:
             complete_state = await get_states(websocket)
+
+            # Sync brightness from HA entity if configured
+            _sync_brightness_from_entity(
+                config.brightness_entity_id,
+                complete_state,
+                config,
+                deck,
+            )
 
             # Turn on state entity boolean on home assistant
             await _sync_input_boolean(config.state_entity_id, websocket, "on")

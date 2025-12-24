@@ -314,6 +314,7 @@ Each YAML config can take the following configuration
 | `brightness_entity_id` | The entity ID to sync display brightness with (0-100). For example `input_number.streamdeck_brightness`.                                                                                                                                                                                  | `None`    | `Optional[str]` |
 | `auto_reload`          | If True, the configuration YAML file will automatically be reloaded when it is modified.                                                                                                                                                                                                  | `False`   | `bool`          |
 | `long_press_duration`  | The duration (in seconds) for a long press.                                                                                                                                                                                                                                               | `1.0`     | `float`         |
+| `inactivity_time`      | Time in seconds to turn off the Stream Deck after inactivity. -1 to disable.                                                                                                                                                                                                              | `-1`      | `float`         |
 
 <!-- OUTPUT:END -->
 

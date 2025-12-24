@@ -17,7 +17,8 @@
     "scripts": {
       "start": "source .env && uv run python home_assistant_streamdeck_yaml.py",
       "dev": "source .env && uv run python home_assistant_streamdeck_yaml.py",
-      "test": "uv run python -m pytest"
+      "test": "uv run python -m pytest",
+      "readme": "uv run --with markdown-code-runner markdown-code-runner README.md"
     }
   }
 }

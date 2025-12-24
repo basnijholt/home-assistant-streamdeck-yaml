@@ -1011,12 +1011,13 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             # Create turn configuration if turn_dial exists
             turn_config = None
             if turn_dial:
+                attrs = turn_dial.attributes
                 turn_properties = TurnProperties(
                     service_attribute=turn_dial.state_attribute,
-                    min=turn_dial.attributes.get("min", 0.0) if turn_dial.attributes else 0.0,
-                    max=turn_dial.attributes.get("max", 100.0) if turn_dial.attributes else 100.0,
-                    step=turn_dial.attributes.get("step", 1.0) if turn_dial.attributes else 1.0,
-                    state=0.0,  # Default state, as LegacyDial doesn't store it
+                    min=attrs.get("min", 0.0) if attrs else 0.0,
+                    max=attrs.get("max", 100.0) if attrs else 100.0,
+                    step=attrs.get("step", 1.0) if attrs else 1.0,
+                    state=0.0,
                 )
                 turn_config = DialTurnConfig(
                     service=turn_dial.service,
@@ -1044,10 +1045,7 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         # Convert groups to Dial instances
         new_dials: list[Dial] = []
         for entity_id, group in dial_groups.items():
-            dial = create_dial_from_group(
-                entity_id,
-                group,
-            )  # Placeholder, overridden in create_dial_from_group
+            dial = create_dial_from_group(entity_id, group)
             if dial:
                 new_dials.append(dial)
 
@@ -1282,8 +1280,8 @@ class Page(BaseModel):
         default_factory=list,
         description="A list of dials on the page.",
     )
-    _parent_page_index: int = PrivateAttr([])
-    _dials_sorted: list[Dial] = PrivateAttr([])
+    _parent_page_index: int = PrivateAttr(0)
+    _dials_sorted: list[Dial] = PrivateAttr(default_factory=list)
 
     def update_all_dials_with_ha_state_change(
         self,

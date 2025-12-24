@@ -4,11 +4,12 @@ services:
     container_name: ha_streamdeck
     image: basnijholt/home-assistant-streamdeck-yaml:latest
     environment:
-      - HASS_HOST=x.y.z.t:8123
-      - HASS_TOKEN=foo
+      - HASS_HOST=x.y.z.t:8123 # the local IP address of your Home Assistant instance
+      - HASS_TOKEN=foo  # generate a "Long Term Access Token" from Home Assistant > User > Security > Long Term Access Token
       - WEBSOCKET_PROTOCOL=wss # or "ws" if you don't have SSL, by default it's wss
     volumes:
       - ./configuration.yaml:/app/configuration.yaml
+      - ./99-streamdeck.rules:/etc/udev/rules.d/99-streamdeck.rules # the file has to contain this: SUBSYSTEMS=="usb", ATTRS{idVendor}=="0fd9", GROUP="users", TAG+="uaccess"
       - /etc/localtime:/etc/localtime:ro
     privileged: true
     restart: always

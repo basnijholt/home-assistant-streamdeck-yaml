@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.13.1/.schema/devbox.schema.json",
+  "packages": [
+    "uv@0.9.18",
+    "python@3.14",
+    "hidapi@0.15.0",
+    "libusb1@1.0.29",
+    "cairo@1.18.4"
+  ],
+  "env": {
+    "LD_LIBRARY_PATH": "$LD_LIBRARY_PATH:$DEVBOX_PACKAGES_DIR/lib"
+  },
+  "shell": {
+    "init_hook": [
+      "uv sync --all-extras"
+    ],
+    "scripts": {
+      "start": "source .env && uv run python home_assistant_streamdeck_yaml.py",
+      "dev": "source .env && uv run python home_assistant_streamdeck_yaml.py",
+      "test": "uv run python -m pytest",
+      "readme": "uv run --with markdown-code-runner markdown-code-runner README.md"
+    }
+  }
+}

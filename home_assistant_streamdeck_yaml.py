@@ -12,7 +12,9 @@ import json
 import locale
 import math
 import re
+import signal
 import ssl
+import sys
 import time
 import warnings
 from contextlib import asynccontextmanager, suppress
@@ -25,6 +27,7 @@ from typing import (
     Literal,
     TextIO,
     TypeAlias,
+    get_args,
 )
 
 import jinja2
@@ -43,6 +46,7 @@ from StreamDeck.ImageHelpers import PILHelper
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
+    from types import FrameType
 
     import pandas as pd
     from StreamDeck.Devices import StreamDeck
@@ -73,6 +77,8 @@ LCD_PIXELS_Y = 100
 # Default resolution for each icon on Stream deck plus
 LCD_ICON_SIZE_X = 200
 LCD_ICON_SIZE_Y = 100
+
+press_start_times: dict[int, float] = {}  # Dictionary to store press start times per key.
 
 console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
@@ -175,8 +181,8 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         allow_template=True,
         description="A secondary entity_id that is used for updating images and states.",
     )
-    text: str = Field(
-        default="",
+    text: str | None = Field(
+        default=None,
         allow_template=True,
         description="The text to display on the button or dial."
         " If empty, no text is displayed."
@@ -281,22 +287,22 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         return cls.to_pandas_schema_table().to_markdown(index=False)
 
 
+SpecialType: TypeAlias = Literal[
+    "next-page",
+    "previous-page",
+    "empty",
+    "go-to-page",
+    "close-page",
+    "turn-off",
+    "light-control",
+    "reload",
+]
+
+
 class Button(_ButtonDialBase, ServiceData, extra="forbid"):  # type: ignore[call-arg]
     """Button configuration."""
 
-    special_type: (
-        Literal[
-            "next-page",
-            "previous-page",
-            "empty",
-            "go-to-page",
-            "close-page",
-            "turn-off",
-            "light-control",
-            "reload",
-        ]
-        | None
-    ) = Field(
+    special_type: SpecialType | None = Field(
         default=None,
         allow_template=False,
         description="Special type of button."
@@ -319,11 +325,24 @@ class Button(_ButtonDialBase, ServiceData, extra="forbid"):  # type: ignore[call
         " If `go-to-page`, the data should be an `int` or `str` (name of the page)."
         " If `light-control`, the data should optionally be a dictionary."
         " The dictionary can contain the following keys:"
-        " The `colors` key and a value a list of max (`n_keys_on_streamdeck - 5`) hex colors."
-        " The `color_temp_kelvin` key and a value a list of max (`n_keys_on_streamdeck - 5`) color temperatures in Kelvin."
+        " The `colors` key and a value a list of max (`n_keys_on_streamdeck - 6`) hex colors."
+        " The `color_temp_kelvin` key and a value a list of max (`n_keys_on_streamdeck - 6`) color temperatures in Kelvin."
         " The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html)"
         " can be used. This requires the `matplotlib` package to be installed. If no"
-        " list of `colors` or `colormap` is specified, 10 equally spaced colors are used.",
+        " list of `colors` or `colormap` is specified, 10 equally spaced colors are used."
+        " The `brightnesses` key and a value of brightness level (0-100).",
+    )
+    long_press: dict[str, Any] | None = Field(
+        default=None,
+        allow_template=True,
+        description="Configuration for long press actions. Can include:"
+        " `service`: The service to call on long press (e.g., 'light.turn_off')."
+        " `service_data`: Data to pass to the service (e.g., {'brightness_pct': 10})."
+        " `entity_id`: The entity ID to target (e.g., 'light.living_room'), overriding the button's entity_id if specified."
+        " `target`: Target specification for the service call (e.g., {'entity_id': 'light.living_room'})."
+        " `special_type`: Special action for long press (e.g., 'next-page', 'light-control')."
+        " `special_type_data`: Data for the special type action (e.g., {'colors': ['#FF0000']})."
+        " If not specified, the default service or special_type action is used for both short and long presses.",
     )
 
     @classmethod
@@ -348,16 +367,18 @@ class Button(_ButtonDialBase, ServiceData, extra="forbid"):  # type: ignore[call
         complete_state: StateDict,
     ) -> Button:
         """Return a button with the rendered text."""
+
+        def render_value(val: Any) -> Any:
+            """Recursively render templates in values."""
+            if isinstance(val, dict):
+                return {k: render_value(v) for k, v in val.items()}
+            return _render_jinja(val, complete_state)
+
         dct = self.dict(exclude_unset=True)
         for key in self.templatable():
             if key not in dct:
                 continue
-            val = dct[key]
-            if isinstance(val, dict):  # e.g., service_data, target
-                for k, v in val.items():
-                    val[k] = _render_jinja(v, complete_state)
-            else:
-                dct[key] = _render_jinja(val, complete_state)  # type: ignore[assignment]
+            dct[key] = render_value(dct[key])
         return Button(**dct)
 
     def try_render_icon(
@@ -424,23 +445,29 @@ class Button(_ButtonDialBase, ServiceData, extra="forbid"):  # type: ignore[call
         icon_mdi = button.icon_mdi
 
         if button.special_type == "next-page":
-            text = button.text or "Next\nPage"
+            if text is None:
+                text = "Next\nPage"
             icon_mdi = button.icon_mdi or "chevron-right"
         elif button.special_type == "previous-page":
-            text = button.text or "Previous\nPage"
+            if text is None:
+                text = "Previous\nPage"
             icon_mdi = button.icon_mdi or "chevron-left"
         elif button.special_type == "go-to-page":
             page = button.special_type_data
-            text = button.text or f"Go to\nPage\n{page}"
+            if text is None:
+                text = f"Go to\nPage\n{page}"
             icon_mdi = button.icon_mdi or "book-open-page-variant"
         elif button.special_type == "close-page":
-            text = button.text or "Close\nPage"
+            if text is None:
+                text = "Close\nPage"
             icon_mdi = button.icon_mdi or "arrow-u-left-bottom-bold"
         elif button.special_type == "turn-off":
-            text = button.text or "Turn off"
+            if text is None:
+                text = "Turn off"
             icon_mdi = button.icon_mdi or "power"
         elif button.special_type == "reload":
-            text = button.text or "Reload\nconfig"
+            if text is None:
+                text = "Reload\nconfig"
             icon_mdi = button.icon_mdi or "reload"
         elif button.entity_id in complete_state:
             # Has entity_id
@@ -474,6 +501,8 @@ class Button(_ButtonDialBase, ServiceData, extra="forbid"):  # type: ignore[call
         if icon_convert_to_grayscale:
             image = _convert_to_grayscale(image)
 
+        if text is None:
+            return image
         return _add_text_to_image(
             image=image,
             font_filename=font_filename,
@@ -483,32 +512,28 @@ class Button(_ButtonDialBase, ServiceData, extra="forbid"):  # type: ignore[call
             text_offset=self.text_offset,
         )
 
-    @validator("special_type_data")
-    def _validate_special_type(  # noqa: PLR0912
-        cls: type[Button],
-        v: Any,
-        values: dict[str, Any],
-    ) -> Any:
-        """Validate the special_type_data."""
-        special_type = values["special_type"]
+    @staticmethod
+    def _validate_special_type_data(special_type: str, v: Any) -> Any:  # noqa: PLR0912
         if special_type == "go-to-page" and not isinstance(v, (int, str)):
             msg = "If special_type is go-to-page, special_type_data must be an int or str"
             raise AssertionError(msg)
         if special_type in {"next-page", "previous-page", "empty", "turn-off"} and v is not None:
             msg = f"special_type_data needs to be empty with {special_type=}"
             raise AssertionError(msg)
+
         if special_type == "light-control":
             if v is None:
                 v = {}
             if not isinstance(v, dict):
                 msg = f"With 'light-control', 'special_type_data' must be a dict, not '{v}'"
                 raise AssertionError(msg)
-            # Can only have the following keys: colors and colormap
-            allowed_keys = {"colors", "colormap", "color_temp_kelvin"}
+
+            allowed_keys = {"colors", "colormap", "color_temp_kelvin", "brightnesses"}
             invalid_keys = v.keys() - allowed_keys
             if invalid_keys:
                 msg = f"Invalid keys in 'special_type_data', only {allowed_keys} allowed"
                 raise AssertionError(msg)
+
             # If colors is present, it must be a list of strings
             if "colors" in v:
                 if not isinstance(v["colors"], (tuple, list)):
@@ -520,6 +545,7 @@ class Button(_ButtonDialBase, ServiceData, extra="forbid"):  # type: ignore[call
                         raise AssertionError(msg)  # noqa: TRY004
                 # Cast colors to tuple (to make it hashable)
                 v["colors"] = tuple(v["colors"])
+
             if "color_temp_kelvin" in v:
                 for kelvin in v["color_temp_kelvin"]:
                     if not isinstance(kelvin, int):
@@ -527,7 +553,67 @@ class Button(_ButtonDialBase, ServiceData, extra="forbid"):  # type: ignore[call
                         raise AssertionError(msg)  # noqa: TRY004
                 # Cast color_temp_kelvin to tuple (to make it hashable)
                 v["color_temp_kelvin"] = tuple(v["color_temp_kelvin"])
+            if "brightnesses" in v:
+                for brightness in v["brightnesses"]:
+                    if not isinstance(brightness, int):
+                        msg = "All brightnesses must be integers"
+                        raise AssertionError(msg)  # noqa: TRY004
+                # Cast brightnesses to tuple (to make it hashable)
+                v["brightnesses"] = tuple(v["brightnesses"])
+
         return v
+
+    @validator("long_press", pre=True)
+    def _validate_long_press(cls, v: Any) -> Any:
+        if v is None:
+            return None
+        if not isinstance(v, dict):
+            msg = "long_press must be a dictionary"
+            raise TypeError(msg)
+        allowed_keys = {
+            "service",
+            "service_data",
+            "entity_id",
+            "target",
+            "special_type",
+            "special_type_data",
+        }
+        invalid_keys = v.keys() - allowed_keys
+        if invalid_keys:
+            msg = f"Invalid keys in long_press: {invalid_keys}. Allowed: {allowed_keys}"
+            raise AssertionError(msg)
+        if "service" in v and not isinstance(v["service"], str):
+            msg = "long_press.service must be a string"
+            raise AssertionError(msg)
+        if "service_data" in v and not isinstance(v["service_data"], dict):
+            msg = "long_press.service_data must be a dictionary"
+            raise AssertionError(msg)
+        if "entity_id" in v and not isinstance(v["entity_id"], str):
+            msg = "long_press.entity_id must be a string"
+            raise AssertionError(msg)
+        if "target" in v and not isinstance(v["target"], dict):
+            msg = "long_press.target must be a dictionary"
+            raise AssertionError(msg)
+        if "special_type" in v:
+            allowed_special_types = get_args(SpecialType)
+            if v["special_type"] not in allowed_special_types:
+                msg = f"long_press.special_type must be one of {allowed_special_types} (got {v['special_type']})"
+                raise AssertionError(msg)
+        if "special_type_data" in v and "special_type" not in v:
+            msg = "long_press.special_type_data requires special_type to be set"
+            raise AssertionError(msg)
+        if "special_type" in v and "special_type_data" in v:
+            cls._validate_special_type_data(v["special_type"], v["special_type_data"])
+
+        return v
+
+    @classmethod
+    def templatable(cls: type[Button]) -> set[str]:
+        """Return if an attribute is templatable, which is if the type-annotation is str."""
+        schema = cls.schema()
+        properties = schema["properties"]
+        allowed_keys = {k for k, v in properties.items() if v["allow_template"]}
+        return allowed_keys | {"long_press"}
 
     def sleep_button_and_image(
         self,
@@ -1129,6 +1215,8 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             if icon_convert_to_grayscale:
                 image = _convert_to_grayscale(image)
 
+            if text is None:
+                return image
             return _add_text_to_image(
                 image=image,
                 font_filename=font_filename,
@@ -1287,10 +1375,23 @@ class Config(BaseModel):
         default=100,
         description="The default brightness of the Stream Deck (0-100).",
     )
+    brightness_entity_id: str | None = Field(
+        default=None,
+        description="The entity ID to sync display brightness with (0-100). For"
+        " example `input_number.streamdeck_brightness`.",
+    )
     auto_reload: bool = Field(
         default=False,
         description="If True, the configuration YAML file will automatically"
         " be reloaded when it is modified.",
+    )
+    long_press_duration: float = Field(
+        default=1.0,
+        description="The duration (in seconds) for a long press.",
+    )
+    inactivity_time: float = Field(
+        default=-1,
+        description="Time in seconds to turn off the Stream Deck after inactivity. -1 to disable.",
     )
     _current_page_index: int = PrivateAttr(default=0)
     _parent_page_index: int = PrivateAttr(default=0)
@@ -1298,6 +1399,7 @@ class Config(BaseModel):
     _detached_page: Page | None = PrivateAttr(default=None)
     _configuration_file: Path | None = PrivateAttr(default=None)
     _include_files: list[Path] = PrivateAttr(default_factory=list)
+    _inactivity_task: asyncio.Task | None = PrivateAttr(default=None)
 
     @classmethod
     def load(
@@ -1337,6 +1439,12 @@ class Config(BaseModel):
             config = cls(**data)
             config._configuration_file = fname
             config._include_files = include_files
+            if not config.pages:
+                msg = (
+                    f"No pages defined in configuration file '{fname}'. "
+                    "Please add at least one page with buttons."
+                )
+                raise ValueError(msg)
             return config
 
     def reload(self) -> None:
@@ -1428,11 +1536,11 @@ class Config(BaseModel):
 
     def to_page(self, page: int | str) -> Page:
         """Go to a page based on the page name or index."""
+        self.close_detached_page()
         if isinstance(page, int):
             self._parent_page_index = self._current_page_index
             self._current_page_index = page
             return self.current_page()
-
         for i, p in enumerate(self.pages):
             if p.name == page:
                 self._current_page_index = i
@@ -1721,9 +1829,11 @@ def _max_contrast_color(hex_color: str) -> str:
 def _light_page(
     entity_id: str,
     n_colors: int,
+    deck_key_count: int,
     colors: tuple[str, ...] | None,
     color_temp_kelvin: tuple[int, ...] | None,
     colormap: str | None,
+    brightnesses: tuple[int, ...] | None,
 ) -> Page:
     """Return a page of buttons for controlling lights."""
     if colormap is None and colors is None:
@@ -1754,13 +1864,13 @@ def _light_page(
         for kelvin in (color_temp_kelvin or ())
     ]
     buttons_brightness = []
-    for brightness in [0, 10, 30, 60, 100]:
+    for brightness in brightnesses if brightnesses is not None else [0, 33, 66, 100]:
         background_color = _scale_hex_color("#FFFFFF", brightness / 100)
         button = Button(
             icon_background_color=background_color,
             service="light.turn_on",
             text_color=_max_contrast_color(background_color),
-            text=f"{brightness}%",
+            text=f"{brightness}%" if brightness > 0 else "OFF",
             service_data={
                 "entity_id": entity_id,
                 "brightness_pct": brightness,
@@ -1768,9 +1878,37 @@ def _light_page(
         )
         buttons_brightness.append(button)
     buttons_back = [Button(special_type="close-page")]
+    number_of_buttons_except_close_and_empty = (
+        len(buttons_colors)
+        + len(buttons_color_temp_kelvin)
+        + len(buttons_brightness)
+        + len(buttons_back)
+    )
+    number_of_empty_buttons = deck_key_count - number_of_buttons_except_close_and_empty
+    if number_of_empty_buttons > 0:
+        buttons_empty = [Button(special_type="empty")] * number_of_empty_buttons
+    else:
+        console.log(
+            f"""
+            Too many buttons on light page. Not showing everything"
+            Deck key count: {deck_key_count}
+            Number of defined buttons: {number_of_buttons_except_close_and_empty}
+            colors: {colors}
+            color_temp_kelvin: {color_temp_kelvin}
+            colormap: {colormap}
+            brightnesses: {brightnesses}
+            """,
+        )
+        buttons_empty = []
+
     return Page(
         name="Lights",
-        buttons=buttons_colors + buttons_color_temp_kelvin + buttons_brightness + buttons_back,
+        buttons=buttons_colors
+        + buttons_color_temp_kelvin
+        + buttons_empty
+        + buttons_brightness
+        + buttons_back,
+        dials=[],
     )
 
 
@@ -1823,6 +1961,27 @@ async def subscribe_state_changes(
     await websocket.send(json.dumps(subscribe_payload))
 
 
+def reset_inactivity_timer(
+    config: Config,
+    deck: StreamDeck,
+) -> None:
+    """Turn off the Stream Deck after inactivity."""
+
+    async def turn_off_timer() -> None:
+        if config.inactivity_time > 0:
+            await asyncio.sleep(config.inactivity_time)
+            console.log(
+                f"Turning off Stream Deck due to inactivity after {config.inactivity_time} seconds",
+            )
+            turn_off(config, deck)
+
+    if config._inactivity_task is not None:
+        config._inactivity_task.cancel()
+
+    if config.inactivity_time > 0:
+        config._inactivity_task = asyncio.create_task(turn_off_timer())
+
+
 async def handle_changes(
     websocket: websockets.ClientConnection,
     complete_state: StateDict,
@@ -1860,6 +2019,7 @@ async def handle_changes(
                 last_modified_time = max(edit_time(fn) for fn in files)
                 try:
                     config.reload()
+                    reset_inactivity_timer(config, deck)
                     deck.reset()
                     update_all_key_images(deck, config, complete_state)
                     update_all_dials(deck, config, complete_state)
@@ -1896,6 +2056,17 @@ def _update_state(
             eid = event_data["entity_id"]
             complete_state[eid] = event_data["new_state"]
 
+            # Handle the brightness entity
+            if eid == config.brightness_entity_id:
+                _sync_brightness_from_entity(
+                    config.brightness_entity_id,
+                    complete_state,
+                    config,
+                    deck,
+                )
+                return
+
+            # Handle the state entity (turning on/off display)
             if eid == config.state_entity_id:
                 is_on = complete_state[config.state_entity_id]["state"] == "on"
                 if is_on:
@@ -2136,6 +2307,7 @@ async def call_service(
     }
     if target is not None:
         subscribe_payload["target"] = target
+
     await websocket.send(json.dumps(subscribe_payload))
 
 
@@ -2298,15 +2470,33 @@ def _generate_failed_icon(
     )
 
 
+@ft.lru_cache(maxsize=1)
+def _get_blank_image(size: tuple[int, int]) -> bytes:
+    """Get or create a blank (black) JPEG image for the given size."""
+    blank_image: Image.Image = Image.new("RGB", size, (0, 0, 0))
+    img_bytes = io.BytesIO()
+    blank_image.save(img_bytes, format="JPEG")
+    return img_bytes.getvalue()
+
+
+def _get_size_per_dial(deck: StreamDeck) -> tuple[int, int]:
+    """Get the size of each dial's LCD region."""
+    size_lcd: tuple[int, int] = deck.touchscreen_image_format()["size"]
+    return (size_lcd[0] // deck.dial_count(), size_lcd[1])
+
+
 def update_all_dials(
     deck: StreamDeck,
     config: Config,
     complete_state: StateDict,
 ) -> None:
-    """Update all dials on the StreamDeck."""
+    """Update all dials on the StreamDeck and clear unconfigured dial slots."""
+    configured_keys: set[int] = set()
+
     for key in range(deck.dial_count()):
         dial = config.dial(key)
         if dial:
+            configured_keys.add(key)
             # Sync dial state with HA before rendering
             dial.sync_with_ha_state(complete_state)
             update_dial_lcd(
@@ -2315,6 +2505,23 @@ def update_all_dials(
                 config=config,
                 complete_state=complete_state,
             )
+
+    # Clear unconfigured dial slots
+    num_physical: int = deck.dial_count()
+    unconfigured_keys: set[int] = set(range(num_physical)) - configured_keys
+    if unconfigured_keys:
+        size_per_dial: tuple[int, int] = _get_size_per_dial(deck)
+        lcd_image_bytes: bytes = _get_blank_image(size_per_dial)
+        for dial_key in unconfigured_keys:
+            dial_offset: int = dial_key * size_per_dial[0]
+            deck.set_touchscreen_image(
+                lcd_image_bytes,
+                dial_offset,
+                0,
+                width=size_per_dial[0],
+                height=size_per_dial[1],
+            )
+        console.log(f"Cleared unconfigured dial slots: {unconfigured_keys}")
 
 
 def update_dial_lcd(
@@ -2328,8 +2535,7 @@ def update_dial_lcd(
     if not dial:
         return
 
-    size_lcd = deck.touchscreen_image_format()["size"]
-    size_per_dial = (size_lcd[0] // deck.dial_count(), size_lcd[1])
+    size_per_dial = _get_size_per_dial(deck)
     image = dial.render_lcd_image(
         complete_state=complete_state,
         size=size_per_dial,
@@ -2342,8 +2548,8 @@ def update_dial_lcd(
         lcd_image_bytes,
         key * size_per_dial[0],
         0,
-        size_per_dial[0],
-        size_per_dial[1],
+        width=size_per_dial[0],
+        height=size_per_dial[1],
     )
 
 
@@ -2436,6 +2642,32 @@ async def _sync_input_boolean(
         )
 
 
+def _sync_brightness_from_entity(
+    brightness_entity_id: str | None,
+    complete_state: StateDict,
+    config: Config,
+    deck: StreamDeck,
+) -> None:
+    """Sync the brightness from a Home Assistant entity to the Stream Deck."""
+    if brightness_entity_id is None:
+        return
+    if brightness_entity_id not in complete_state:
+        console.log(f"Brightness entity {brightness_entity_id} not found in state")
+        return
+    try:
+        brightness = int(float(complete_state[brightness_entity_id]["state"]))
+    except (ValueError, TypeError):
+        console.log(f"Invalid brightness state for {brightness_entity_id}")
+        return
+    if 0 <= brightness <= 100:  # noqa: PLR2004
+        console.log(f"Setting brightness from {brightness_entity_id}: {brightness}%")
+        config.brightness = brightness
+        if config._is_on:
+            deck.set_brightness(brightness)
+    else:
+        console.log(f"Invalid brightness value {brightness}, must be 0-100")
+
+
 def _on_touchscreen_event_callback(
     websocket: websockets.ClientConnection,
     complete_state: StateDict,
@@ -2450,6 +2682,7 @@ def _on_touchscreen_event_callback(
         value: dict[str, int],
     ) -> None:
         console.log(f"Touchscreen event {event_type} called at value {value}")
+        reset_inactivity_timer(config, deck)
         if event_type == TouchscreenEventType.DRAG:
             if value["x"] > value["x_out"]:
                 console.log(f"Going to page {config.next_page_index}")
@@ -2563,6 +2796,7 @@ def _on_dial_event_callback(
         value: int,
     ) -> None:
         console.log(f"Dial {dial_num} event {event_type} at value {value}")
+        reset_inactivity_timer(config, deck)
         dial = config.dial(dial_num)
         if not dial:
             console.log(f"No dial configuration for dial {dial_num}")
@@ -2611,12 +2845,14 @@ def _on_dial_event_callback(
     return dial_event_callback
 
 
-async def _handle_key_press(  # noqa: PLR0912
+async def _handle_key_press(  # noqa: PLR0912, PLR0915
     websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
     button: Button,
     deck: StreamDeck,
+    *,
+    is_long_press: bool,
 ) -> None:
     if not config._is_on:
         turn_on(config, deck, complete_state)
@@ -2627,50 +2863,77 @@ async def _handle_key_press(  # noqa: PLR0912
         update_all_key_images(deck, config, complete_state)
         update_all_dials(deck, config, complete_state)
 
-    if button.special_type == "next-page":
+    if is_long_press and button.long_press:
+        entity_id = button.long_press.get("entity_id", button.entity_id)
+        service = button.long_press.get("service")
+        service_data = button.long_press.get("service_data")
+        target = button.long_press.get("target", button.target)
+        special_type = button.long_press.get("special_type")
+        special_type_data = button.long_press.get("special_type_data")
+    else:
+        entity_id = button.entity_id
+        service = button.service
+        service_data = button.service_data
+        target = button.target
+        special_type = button.special_type
+        special_type_data = button.special_type_data
+
+    if special_type == "next-page":
         config.next_page()
         update_all()
-    elif button.special_type == "previous-page":
+    elif special_type == "previous-page":
         config.previous_page()
         update_all()
-    elif button.special_type == "close-page":
+    elif special_type == "close-page":
         config.close_page()
         update_all()
-    elif button.special_type == "go-to-page":
-        assert isinstance(button.special_type_data, (str, int))
-        config.to_page(button.special_type_data)  # type: ignore[arg-type]
+    elif special_type == "go-to-page":
+        assert isinstance(special_type_data, (str, int))
+        config.to_page(special_type_data)  # type: ignore[arg-type]
         update_all()
         return  # to skip the _detached_page reset below
-    elif button.special_type == "turn-off":
+    elif special_type == "turn-off":
         turn_off(config, deck)
         await _sync_input_boolean(config.state_entity_id, websocket, "off")
-    elif button.special_type == "light-control":
-        assert isinstance(button.special_type_data, dict)
+    elif special_type == "light-control":
+        assert isinstance(special_type_data, dict)
         page = _light_page(
-            entity_id=button.entity_id,
+            entity_id=entity_id,
             n_colors=9,
-            colormap=button.special_type_data.get("colormap", None),
-            colors=button.special_type_data.get("colors", None),
-            color_temp_kelvin=button.special_type_data.get("color_temp_kelvin", None),
+            colormap=special_type_data.get("colormap", None),
+            colors=special_type_data.get("colors", None),
+            color_temp_kelvin=special_type_data.get("color_temp_kelvin", None),
+            brightnesses=special_type_data.get("brightnesses", None),
+            deck_key_count=deck.key_count(),
         )
         config.load_page_as_detached(page)
         update_all()
         return  # to skip the _detached_page reset below
-    elif button.special_type == "reload":
+    elif special_type == "reload":
         config.reload()
+        reset_inactivity_timer(config, deck)
         update_all()
         return
-    elif button.service is not None:
+    elif service is not None:
         button = button.rendered_template_button(complete_state)
-        if button.service_data is None:
-            service_data = {}
-            if button.entity_id is not None:
-                service_data["entity_id"] = button.entity_id
+        # Re-extract values from rendered button to get template-rendered values
+        if is_long_press and button.long_press:
+            service = button.long_press.get("service") or button.service
+            service_data = button.long_press.get("service_data")
+            entity_id = button.long_press.get("entity_id", button.entity_id)
+            target = button.long_press.get("target", button.target)
         else:
+            service = button.service
             service_data = button.service_data
-        console.log(f"Calling service {button.service} with data {service_data}")
-        assert button.service is not None  # for mypy
-        await call_service(websocket, button.service, service_data, button.target)
+            entity_id = button.entity_id
+            target = button.target
+        if service_data is None:
+            service_data = {}
+            if entity_id is not None:
+                service_data["entity_id"] = entity_id
+        console.log(f"Calling service {service} with data {service_data}")
+        assert service is not None  # for mypy
+        await call_service(websocket, service, service_data, target)
 
     if config._detached_page:
         config.close_detached_page()
@@ -2682,40 +2945,87 @@ def _on_press_callback(
     complete_state: StateDict,
     config: Config,
 ) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:
+    press_start_times: dict[int, float] = {}
+
     async def key_change_callback(
         deck: StreamDeck,
         key: int,
         key_pressed: bool,  # noqa: FBT001
     ) -> None:
         console.log(f"Key {key} {'pressed' if key_pressed else 'released'}")
+        reset_inactivity_timer(config, deck)
 
         button = config.button(key)
         assert button is not None
-        if button is not None and key_pressed:
-
-            async def cb() -> None:
-                """Update the deck once more after the timer is over."""
-                assert button is not None  # for mypy
-                await _handle_key_press(websocket, complete_state, config, button, deck)
-
-            if button.maybe_start_or_cancel_timer(cb):
-                key_pressed = False  # do not click now
-
-        try:
+        if key_pressed:
+            press_start_times[key] = time.time()
+            console.log(
+                f"Key {key} pressed, starting long press monitor with threshold {config.long_press_duration}s",
+            )
             update_key_image(
                 deck,
                 key=key,
                 config=config,
                 complete_state=complete_state,
-                key_pressed=key_pressed,
+                key_pressed=True,
             )
-            if key_pressed:
-                await _handle_key_press(websocket, complete_state, config, button, deck)
-        except Exception as e:  # noqa: BLE001
-            console.print_exception(show_locals=True)
-            console.log(f"key_change_callback failed with a {type(e)}: {e}")
+            return
+
+        # Key released
+        press_duration = time.time() - press_start_times.pop(key)
+        console.log(f"Key {key} released after {press_duration:.2f}s")
+        update_key_image(
+            deck,
+            key=key,
+            config=config,
+            complete_state=complete_state,
+            key_pressed=False,
+        )
+        cb = ft.partial(
+            _try_handle_key_press,
+            websocket=websocket,
+            complete_state=complete_state,
+            config=config,
+            button=button,
+            deck=deck,
+            is_long_press=False,
+        )
+        if press_duration < config.long_press_duration:
+            console.log(f"Handling short press for key {key}")
+            if button.maybe_start_or_cancel_timer(cb):
+                console.log(f"Timer started for key {key}, delaying short press")
+            else:
+                await cb(is_long_press=False)
+        else:
+            console.log(f"Handling long press for key {key}")
+            await cb(is_long_press=True)
 
     return key_change_callback
+
+
+async def _try_handle_key_press(
+    websocket: websockets.ClientConnection,
+    complete_state: StateDict,
+    config: Config,
+    button: Button,
+    deck: StreamDeck,
+    *,
+    is_long_press: bool,
+) -> None:
+    try:
+        await _handle_key_press(
+            websocket,
+            complete_state,
+            config,
+            button,
+            deck,
+            is_long_press=is_long_press,
+        )
+    except Exception as e:
+        console.print_exception(show_locals=True)
+        which = "long" if is_long_press else "short"
+        console.log(f"Error in {which} press handling: {e}")
+        raise
 
 
 @ft.lru_cache(maxsize=128)
@@ -2931,21 +3241,28 @@ def update_all_key_images(
         )
 
 
-async def run(
+async def _run_connection_session(
     host: str,
     token: str,
     protocol: Literal["wss", "ws"],
     config: Config,
+    deck: StreamDeck,
     *,
     allow_weaker_ssl: bool = False,
 ) -> None:
-    """Main entry point for the Stream Deck integration."""
-    deck = get_deck()
+    """Handles a single connection session with Home Assistant."""
     async with setup_ws(host, token, protocol, allow_weaker_ssl=allow_weaker_ssl) as websocket:
         try:
             complete_state = await get_states(websocket)
 
-            deck.set_brightness(config.brightness)
+            # Sync brightness from HA entity if configured
+            _sync_brightness_from_entity(
+                config.brightness_entity_id,
+                complete_state,
+                config,
+                deck,
+            )
+
             # Turn on state entity boolean on home assistant
             await _sync_input_boolean(config.state_entity_id, websocket, "on")
             update_all_key_images(deck, config, complete_state)
@@ -2961,12 +3278,70 @@ async def run(
                 deck.set_touchscreen_callback_async(
                     _on_touchscreen_event_callback(websocket, complete_state, config),
                 )
-            deck.set_brightness(config.brightness)
+
             await subscribe_state_changes(websocket)
             await handle_changes(websocket, complete_state, deck, config)
         finally:
+            console.log("Cleaning up connection session...")
             await _sync_input_boolean(config.state_entity_id, websocket, "off")
-            deck.reset()
+
+
+async def run(
+    deck: StreamDeck,
+    host: str,
+    token: str,
+    protocol: Literal["wss", "ws"],
+    config: Config,
+    retry_attempts: int = 0,
+    retry_delay: float = 0.0,
+    *,
+    allow_weaker_ssl: bool = False,
+) -> None:
+    """Main entry point for the Stream Deck integration, with retry logic."""
+    deck.set_brightness(config.brightness)
+    attempt = 0
+
+    while retry_attempts < 0 or attempt <= retry_attempts:
+        try:
+            console.log(f"Attempting connection (attempt {attempt + 1})...")
+            await _run_connection_session(
+                host,
+                token,
+                protocol,
+                config,
+                deck,
+                allow_weaker_ssl=allow_weaker_ssl,
+            )
+            console.log("Connection session ended cleanly.")
+            break
+
+        except (
+            websockets.exceptions.ConnectionClosed,
+            websockets.exceptions.InvalidURI,
+            websockets.exceptions.InvalidHandshake,
+            OSError,  # Catches socket errors, ConnectionRefusedError, etc.
+            asyncio.TimeoutError,
+        ) as e:
+            attempt += 1
+            console.log(
+                f"[WARNING] WebSocket connection failed: {type(e).__name__}: {e}",
+            )
+            if retry_attempts >= 0 and attempt > retry_attempts:
+                console.log("[ERROR] Max retry attempts reached, giving up.")
+                break
+            console.log(
+                f"[INFO] Retrying in {retry_delay} seconds... (attempt {attempt + 1})",
+            )
+            await asyncio.sleep(retry_delay)
+        except Exception as e:  # noqa: BLE001
+            console.log(
+                f"[ERROR] An unexpected error occurred during connection/session: {type(e).__name__}: {e}",
+            )
+            console.print_exception(show_locals=True)
+            break  # Exit loop on unexpected errors
+
+    console.log("Exiting application. Resetting deck.")
+    deck.reset()
 
 
 def _rich_table_str(df: pd.DataFrame) -> str:
@@ -2976,6 +3351,34 @@ def _rich_table_str(df: pd.DataFrame) -> str:
     return console.file.getvalue()
 
 
+# Define YAML node type
+YamlNode = dict[str, Any] | list[Any] | str | int | float | bool | None
+
+
+def _traverse_yaml(node: YamlNode, variables: dict[str, str]) -> YamlNode:
+    """Substitute variables in YAML node."""
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if isinstance(value, str):
+                result = value
+                for var, var_value in variables.items():
+                    regex_format = rf"\$\{{{var}\}}"
+                    result = re.sub(regex_format, str(var_value), result)
+                node[key] = result
+            else:
+                node[key] = _traverse_yaml(value, variables)
+        return node
+    if isinstance(node, list):
+        return [_traverse_yaml(item, variables) for item in node]
+    if isinstance(node, str):
+        result = node
+        for var, var_value in variables.items():
+            regex_format = rf"\$\{{{var}\}}"
+            result = re.sub(regex_format, str(var_value), result)
+        return result
+    return node
+
+
 def safe_load_yaml(
     f: TextIO | str,
     *,
@@ -2983,23 +3386,7 @@ def safe_load_yaml(
     encoding: str | None = None,
 ) -> Any | tuple[Any, list]:
     """Load a YAML file."""
-    included_files = []
-
-    def _traverse_yaml(node: dict[str, Any], variables: dict[str, str]) -> None:
-        if isinstance(node, dict):
-            for key, value in node.items():
-                if not isinstance(value, dict):
-                    for var, var_value in variables.items():
-                        if not isinstance(value, str):
-                            continue
-
-                        regex_format = rf"\$\{{{var}\}}"
-                        node[key] = re.sub(regex_format, str(var_value), node[key])
-                else:
-                    _traverse_yaml(value, variables)
-        elif isinstance(node, list):
-            for item in node:
-                _traverse_yaml(item, variables)
+    included_files: list[Path] = []
 
     class IncludeLoader(yaml.SafeLoader):
         """YAML Loader with `!include` constructor."""
@@ -3009,32 +3396,54 @@ def safe_load_yaml(
             self._root = Path(stream.name).parent if hasattr(stream, "name") else Path.cwd()
             super().__init__(stream)
 
-    def _include(loader: IncludeLoader, node: yaml.nodes.Node) -> Any:
-        """Include file referenced at node."""
-        if isinstance(node.value, str):
-            filepath = loader._root / str(loader.construct_scalar(node))  # type: ignore[arg-type]
-            included_files.append(filepath)
-            return yaml.load(
-                filepath.read_text(encoding=encoding),
-                IncludeLoader,  # noqa: S506
-            )
-        else:  # noqa: RET505
-            mapping = loader.construct_mapping(node, deep=True)  # type: ignore[arg-type]
-            assert mapping is not None
-            filepath = loader._root / str(mapping["file"])
-            included_files.append(filepath)
-            variables = mapping["vars"]
+        def _load_include_file(self, filepath: Path) -> Any:
+            """Load a YAML file for an !include directive."""
+            with filepath.open(encoding=encoding) as include_file:
+                return yaml.load(include_file, IncludeLoader)  # noqa: S506
 
-            loaded_data = yaml.load(
-                filepath.read_text(encoding=encoding),
-                IncludeLoader,  # noqa: S506
-            )
+        def include(self, node: yaml.nodes.Node) -> Any:
+            """Include file referenced at node."""
+            if isinstance(node.value, str):
+                filepath = self._root / str(self.construct_scalar(node))  # type: ignore[arg-type]
+                included_files.append(filepath)
+                return self._load_include_file(filepath)
+            mapping = self.construct_mapping(node, deep=True)  # type: ignore[arg-type]
+            assert mapping is not None
+            filepath = self._root / str(mapping["file"])
+            included_files.append(filepath)
+            variables = mapping.get("vars", {})
+
+            loaded_data = self._load_include_file(filepath)
             assert loaded_data is not None
-            assert variables is not None
-            _traverse_yaml(loaded_data, variables)
+            if variables:
+                _traverse_yaml(loaded_data, variables)
             return loaded_data
 
-    IncludeLoader.add_constructor("!include", _include)
+        def construct_sequence(  # type: ignore[override]
+            self,
+            node: yaml.SequenceNode,
+            deep: bool = False,  # noqa: FBT001, FBT002
+        ) -> Any:
+            """Override sequence construction to flatten !include lists."""
+            result = []
+            for subnode in node.value:
+                if isinstance(subnode, yaml.ScalarNode) and subnode.tag == "!include":
+                    # Process !include directive
+                    loaded_data = self.include(subnode)
+                    if isinstance(loaded_data, list):
+                        result.extend(loaded_data)
+                    else:
+                        result.append(loaded_data)
+                else:
+                    # Handle non-include items
+                    constructed = self.construct_object(subnode, deep=deep)
+                    if isinstance(constructed, list):
+                        result.extend(constructed)
+                    else:
+                        result.append(constructed)
+            return result
+
+    IncludeLoader.add_constructor("!include", IncludeLoader.include)
     loaded_data = yaml.load(f, IncludeLoader)  # noqa: S506
     if return_included_paths:
         return loaded_data, included_files
@@ -3052,6 +3461,17 @@ def _help() -> str:
         )
     except ModuleNotFoundError:
         return ""
+
+
+def _get_signal_handler(deck: StreamDeck) -> Callable[[int, FrameType | None], None]:
+    def handler(signum: int, frame: FrameType | None) -> None:  # noqa: ARG001
+        console.log(f"Signal caught: {signum=}")
+        deck.reset()
+        deck.close()
+        console.log(f"Closed deck connection {deck=}")
+        sys.exit(0)
+
+    return handler
 
 
 def main() -> None:
@@ -3089,6 +3509,18 @@ def main() -> None:
         choices=["wss", "ws"],
     )
     parser.add_argument(
+        "--connection-retry-attempts",
+        type=int,
+        default=int(os.getenv("CONNECTION_RETRY_ATTEMPTS", "0")),
+        help="Maximum number of connection retry attempts (-1 for infinite)",
+    )
+    parser.add_argument(
+        "--connection-retry-delay",
+        type=float,
+        default=float(os.getenv("CONNECTION_RETRY_DELAY", "0")),
+        help="Delay between connection retry attempts in seconds",
+    )
+    parser.add_argument(
         "--allow-weaker-ssl",
         action="store_true",
         help="Allow less secure SSL (security level 1) for compatibility with slower hardware (e.g., RPi Zero).",
@@ -3101,12 +3533,21 @@ def main() -> None:
         f"Starting Stream Deck integration with {args.host=}, {args.config=}, {args.protocol=}, {args.allow_weaker_ssl=}",
     )
     config = Config.load(args.config, yaml_encoding=args.yaml_encoding)
+
+    deck = get_deck()
+    handler = _get_signal_handler(deck)
+    signal.signal(signal.SIGINT, handler)
+    signal.signal(signal.SIGTERM, handler)
+
     asyncio.run(
         run(
+            deck=deck,
             host=args.host,
             token=args.token,
             protocol=args.protocol,
             config=config,
+            retry_attempts=args.connection_retry_attempts,
+            retry_delay=args.connection_retry_delay,
             allow_weaker_ssl=args.allow_weaker_ssl,
         ),
     )

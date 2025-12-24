@@ -12,7 +12,7 @@ from unittest.mock import Mock
 import pytest
 import websockets
 from PIL import Image
-from StreamDeck.Devices.StreamDeck import DialEventType
+from StreamDeck.Devices.StreamDeck import DialEventType, TouchscreenEventType
 from StreamDeck.Devices.StreamDeckPlus import StreamDeckPlus
 
 from home_assistant_streamdeck_yaml import (
@@ -23,8 +23,8 @@ from home_assistant_streamdeck_yaml import (
     DialTurnConfig,
     Page,
     StateDict,
-    TouchscreenEventType,
     TurnProperties,
+    _get_size_per_dial,
     _on_dial_event_callback,
     _on_touchscreen_event_callback,
     _update_state,
@@ -39,8 +39,8 @@ TEST_STATE_FILENAME = ROOT / "tests" / "state_plus.json"
 # TESTS FOR STREAM DECK PLUS
 @pytest.fixture
 def websocket_mock() -> Mock:
-    """Mock websocket client protocol."""
-    return Mock(spec=websockets.WebSocketClientProtocol)
+    """Mock websocket client connection."""
+    return Mock(spec=websockets.ClientConnection)
 
 
 @pytest.fixture
@@ -628,7 +628,7 @@ def test_legacy_dial_conversion() -> None:  # noqa: PLR0915
     assert len(dials) == 1
     dial = dials[0]
     assert dial.entity_id == "sensor.temperature"
-    assert dial.text == "", "Expected default empty text"
+    assert dial.text is None, "Expected default None text"
     assert dial.icon is None, "Expected no icon"
     assert dial.text_color is None
     assert dial.icon_mdi is None
@@ -708,3 +708,11 @@ def test_old_config_parsing() -> None:
     finally:
         # Clean up temporary file
         temp_file_path.unlink()
+
+
+def test_get_size_per_dial(mock_deck_plus: Mock) -> None:
+    """Test that _get_size_per_dial() works properly."""
+    assert _get_size_per_dial(mock_deck_plus) == (
+        StreamDeckPlus.TOUCHSCREEN_PIXEL_WIDTH / mock_deck_plus.dial_count(),
+        StreamDeckPlus.TOUCHSCREEN_PIXEL_HEIGHT,
+    )

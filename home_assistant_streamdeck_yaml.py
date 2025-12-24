@@ -400,7 +400,8 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                 text = f"Go to\nPage\n{page}"
             icon_mdi = button.icon_mdi or "book-open-page-variant"
         elif button.special_type == "close-page":
-            text = button.text or "Close\nPage"
+            if text is None:
+                text = "Close\nPage"
             icon_mdi = button.icon_mdi or "arrow-u-left-bottom-bold"
         elif button.special_type == "turn-off":
             if text is None:

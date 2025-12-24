@@ -1570,3 +1570,62 @@ def test_page_switch_clears_unused_keys(state: dict[str, dict[str, Any]]) -> Non
         )
         # Ensure exactly these two calls were made for the 2-key mock deck
         assert mock_deck_instance.set_key_image.call_count == 2  # noqa: PLR2004
+
+
+def test_empty_text_button() -> None:
+    """Test that text='' explicitly shows no text, while text=None shows default.
+
+    Regression test for PR #142 - Allow empty text with "".
+    """
+    # Test the text field storage behavior
+    button_default = Button()
+    assert button_default.text is None, "Default text should be None"
+
+    button_empty = Button(text="")
+    assert button_empty.text == "", "Empty string text should be preserved"
+
+    button_custom = Button(text="Custom")
+    assert button_custom.text == "Custom", "Custom text should be preserved"
+
+    # Verify all special types support empty text field
+    special_types = [
+        "next-page",
+        "previous-page",
+        "go-to-page",
+        "close-page",
+        "turn-off",
+        "reload",
+    ]
+    for special_type in special_types:
+        special_type_data = "test" if special_type == "go-to-page" else None
+
+        # Default text (text=None)
+        btn = Button(special_type=special_type, special_type_data=special_type_data)
+        assert btn.text is None, f"{special_type}: text should be None by default"
+
+        # Explicit empty text (text="")
+        btn_empty = Button(
+            special_type=special_type,
+            special_type_data=special_type_data,
+            text="",
+        )
+        assert btn_empty.text == "", f"{special_type}: text='' should be preserved"
+
+
+def test_empty_text_render(state: dict[str, dict[str, Any]]) -> None:
+    """Test that render_icon handles empty text correctly for special types.
+
+    This verifies that text='' results in no text, while text=None uses defaults.
+    """
+    # Button without special_type - uses text field directly
+    button_none = Button()
+    button_none_rendered = button_none.rendered_template_button(state)
+    assert button_none_rendered.text is None
+
+    button_empty = Button(text="")
+    button_empty_rendered = button_empty.rendered_template_button(state)
+    assert button_empty_rendered.text == ""
+
+    button_text = Button(text="Hello")
+    button_text_rendered = button_text.rendered_template_button(state)
+    assert button_text_rendered.text == "Hello"

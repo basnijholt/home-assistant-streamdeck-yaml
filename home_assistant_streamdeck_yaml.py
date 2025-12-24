@@ -564,6 +564,18 @@ class Button(_ButtonDialBase, ServiceData, extra="forbid"):  # type: ignore[call
 
         return v
 
+    @validator("special_type_data")
+    def _validate_special_type(
+        cls: type[Button],
+        v: Any,
+        values: dict[str, Any],
+    ) -> Any:
+        """Validate the special_type_data."""
+        special_type = values.get("special_type")
+        if special_type is None:
+            return v
+        return cls._validate_special_type_data(special_type, v)
+
     @validator("long_press", pre=True)
     def _validate_long_press(cls, v: Any) -> Any:
         if v is None:

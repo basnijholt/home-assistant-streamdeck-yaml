@@ -115,8 +115,8 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         allow_template=True,
         description="The `target` that will be passed to the `service` when the button is pressed.",
     )
-    text: str = Field(
-        default="",
+    text: str | None = Field(
+        default=None,
         allow_template=True,
         description="The text to display on the button."
         " If empty, no text is displayed."
@@ -387,23 +387,29 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         icon_mdi = button.icon_mdi
 
         if button.special_type == "next-page":
-            text = button.text or "Next\nPage"
+            if text is None:
+                text = "Next\nPage"
             icon_mdi = button.icon_mdi or "chevron-right"
         elif button.special_type == "previous-page":
-            text = button.text or "Previous\nPage"
+            if text is None:
+                text = "Previous\nPage"
             icon_mdi = button.icon_mdi or "chevron-left"
         elif button.special_type == "go-to-page":
             page = button.special_type_data
-            text = button.text or f"Go to\nPage\n{page}"
+            if text is None:
+                text = f"Go to\nPage\n{page}"
             icon_mdi = button.icon_mdi or "book-open-page-variant"
         elif button.special_type == "close-page":
-            text = button.text or "Close\nPage"
+            if text is None:
+                text = "Close\nPage"
             icon_mdi = button.icon_mdi or "arrow-u-left-bottom-bold"
         elif button.special_type == "turn-off":
-            text = button.text or "Turn off"
+            if text is None:
+                text = "Turn off"
             icon_mdi = button.icon_mdi or "power"
         elif button.special_type == "reload":
-            text = button.text or "Reload\nconfig"
+            if text is None:
+                text = "Reload\nconfig"
             icon_mdi = button.icon_mdi or "reload"
         elif button.entity_id in complete_state:
             # Has entity_id
@@ -437,6 +443,8 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         if icon_convert_to_grayscale:
             image = _convert_to_grayscale(image)
 
+        if text is None:
+            return image
         return _add_text_to_image(
             image=image,
             font_filename=font_filename,
@@ -746,6 +754,8 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             if icon_convert_to_grayscale:
                 image = _convert_to_grayscale(image)
 
+            if text is None:
+                return image
             return _add_text_to_image(
                 image=image,
                 font_filename=font_filename,

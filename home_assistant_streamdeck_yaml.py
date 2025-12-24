@@ -952,12 +952,17 @@ class Config(BaseModel):
         default=1.0,
         description="The duration (in seconds) for a long press.",
     )
+    inactivity_time: float = Field(
+        default=-1,
+        description="Time in seconds to turn off the Stream Deck after inactivity. -1 to disable.",
+    )
     _current_page_index: int = PrivateAttr(default=0)
     _parent_page_index: int = PrivateAttr(default=0)
     _is_on: bool = PrivateAttr(default=True)
     _detached_page: Page | None = PrivateAttr(default=None)
     _configuration_file: Path | None = PrivateAttr(default=None)
     _include_files: list[Path] = PrivateAttr(default_factory=list)
+    _inactivity_task: asyncio.Task | None = PrivateAttr(default=None)
 
     @classmethod
     def load(
@@ -1506,6 +1511,27 @@ async def subscribe_state_changes(
     await websocket.send(json.dumps(subscribe_payload))
 
 
+def reset_inactivity_timer(
+    config: Config,
+    deck: StreamDeck,
+) -> None:
+    """Turn off the Stream Deck after inactivity."""
+
+    async def turn_off_timer() -> None:
+        if config.inactivity_time > 0:
+            await asyncio.sleep(config.inactivity_time)
+            console.log(
+                f"Turning off Stream Deck due to inactivity after {config.inactivity_time} seconds",
+            )
+            turn_off(config, deck)
+
+    if config._inactivity_task is not None:
+        config._inactivity_task.cancel()
+
+    if config.inactivity_time > 0:
+        config._inactivity_task = asyncio.create_task(turn_off_timer())
+
+
 async def handle_changes(
     websocket: websockets.ClientConnection,
     complete_state: StateDict,
@@ -1543,6 +1569,7 @@ async def handle_changes(
                 last_modified_time = max(edit_time(fn) for fn in files)
                 try:
                     config.reload()
+                    reset_inactivity_timer(config, deck)
                     deck.reset()
                     update_all_key_images(deck, config, complete_state)
                     update_all_dials(deck, config, complete_state)
@@ -2255,6 +2282,7 @@ def _on_touchscreen_event_callback(
         value: dict[str, int],
     ) -> None:
         console.log(f"Touchscreen event {event_type} called at value {value}")
+        reset_inactivity_timer(config, deck)
         if event_type == TouchscreenEventType.DRAG:
             # go to next or previous page
             if value["x"] > value["x_out"]:
@@ -2377,6 +2405,7 @@ def _on_dial_event_callback(
         console.log(
             f"Dial {dial_num} event {event_type} at value {value} has been called",
         )
+        reset_inactivity_timer(config, deck)
         dial = config.dial_sorted(dial_num)
         assert dial is not None
 
@@ -2488,6 +2517,7 @@ async def _handle_key_press(  # noqa: PLR0912, PLR0915
         return  # to skip the _detached_page reset below
     elif special_type == "reload":
         config.reload()
+        reset_inactivity_timer(config, deck)
         update_all()
         return
     elif service is not None:
@@ -2529,6 +2559,7 @@ def _on_press_callback(
         key_pressed: bool,  # noqa: FBT001
     ) -> None:
         console.log(f"Key {key} {'pressed' if key_pressed else 'released'}")
+        reset_inactivity_timer(config, deck)
 
         button = config.button(key)
         assert button is not None

@@ -42,6 +42,7 @@ from home_assistant_streamdeck_yaml import (
     _to_filename,
     _url_to_filename,
     get_states,
+    reset_inactivity_timer,
     run,
     setup_ws,
     update_all_key_images,
@@ -1706,3 +1707,95 @@ def test_brightness_entity_id(mock_deck: Mock) -> None:
     )
     assert config.brightness == 25  # noqa: PLR2004
     mock_deck.set_brightness.assert_not_called()  # Don't set when off
+
+
+async def test_inactivity_timer_config() -> None:
+    """Test inactivity_time config field.
+
+    Tests the inactivity timer feature from PR #193.
+    """
+    # Test default value (disabled)
+    config = Config()
+    assert config.inactivity_time == -1  # Disabled by default
+
+    # Test custom value
+    config = Config(inactivity_time=30)
+    assert config.inactivity_time == 30  # noqa: PLR2004
+
+    # Test zero (edge case - should not trigger timer)
+    config = Config(inactivity_time=0)
+    assert config.inactivity_time == 0
+
+
+async def test_inactivity_timer_basic(mock_deck: Mock) -> None:
+    """Test basic inactivity timer behavior.
+
+    Tests the reset_inactivity_timer function from PR #193.
+    """
+    # Test with timer disabled (default)
+    config = Config(inactivity_time=-1)
+    config._is_on = True
+    reset_inactivity_timer(config, mock_deck)
+    # No task should be created when disabled
+    assert config._inactivity_task is None
+
+    # Test with timer enabled
+    config = Config(inactivity_time=0.1)  # Very short for testing
+    config._is_on = True
+    reset_inactivity_timer(config, mock_deck)
+    # Task should be created
+    assert config._inactivity_task is not None
+    assert not config._inactivity_task.done()
+
+    # Cancel the task to clean up
+    config._inactivity_task.cancel()
+
+
+async def test_inactivity_timer_cancels_previous(mock_deck: Mock) -> None:
+    """Test that resetting the timer cancels the previous timer.
+
+    Regression test for PR #193 - ensures timer is properly reset on activity.
+    """
+    config = Config(inactivity_time=10)  # Long enough to not complete
+    config._is_on = True
+
+    # Start first timer
+    reset_inactivity_timer(config, mock_deck)
+    first_task = config._inactivity_task
+    assert first_task is not None
+
+    # Reset timer (simulating user activity)
+    reset_inactivity_timer(config, mock_deck)
+    second_task = config._inactivity_task
+
+    # Give event loop a chance to process the cancellation
+    await asyncio.sleep(0)
+
+    # First task should be cancelled or done (cancel was called on it)
+    assert first_task.cancelled() or first_task.done()
+    # Second task should be different and running
+    assert second_task is not first_task
+    assert second_task is not None
+    assert not second_task.done()
+
+    # Clean up
+    second_task.cancel()
+
+
+async def test_inactivity_timer_turns_off_deck(mock_deck: Mock) -> None:
+    """Test that the timer actually turns off the deck after inactivity.
+
+    Integration test for PR #193.
+    """
+    config = Config(inactivity_time=0.05)  # 50ms for fast testing
+    config._is_on = True
+
+    reset_inactivity_timer(config, mock_deck)
+
+    # Wait for timer to complete
+    await asyncio.sleep(0.1)
+
+    # Deck should be turned off
+    assert config._is_on is False
+    mock_deck.reset.assert_called()
+    mock_deck.set_brightness.assert_called_with(0)

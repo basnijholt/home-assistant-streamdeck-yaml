@@ -2826,6 +2826,14 @@ def _download_image(
     if image.mode != "RGB":
         image = image.convert("RGB")
     if filename is not None:
+        # If filename has no extension, add one based on the detected format
+        if filename.suffix == "":
+            # Determine format from the image, default to JPEG
+            fmt = image.format if image.format else "JPEG"
+            ext = fmt.lower()
+            if ext == "jpeg":
+                ext = "jpg"
+            filename = filename.with_suffix(f".{ext}")
         image.save(filename)
     return image.resize(size)
 

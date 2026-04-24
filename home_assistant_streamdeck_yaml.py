@@ -1212,6 +1212,11 @@ def _parse_ring_id(id_: str) -> tuple[float, tuple[int, int, int]]:
     Supports the legacy ``ring:<pct>`` form (color falls back to red) and
     an extended ``ring:<pct>:<hex>`` form where ``<hex>`` is a CSS-style
     color (``#rgb``, ``#rrggbb`` or the same without the leading ``#``).
+
+    An invalid color string logs a warning and falls back to red rather
+    than aborting the render — the caller would otherwise crash the LCD
+    refresh for a transient template oddity (e.g. ``state`` briefly out
+    of range while an integration reports an unexpected value).
     """
     parts = id_.split(":", 1)
     pct = _maybe_number(parts[0])
@@ -1223,18 +1228,24 @@ def _parse_ring_id(id_: str) -> tuple[float, tuple[int, int, int]]:
         hex_color = parts[1].lstrip("#")
         if len(hex_color) == 3:
             hex_color = "".join(c * 2 for c in hex_color)
-        if len(hex_color) != 6:
-            msg = f"Invalid ring color: {parts[1]}"
-            raise AssertionError(msg)
-        try:
-            ring_color = (
-                int(hex_color[0:2], 16),
-                int(hex_color[2:4], 16),
-                int(hex_color[4:6], 16),
+        parsed: tuple[int, int, int] | None = None
+        if len(hex_color) == 6:
+            try:
+                r, g, b = (
+                    int(hex_color[0:2], 16),
+                    int(hex_color[2:4], 16),
+                    int(hex_color[4:6], 16),
+                )
+                if 0 <= r <= 255 and 0 <= g <= 255 and 0 <= b <= 255:
+                    parsed = (r, g, b)
+            except ValueError:
+                parsed = None
+        if parsed is None:
+            console.log(
+                f"Invalid ring color '{parts[1]}' — falling back to red",
             )
-        except ValueError as err:
-            msg = f"Invalid ring color: {parts[1]}"
-            raise AssertionError(msg) from err
+        else:
+            ring_color = parsed
     return float(pct), ring_color
 
 

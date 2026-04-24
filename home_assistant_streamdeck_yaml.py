@@ -638,9 +638,29 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         allow_template=True,
         description="Whether events from the touchscreen are allowed, for example set the minimal value on `SHORT` and set maximal value on `LONG`.",
     )
+    ignore_state_for_secs: float = Field(
+        default=0.0,
+        allow_template=False,
+        description=(
+            "After the dial triggers a service call, ignore inbound Home"
+            " Assistant `state_changed` events for this many seconds before"
+            " refreshing the dial's display. Useful with integrations such as"
+            " Philips Hue that report intermediate brightness/temperature"
+            " values during a transition, which would otherwise cause the"
+            " ring to visibly jump backwards while the bulb finishes fading."
+            " The next state change after the window expires is applied as"
+            " usual, so the display still reflects the real settled state."
+            " `0` (the default) preserves the pre-existing behaviour."
+        ),
+    )
 
     # vars for timer
     _timer: AsyncDelayedCallback | None = PrivateAttr(None)
+
+    # Monotonic timestamp of the last outgoing service call triggered by a
+    # TURN / PUSH event — used together with ``ignore_state_for_secs`` to
+    # debounce inbound state_changed echoes during integration transitions.
+    _last_service_call_at: float = PrivateAttr(0.0)
 
     # Internal attributes for Dial
     _attributes: dict[str, float] = PrivateAttr(
@@ -1663,6 +1683,19 @@ def _update_state(
 
             keys_dials = _keys(eid, dials)
             for key in keys_dials:
+                dial_here = dials[key] if key < len(dials) else None
+                if (
+                    dial_here is not None
+                    and dial_here.ignore_state_for_secs > 0
+                    and (time.monotonic() - dial_here._last_service_call_at)
+                    < dial_here.ignore_state_for_secs
+                ):
+                    console.log(
+                        f"Skipping dial {key} refresh for {eid}"
+                        f" (within ignore_state_for_secs="
+                        f"{dial_here.ignore_state_for_secs}s)",
+                    )
+                    continue
                 console.log(f"Updating dial {key} for {eid}")
                 update_dial(
                     deck=deck,
@@ -2390,6 +2423,9 @@ async def handle_dial_event(
     elif value:
         return
 
+    # Keep a reference to the persistent (pre-render) dial so the timestamp
+    # sticks on the object that state_changed handlers will look up later.
+    original_dial = selected_dial
     if selected_dial.service is not None:
         selected_dial = selected_dial.rendered_template_dial(complete_state)
         service_data = (
@@ -2410,6 +2446,10 @@ async def handle_dial_event(
     console.log(
         f"Calling service {selected_dial.service} with data {selected_dial.service_data}",
     )
+    # Stamp the moment the outgoing service call is issued so inbound
+    # state_changed events can be suppressed during the configured
+    # transition window (see ``ignore_state_for_secs``).
+    original_dial._last_service_call_at = time.monotonic()
     await call_service(
         websocket,
         selected_dial.service,

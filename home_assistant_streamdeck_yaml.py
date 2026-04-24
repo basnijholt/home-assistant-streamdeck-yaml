@@ -154,7 +154,9 @@ class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
         " icon, like `'spotify:album/6gnYcXVaffdG0vwVM34cr8'`."
         " If the icon is a `spotify:` icon, the icon will be downloaded and cached."
         " The icon can also display a partially complete ring, like a progress bar,"
-        " or sensor value, like `ring:25` for a 25% complete ring.",
+        " or sensor value, like `ring:25` for a 25% complete ring."
+        " Append a CSS-style hex color (`ring:25:#ff8800` or `ring:25:f80`)"
+        " to override the default red; templates can build the color dynamically.",
     )
     icon_mdi: str | None = Field(
         default=None,
@@ -377,9 +379,8 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                 # copy to avoid modifying the cached image
                 image = _download_image(id_, filename, size).copy()
             if which == "ring":
-                pct = _maybe_number(id_)
-                assert isinstance(pct, (int, float)), f"Invalid ring percentage: {id_}"
-                image = _draw_percentage_ring(pct, size)
+                pct, ring_color = _parse_ring_id(id_)
+                image = _draw_percentage_ring(pct, size, ring_color=ring_color)
 
         icon_convert_to_grayscale = False
         text = button.text
@@ -722,15 +723,12 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                     filename = _url_to_filename(id_)
                     image = _download_image(id_, filename, size).copy()
                 elif which == "ring":
-                    pct = _maybe_number(id_)
-                    assert isinstance(
-                        pct,
-                        (int, float),
-                    ), f"Invalid ring percentage: {id_}"
+                    pct, ring_color = _parse_ring_id(id_)
                     image = _draw_percentage_ring(
                         percentage=pct,
                         size=size,
                         radius=40,
+                        ring_color=ring_color,
                     )
 
             icon_convert_to_grayscale = False
@@ -1186,6 +1184,38 @@ class AsyncDelayedCallback:
             elapsed_time = time.time() - self.start_time
             return max(0, self.delay - elapsed_time)
         return 0
+
+
+def _parse_ring_id(id_: str) -> tuple[float, tuple[int, int, int]]:
+    """Parse a ``ring:`` icon payload into ``(percentage, ring_color)``.
+
+    Supports the legacy ``ring:<pct>`` form (color falls back to red) and
+    an extended ``ring:<pct>:<hex>`` form where ``<hex>`` is a CSS-style
+    color (``#rgb``, ``#rrggbb`` or the same without the leading ``#``).
+    """
+    parts = id_.split(":", 1)
+    pct = _maybe_number(parts[0])
+    if not isinstance(pct, (int, float)):
+        msg = f"Invalid ring percentage: {parts[0]}"
+        raise AssertionError(msg)
+    ring_color: tuple[int, int, int] = (255, 0, 0)
+    if len(parts) > 1 and parts[1]:
+        hex_color = parts[1].lstrip("#")
+        if len(hex_color) == 3:
+            hex_color = "".join(c * 2 for c in hex_color)
+        if len(hex_color) != 6:
+            msg = f"Invalid ring color: {parts[1]}"
+            raise AssertionError(msg)
+        try:
+            ring_color = (
+                int(hex_color[0:2], 16),
+                int(hex_color[2:4], 16),
+                int(hex_color[4:6], 16),
+            )
+        except ValueError as err:
+            msg = f"Invalid ring color: {parts[1]}"
+            raise AssertionError(msg) from err
+    return float(pct), ring_color
 
 
 def _draw_percentage_ring(

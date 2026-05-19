@@ -4,10 +4,10 @@ FROM mambaorg/micromamba:lunar
 # Run the container as root to get access to the USB devices
 USER root
 
-WORKDIR /app
+WORKDIR /opt/home-assistant-streamdeck-yaml
 
 # Install the dependencies from the lock file
-COPY conda-lock.yml /app/conda-lock.yml
+COPY conda-lock.yml /opt/home-assistant-streamdeck-yaml/conda-lock.yml
 RUN micromamba install --name base --file conda-lock.yml
 
 # Install git
@@ -15,12 +15,15 @@ RUN micromamba install --name base --channel conda-forge --yes git && \
     micromamba clean --all --yes
 
 # Copy the rest of the files
-COPY . /app/
-COPY .git /app/.git
+COPY . /opt/home-assistant-streamdeck-yaml/
+COPY .git /opt/home-assistant-streamdeck-yaml/.git
 
 # Install home-assistant-streamdeck-yaml
 RUN micromamba run \
     pip install --no-deps -e .
+
+WORKDIR /app
+ENV STREAMDECK_CONFIG=/app/configuration.yaml
 
 # Set the entrypoint
 CMD ["home-assistant-streamdeck-yaml"]

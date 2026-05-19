@@ -6,16 +6,19 @@ USER root
 
 # Install unidep and git
 RUN micromamba install --name base --channel conda-forge --yes unidep git
-WORKDIR /app
+WORKDIR /opt/home-assistant-streamdeck-yaml
 
 # Copy the dependencies file for pip
-COPY . /app/
-COPY .git /app/.git
+COPY . /opt/home-assistant-streamdeck-yaml/
+COPY .git /opt/home-assistant-streamdeck-yaml/.git
 
 # Install the required dependencies
 RUN micromamba run \
     unidep install -e . && \
     micromamba clean --all --yes
+
+WORKDIR /app
+ENV STREAMDECK_CONFIG=/app/configuration.yaml
 
 # Set the entrypoint
 CMD ["home-assistant-streamdeck-yaml"]

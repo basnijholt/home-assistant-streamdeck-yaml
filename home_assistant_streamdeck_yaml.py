@@ -375,7 +375,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             if which == "url":
                 filename = _url_to_filename(id_)
                 # copy to avoid modifying the cached image
-                image = _download_image(id_, filename, size).copy()
+                image = _download_image(id_, filename, size, force_download=True).copy()
             if which == "ring":
                 pct = _maybe_number(id_)
                 assert isinstance(pct, (int, float)), f"Invalid ring percentage: {id_}"
@@ -720,7 +720,7 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
                     image = _download_spotify_image(id_, filename).copy()
                 elif which == "url":
                     filename = _url_to_filename(id_)
-                    image = _download_image(id_, filename, size).copy()
+                    image = _download_image(id_, filename, size, force_download=True).copy()
                 elif which == "ring":
                     pct = _maybe_number(id_)
                     assert isinstance(
@@ -2636,6 +2636,11 @@ async def _try_handle_key_press(
 
 @ft.lru_cache(maxsize=128)
 def _download(url: str) -> bytes:
+    """Download the content from the URL, cached by URL."""
+    return _download_uncached(url)
+
+
+def _download_uncached(url: str) -> bytes:
     """Download the content from the URL."""
     console.log(f"Downloading {url}")
     response = requests.get(url, timeout=5)
@@ -2810,18 +2815,19 @@ def _download_spotify_image(
     return _download_image(image_url, filename, size)
 
 
-@ft.lru_cache(maxsize=32)  # Change only a few images, because they might be large
 def _download_image(
     url: str,
     filename: Path | None = None,
     size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
+    *,
+    force_download: bool = False,
 ) -> Image.Image:
     """Download an image for a given url."""
-    if filename is not None and filename.exists():
+    if not force_download and filename is not None and filename.exists():
         image = Image.open(filename)
         # To correctly size after getting from file
         return image.resize(size)
-    image_content = _download(url)
+    image_content = _download_uncached(url) if force_download else _download(url)
     image = Image.open(io.BytesIO(image_content))
     if image.mode != "RGB":
         image = image.convert("RGB")

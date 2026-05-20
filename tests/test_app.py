@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import functools as ft
+import io
 import json
 import sys
 import textwrap
@@ -22,10 +23,12 @@ from websockets.exceptions import ConnectionClosedError  # noqa: F401
 from home_assistant_streamdeck_yaml import (
     ASSETS_PATH,
     DEFAULT_CONFIG,
+    ICON_PIXELS,
     Button,
     Config,
     IconWarning,
     Page,
+    _download,
     _download_and_save_mdi,
     _download_spotify_image,
     _generate_uniform_hex_colors,
@@ -459,6 +462,36 @@ def test_download_spotify_image() -> None:
     filename = _to_filename(icon, ".jpeg")
     _download_spotify_image(icon, filename)
     assert filename.exists()
+
+
+def test_url_icon_refreshes_on_render(tmp_path: Path) -> None:
+    """URL icons should be re-downloaded when the button is rendered again."""
+
+    def png_bytes(color: tuple[int, int, int]) -> bytes:
+        image = Image.new("RGB", (ICON_PIXELS, ICON_PIXELS), color)
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+        return buffer.getvalue()
+
+    responses = [Mock(content=png_bytes((255, 0, 0))), Mock(content=png_bytes((0, 255, 0)))]
+    expected_downloads = len(responses)
+    cached_file = tmp_path / "album.png"
+    button = Button(icon="url:https://example.com/local/images/album.jpg")
+
+    _download.cache_clear()
+    with (
+        patch("home_assistant_streamdeck_yaml._url_to_filename", return_value=cached_file),
+        patch(
+            "home_assistant_streamdeck_yaml.requests.get",
+            side_effect=responses,
+        ) as get,
+    ):
+        first = button.render_icon({})
+        second = button.render_icon({})
+
+    assert get.call_count == expected_downloads
+    assert first.getpixel((0, 0)) == (255, 0, 0)
+    assert second.getpixel((0, 0)) == (0, 255, 0)
 
 
 def test_is_state_attr(state: dict[str, dict[str, Any]]) -> None:

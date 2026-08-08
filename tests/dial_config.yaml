@@ -1,0 +1,39 @@
+- entity_id: input_number.streamdeck
+  turn:
+    service: input_number.set_value
+    service_data:
+      value: "{{ dial_value() }}"
+    properties:
+      min: 0
+      max: 100
+      step: 1
+  icon_mdi: television
+  allow_touchscreen_events: true
+- entity_id: input_number.streamdeck
+  push:
+    service: input_number.set_value
+    service_data:
+      value: 0
+- entity_id: input_number.streamdeck
+  turn:
+    service: input_number.set_value
+    service_data:
+      value: "{{ dial_value() }}"
+    properties:
+      min: 0
+      max: 100
+      step: 1
+      service_attribute: value
+  icon_mdi: home
+  text: Hello World
+- entity_id: input_number.streamdeck
+  turn:
+    service: input_number.set_value
+    service_data:
+      value: "{{ dial_value() }}"
+    properties:
+      min: 0
+      max: 100
+      step: 1
+      service_attribute: value
+  icon: spotify:playlist/37i9dQZF1DXaRycgyh6kXP

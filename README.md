@@ -260,6 +260,32 @@ pages:
         special_type_data: 0
 ```
 
+#### State-dependent button actions
+
+`special_type_template` lets one physical key perform its normal service when
+an item is inactive and open a detail page when that item is already active. It
+takes precedence over `special_type`, and an empty result falls back to the
+configured service.
+
+```yaml
+- service: script.activate_movie_mode
+  linked_entity: input_boolean.movie_mode
+  special_type_template: >-
+    {{ 'go-to-page' if is_state('input_boolean.movie_mode', 'on') else '' }}
+  special_type_data: Movie controls
+  text: MOVIE
+```
+
+Templates are not scanned for the entities they reference, so list any entity
+the template depends on as `entity_id` or `linked_entity`. Without it the key
+image is only redrawn when something else triggers a redraw, and the button can
+keep showing the previous state. The action itself is always evaluated at press
+time and stays correct either way.
+
+This pattern is useful for activating a scene versus editing it, selecting a
+media source versus opening transport controls, or enabling a climate preset
+versus opening its temperature controls.
+
 ### :link: Using `!include` for Modular Configuration
 
 > Warning: This feature does not work in the add-on version of this library at the moment.
@@ -364,6 +390,7 @@ Each button can take the following configuration
 | `icon_gray_when_off`    | ❌                | When specifying `icon` and `entity_id`, if the state is `off`, the icon will be converted to grayscale.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |           | `bool`                                                                                                                        |
 | `delay`                 | ✅                | The delay (in seconds) before the `service` is called. This is useful if you want to wait before calling the `service`. Counts down from the time the button is pressed. If while counting the button is pressed again, the timer is cancelled. Should be a float or template string that evaluates to a float.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |           | `Union[float, str]`                                                                                                           |
 | `special_type`          | ❌                | Special type of button. If no specified, the button is a normal button. If `next-page`, the button will go to the next page. If `previous-page`, the button will go to the previous page. If `turn-off`, the button will turn off the SteamDeck until any button is pressed. If `empty`, the button will be empty. If `close-page`, the button will close the current page and return to the previous one. If `go-to-page`, the button will go to the page specified by `special_type_data` (either an `int` or `str` (name of the page)). If `light-control`, the button will control a light, and the `special_type_data` can be a dictionary, see its description. If `reload`, the button will reload the configuration file when pressed.                          |           | `Optional[Literal['next-page', 'previous-page', 'empty', 'go-to-page', 'close-page', 'turn-off', 'light-control', 'reload']]` |
+| `special_type_template` | ✅                | Jinja template for a state-dependent special action. It takes precedence over `special_type`; an empty result lets `service` run.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |           | `Optional[str]`                                                                                                               |
 | `special_type_data`     | ✅                | Data for the special type of button. If `go-to-page`, the data should be an `int` or `str` (name of the page). If `light-control`, the data should optionally be a dictionary. The dictionary can contain the following keys: The `colors` key and a value a list of max (`n_keys_on_streamdeck - 6`) hex colors. The `color_temp_kelvin` key and a value a list of max (`n_keys_on_streamdeck - 6`) color temperatures in Kelvin. The `colormap` key and a value a colormap (https://matplotlib.org/stable/tutorials/colors/colormaps.html) can be used. This requires the `matplotlib` package to be installed. If no list of `colors` or `colormap` is specified, 10 equally spaced colors are used. The `brightnesses` key and a value of brightness level (0-100). |           | `Optional[Any]`                                                                                                               |
 | `long_press`            | ✅                | Configuration for long press actions. Can include: `service`: The service to call on long press (e.g., 'light.turn_off'). `service_data`: Data to pass to the service (e.g., {'brightness_pct': 10}). `entity_id`: The entity ID to target (e.g., 'light.living_room'), overriding the button's entity_id if specified. `target`: Target specification for the service call (e.g., {'entity_id': 'light.living_room'}). `special_type`: Special action for long press (e.g., 'next-page', 'light-control'). `special_type_data`: Data for the special type action (e.g., {'colors': ['#FF0000']}). If not specified, the default service or special_type action is used for both short and long presses.                                                                |           | `Optional[Mapping[str, Any]]`                                                                                                 |
 

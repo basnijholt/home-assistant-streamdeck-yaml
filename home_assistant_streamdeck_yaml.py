@@ -2681,16 +2681,18 @@ def _on_press_callback(
             key_pressed=False,
         )
 
-        pending_task = long_press_tasks.pop(key) if key in long_press_tasks else None
+        pending_task = long_press_tasks.pop(key, None)
+        if key in long_press_triggered:
+            # The action already fired and may still be in flight (a service
+            # call, say), so let it finish instead of cancelling it here.
+            long_press_triggered.discard(key)
+            console.log(f"Long press release consumed for key {key}")
+            return
+
         if pending_task is not None and not pending_task.done():
             pending_task.cancel()
             with suppress(asyncio.CancelledError):
                 await pending_task
-
-        if key in long_press_triggered:
-            long_press_triggered.remove(key)
-            console.log(f"Long press release consumed for key {key}")
-            return
 
         if config.long_press_trigger == "threshold":
             await _handle_short_key_press(

@@ -17,7 +17,7 @@ import ssl
 import sys
 import time
 import warnings
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import (
@@ -25,6 +25,7 @@ from typing import (
     Any,
     Callable,
     Literal,
+    Protocol,
     TextIO,
     TypeAlias,
     get_args,
@@ -82,6 +83,19 @@ press_start_times: dict[int, float] = {}  # Dictionary to store press start time
 
 console = Console()
 StateDict: TypeAlias = dict[str, dict[str, Any]]
+
+
+class KeyChangeCallback(Protocol):
+    """Callable shape used by Stream Deck key event handlers."""
+
+    async def __call__(
+        self,
+        deck: StreamDeck,
+        key: int,
+        key_pressed: bool,  # noqa: FBT001
+    ) -> None:
+        """Handle a key state change."""
+        ...
 
 
 class _ButtonDialBase(BaseModel, extra="forbid"):  # type: ignore[call-arg]
@@ -951,6 +965,12 @@ class Config(BaseModel):
     long_press_duration: float = Field(
         default=1.0,
         description="The duration (in seconds) for a long press.",
+    )
+    long_press_trigger: Literal["release", "threshold"] = Field(
+        default="release",
+        description="When to trigger a configured long press action."
+        " Use `release` for the existing release-time behavior or `threshold`"
+        " to trigger as soon as `long_press_duration` is reached.",
     )
     inactivity_time: float = Field(
         default=-1,
@@ -2546,12 +2566,69 @@ async def _handle_key_press(  # noqa: PLR0912, PLR0915
         update_all()
 
 
+async def _monitor_long_press(
+    websocket: websockets.ClientConnection,
+    complete_state: StateDict,
+    config: Config,
+    button: Button,
+    deck: StreamDeck,
+    key: int,
+    long_press_triggered: set[int],
+) -> None:
+    """Run a long press action as soon as its threshold is reached."""
+    await asyncio.sleep(config.long_press_duration)
+    long_press_triggered.add(key)
+    console.log(f"Long press threshold reached for key {key}")
+    await _try_handle_key_press(
+        websocket,
+        complete_state,
+        config,
+        button,
+        deck,
+        is_long_press=True,
+    )
+
+
+def _consume_task_result(task: asyncio.Task[None]) -> None:
+    """Retrieve a background task result so exceptions are not left unhandled."""
+    if not task.cancelled():
+        task.exception()
+
+
+async def _handle_short_key_press(
+    websocket: websockets.ClientConnection,
+    complete_state: StateDict,
+    config: Config,
+    button: Button,
+    deck: StreamDeck,
+    key: int,
+) -> None:
+    """Run the short action while preserving the existing delay behavior."""
+    console.log(f"Handling short press for key {key}")
+    callback = ft.partial(
+        _try_handle_key_press,
+        websocket=websocket,
+        complete_state=complete_state,
+        config=config,
+        button=button,
+        deck=deck,
+        is_long_press=False,
+    )
+    if button.maybe_start_or_cancel_timer(callback):
+        console.log(f"Timer started for key {key}, delaying short press")
+    else:
+        await callback()
+
+
 def _on_press_callback(
     websocket: websockets.ClientConnection,
     complete_state: StateDict,
     config: Config,
-) -> Callable[[StreamDeck, int, bool], Coroutine[StreamDeck, int, None]]:
+) -> KeyChangeCallback:
     press_start_times: dict[int, float] = {}
+    pressed_buttons: dict[int, Button] = {}
+    long_press_tasks: dict[int, asyncio.Task[None]] = {}
+    long_press_triggered: set[int] = set()
 
     async def key_change_callback(
         deck: StreamDeck,
@@ -2561,10 +2638,11 @@ def _on_press_callback(
         console.log(f"Key {key} {'pressed' if key_pressed else 'released'}")
         reset_inactivity_timer(config, deck)
 
-        button = config.button(key)
-        assert button is not None
         if key_pressed:
+            button = config.button(key)
+            assert button is not None
             press_start_times[key] = time.time()
+            pressed_buttons[key] = button
             console.log(
                 f"Key {key} pressed, starting long press monitor with threshold {config.long_press_duration}s",
             )
@@ -2575,9 +2653,24 @@ def _on_press_callback(
                 complete_state=complete_state,
                 key_pressed=True,
             )
+            if config.long_press_trigger == "threshold" and button.long_press:
+                monitor_task = asyncio.create_task(
+                    _monitor_long_press(
+                        websocket,
+                        complete_state,
+                        config,
+                        button,
+                        deck,
+                        key,
+                        long_press_triggered,
+                    ),
+                )
+                monitor_task.add_done_callback(_consume_task_result)
+                long_press_tasks[key] = monitor_task
             return
 
         # Key released
+        button = pressed_buttons.pop(key)
         press_duration = time.time() - press_start_times.pop(key)
         console.log(f"Key {key} released after {press_duration:.2f}s")
         update_key_image(
@@ -2587,24 +2680,50 @@ def _on_press_callback(
             complete_state=complete_state,
             key_pressed=False,
         )
-        cb = ft.partial(
-            _try_handle_key_press,
-            websocket=websocket,
-            complete_state=complete_state,
-            config=config,
-            button=button,
-            deck=deck,
-            is_long_press=False,
-        )
+
+        pending_task = long_press_tasks.pop(key, None)
+        if key in long_press_triggered:
+            # The action already fired and may still be in flight (a service
+            # call, say), so let it finish instead of cancelling it here.
+            long_press_triggered.discard(key)
+            console.log(f"Long press release consumed for key {key}")
+            return
+
+        if pending_task is not None and not pending_task.done():
+            pending_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await pending_task
+
+        if config.long_press_trigger == "threshold":
+            await _handle_short_key_press(
+                websocket,
+                complete_state,
+                config,
+                button,
+                deck,
+                key,
+            )
+            return
+
         if press_duration < config.long_press_duration:
-            console.log(f"Handling short press for key {key}")
-            if button.maybe_start_or_cancel_timer(cb):
-                console.log(f"Timer started for key {key}, delaying short press")
-            else:
-                await cb(is_long_press=False)
+            await _handle_short_key_press(
+                websocket,
+                complete_state,
+                config,
+                button,
+                deck,
+                key,
+            )
         else:
             console.log(f"Handling long press for key {key}")
-            await cb(is_long_press=True)
+            await _try_handle_key_press(
+                websocket,
+                complete_state,
+                config,
+                button,
+                deck,
+                is_long_press=True,
+            )
 
     return key_change_callback
 

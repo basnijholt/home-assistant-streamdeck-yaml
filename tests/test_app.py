@@ -388,6 +388,37 @@ async def test_special_type_template_selects_navigation_or_service(
     assert payload["service"] == "apply_saved_preset"
 
 
+async def test_special_type_data_template_rendered_for_navigation(
+    websocket_mock: Mock,
+    mock_deck: Mock,
+) -> None:
+    """Test that templates in special_type_data render for special_type actions.
+
+    Regression test: previously the button was only rendered inside the
+    `service` branch, so a template in `special_type_data` reached
+    `config.to_page()` as a raw string and navigation silently did nothing.
+    """
+    button = Button(
+        special_type="go-to-page",
+        special_type_data="{{ states('input_text.target_page') }}",
+    )
+    home = Page(name="Home", buttons=[button])
+    editor = Page(name="Mode Editor", buttons=[])
+    config = Config(pages=[home, editor])
+    state = {"input_text.target_page": {"state": "Mode Editor", "attributes": {}}}
+
+    await _handle_key_press(
+        websocket_mock,
+        state,
+        config,
+        button,
+        mock_deck,
+        is_long_press=False,
+    )
+
+    assert config.current_page() == editor
+
+
 def test_long_press_target_allowed() -> None:
     """Test that 'target' is allowed in long_press configuration.
 

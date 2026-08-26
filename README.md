@@ -269,11 +269,18 @@ configured service.
 
 ```yaml
 - service: script.activate_movie_mode
+  linked_entity: input_boolean.movie_mode
   special_type_template: >-
     {{ 'go-to-page' if is_state('input_boolean.movie_mode', 'on') else '' }}
   special_type_data: Movie controls
   text: MOVIE
 ```
+
+Templates are not scanned for the entities they reference, so list any entity
+the template depends on as `entity_id` or `linked_entity`. Without it the key
+image is only redrawn when something else triggers a redraw, and the button can
+keep showing the previous state. The action itself is always evaluated at press
+time and stays correct either way.
 
 This pattern is useful for activating a scene versus editing it, selecting a
 media source versus opening transport controls, or enabling a climate preset

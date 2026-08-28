@@ -38,6 +38,7 @@ dependencies = [
     "requests",
     "rich",
     "websockets",
+    "zeroconf",
     {conda = "libusb"},
     {conda = "libhidapi"},
     {conda = "libudev:linux"},
@@ -50,6 +51,7 @@ platforms = [
 
 [tool.setuptools]
 py-modules = ["home_assistant_streamdeck_yaml"]
+packages = ["streamdeck_tcp"]
 
 [tool.pytest.ini_options]
 addopts = """
@@ -99,6 +101,7 @@ ignore = [
 "tests/*" = ["SLF001"]
 "tests/test_examples.py" = ["E501"]
 ".github/*" = ["INP001"]
+"scripts/*" = ["INP001"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 18

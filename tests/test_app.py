@@ -1318,10 +1318,143 @@ async def test_long_press(
     # uses `short` action because no long action is configured
     assert config.current_page() == short
 
-    # NOTE: A potential future enhancement would be to trigger the long press action
-    # automatically when the threshold is reached (without waiting for release).
-    # This would require background monitoring and is not currently implemented -
-    # the long press action only triggers on key release.
+    # The default release trigger preserves the original long press behavior.
+
+
+async def test_long_press_release_trigger_remains_default(
+    mock_deck: Mock,
+    websocket_mock: Mock,
+    state: dict[str, dict[str, Any]],
+) -> None:
+    """Keep waiting for release unless threshold triggering is requested."""
+    threshold = 0.01
+    home = Page(
+        name="home",
+        buttons=[
+            Button(
+                long_press={"special_type": "go-to-page", "special_type_data": "long"},
+            ),
+        ],
+    )
+    long = Page(name="long", buttons=[])
+    config = Config(pages=[home, long], long_press_duration=threshold)
+    press = _on_press_callback(websocket_mock, state, config)
+
+    with (
+        patch("home_assistant_streamdeck_yaml.update_key_image"),
+        patch("home_assistant_streamdeck_yaml.update_all_key_images"),
+        patch("home_assistant_streamdeck_yaml.update_all_dials"),
+    ):
+        await press(mock_deck, 0, key_pressed=True)
+        await asyncio.sleep(threshold * 2)
+        assert config.current_page() == home
+        await press(mock_deck, 0, key_pressed=False)
+        assert config.current_page() == long
+
+
+def test_validate_long_press_trigger() -> None:
+    """Reject unknown long press trigger modes."""
+    with pytest.raises(ValidationError):
+        Config(long_press_trigger="invalid")
+
+
+async def test_long_press_triggers_at_threshold_and_consumes_release(
+    mock_deck: Mock,
+    websocket_mock: Mock,
+    state: dict[str, dict[str, Any]],
+) -> None:
+    """Trigger a long action while held without pressing the destination key."""
+    threshold = 0.01
+    home = Page(
+        name="home",
+        buttons=[
+            Button(
+                special_type="go-to-page",
+                special_type_data="short",
+                long_press={"special_type": "go-to-page", "special_type_data": "long"},
+            ),
+            Button(special_type="go-to-page", special_type_data="short"),
+        ],
+    )
+    short = Page(name="short", buttons=[])
+    # If release is not consumed after navigation, this button would return home.
+    long = Page(
+        name="long",
+        buttons=[Button(special_type="go-to-page", special_type_data="home")],
+    )
+    config = Config(
+        pages=[home, short, long],
+        long_press_duration=threshold,
+        long_press_trigger="threshold",
+    )
+    press = _on_press_callback(websocket_mock, state, config)
+
+    with (
+        patch("home_assistant_streamdeck_yaml.update_key_image"),
+        patch("home_assistant_streamdeck_yaml.update_all_key_images"),
+        patch("home_assistant_streamdeck_yaml.update_all_dials"),
+    ):
+        await press(mock_deck, 0, key_pressed=True)
+        await asyncio.sleep(threshold * 2)
+        assert config.current_page() == long
+
+        await press(mock_deck, 0, key_pressed=False)
+        assert config.current_page() == long
+
+        config.to_page("home")
+        await press(mock_deck, 0, key_pressed=True)
+        await press(mock_deck, 0, key_pressed=False)
+        assert config.current_page() == short
+
+        # A button without a long action retains its short action even when held.
+        config.to_page("home")
+        await press(mock_deck, 1, key_pressed=True)
+        await asyncio.sleep(threshold * 2)
+        assert config.current_page() == home
+        await press(mock_deck, 1, key_pressed=False)
+        assert config.current_page() == short
+
+
+async def test_long_press_release_does_not_cancel_running_action(
+    mock_deck: Mock,
+    websocket_mock: Mock,
+) -> None:
+    """Releasing mid-action must not cancel a threshold-triggered long press.
+
+    Regression test: the release handler cancelled any task that was not
+    `done()`, which includes a task that already fired and is still awaiting
+    its service call. The release was then treated as consumed, so the action
+    was dropped with no feedback.
+    """
+    threshold = 0.01
+    button = Button(long_press={"service": "script.slow_action"})
+    config = Config(
+        pages=[Page(name="home", buttons=[button])],
+        long_press_duration=threshold,
+        long_press_trigger="threshold",
+    )
+    started = asyncio.Event()
+    finished = asyncio.Event()
+
+    async def slow_call_service(*_args: Any, **_kwargs: Any) -> None:
+        started.set()
+        await asyncio.sleep(0.05)
+        finished.set()
+
+    with (
+        patch("home_assistant_streamdeck_yaml.update_key_image"),
+        patch("home_assistant_streamdeck_yaml.update_all_key_images"),
+        patch("home_assistant_streamdeck_yaml.update_all_dials"),
+        patch("home_assistant_streamdeck_yaml.call_service", slow_call_service),
+    ):
+        press = _on_press_callback(websocket_mock, {}, config)
+        await press(mock_deck, 0, key_pressed=True)
+        # Release while the long press action is still in flight.
+        await asyncio.wait_for(started.wait(), timeout=2)
+        await press(mock_deck, 0, key_pressed=False)
+        await asyncio.sleep(0.15)
+
+    assert finished.is_set(), "long press action was cancelled by the release"
 
 
 async def test_long_press_template_rendering(

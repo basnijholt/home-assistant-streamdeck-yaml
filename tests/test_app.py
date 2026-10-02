@@ -332,6 +332,93 @@ def test_validate_special_type(button_dict: dict[str, dict[str, Any]]) -> None:
         Button(**dict(button_dict["special_goto_0"], special_type_data=[]))
 
 
+def test_special_type_template_rendering() -> None:
+    """Test that special_type can select navigation based on entity state."""
+    button = Button(
+        service="script.apply_saved_preset",
+        special_type_template="{{ 'go-to-page' if is_state('sensor.mode', 'active') else '' }}",
+        special_type_data="{{ 'Mode Editor' }}",
+    )
+
+    active = {"sensor.mode": {"state": "active", "attributes": {}}}
+    inactive = {"sensor.mode": {"state": "inactive", "attributes": {}}}
+
+    assert button.rendered_template_button(active).special_type == "go-to-page"
+    assert button.rendered_template_button(inactive).special_type is None
+
+
+async def test_special_type_template_selects_navigation_or_service(
+    websocket_mock: Mock,
+    mock_deck: Mock,
+) -> None:
+    """Use navigation when active and the configured service otherwise."""
+    button = Button(
+        service="script.apply_saved_preset",
+        special_type_template="{{ 'go-to-page' if is_state('sensor.mode', 'active') else '' }}",
+        special_type_data="Mode Editor",
+    )
+    home = Page(name="Home", buttons=[button])
+    editor = Page(name="Mode Editor", buttons=[])
+
+    active = {"sensor.mode": {"state": "active", "attributes": {}}}
+    active_config = Config(pages=[home, editor])
+    await _handle_key_press(
+        websocket_mock,
+        active,
+        active_config,
+        button,
+        mock_deck,
+        is_long_press=False,
+    )
+    assert active_config.current_page() == editor
+    websocket_mock.send.assert_not_called()
+
+    inactive = {"sensor.mode": {"state": "inactive", "attributes": {}}}
+    inactive_config = Config(pages=[home, editor])
+    await _handle_key_press(
+        websocket_mock,
+        inactive,
+        inactive_config,
+        button,
+        mock_deck,
+        is_long_press=False,
+    )
+    payload = json.loads(websocket_mock.send.call_args.args[0])
+    assert payload["domain"] == "script"
+    assert payload["service"] == "apply_saved_preset"
+
+
+async def test_special_type_data_template_rendered_for_navigation(
+    websocket_mock: Mock,
+    mock_deck: Mock,
+) -> None:
+    """Test that templates in special_type_data render for special_type actions.
+
+    Regression test: previously the button was only rendered inside the
+    `service` branch, so a template in `special_type_data` reached
+    `config.to_page()` as a raw string and navigation silently did nothing.
+    """
+    button = Button(
+        special_type="go-to-page",
+        special_type_data="{{ states('input_text.target_page') }}",
+    )
+    home = Page(name="Home", buttons=[button])
+    editor = Page(name="Mode Editor", buttons=[])
+    config = Config(pages=[home, editor])
+    state = {"input_text.target_page": {"state": "Mode Editor", "attributes": {}}}
+
+    await _handle_key_press(
+        websocket_mock,
+        state,
+        config,
+        button,
+        mock_deck,
+        is_long_press=False,
+    )
+
+    assert config.current_page() == editor
+
+
 def test_long_press_target_allowed() -> None:
     """Test that 'target' is allowed in long_press configuration.
 

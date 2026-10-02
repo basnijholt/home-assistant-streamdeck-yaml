@@ -260,6 +260,12 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " can be a dictionary, see its description."
         " If `reload`, the button will reload the configuration file when pressed.",
     )
+    special_type_template: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="Jinja template for a state-dependent special action."
+        " It takes precedence over `special_type`; an empty result lets `service` run.",
+    )
     special_type_data: Any | None = Field(
         default=None,
         allow_template=True,
@@ -321,6 +327,8 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
             if key not in dct:
                 continue
             dct[key] = render_value(dct[key])
+        if "special_type_template" in dct:
+            dct["special_type"] = dct.pop("special_type_template") or None
         return Button(**dct)
 
     def try_render_icon(
@@ -2469,6 +2477,7 @@ async def _handle_key_press(  # noqa: PLR0912, PLR0915
         update_all_key_images(deck, config, complete_state)
         update_all_dials(deck, config, complete_state)
 
+    button = button.rendered_template_button(complete_state)
     if is_long_press and button.long_press:
         entity_id = button.long_press.get("entity_id", button.entity_id)
         service = button.long_press.get("service")
@@ -2521,8 +2530,6 @@ async def _handle_key_press(  # noqa: PLR0912, PLR0915
         update_all()
         return
     elif service is not None:
-        button = button.rendered_template_button(complete_state)
-        # Re-extract values from rendered button to get template-rendered values
         if is_long_press and button.long_press:
             service = button.long_press.get("service") or button.service
             service_data = button.long_press.get("service_data")

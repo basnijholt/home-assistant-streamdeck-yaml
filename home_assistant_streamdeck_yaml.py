@@ -42,6 +42,7 @@ from rich.console import Console
 from rich.table import Table
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.Devices.StreamDeck import DialEventType, TouchscreenEventType
+from StreamDeck.Devices.StreamDeckPlus import StreamDeckPlus
 from StreamDeck.ImageHelpers import PILHelper
 
 if TYPE_CHECKING:
@@ -951,6 +952,17 @@ class Config(BaseModel):
     long_press_duration: float = Field(
         default=1.0,
         description="The duration (in seconds) for a long press.",
+    )
+    streamdeck_address: str | None = Field(
+        default=None,
+        description="Static IP address of a Stream Deck's Elgato Network Dock."
+        " Only used as a fallback when no USB-connected Stream Deck is found"
+        " and mDNS discovery doesn't find one either -- leave unset to rely"
+        " on mDNS discovery.",
+    )
+    streamdeck_port: int = Field(
+        default=5343,
+        description="TCP port of the Elgato Network Dock at `streamdeck_address`.",
     )
     inactivity_time: float = Field(
         default=-1,
@@ -2185,21 +2197,36 @@ def update_key_image(
         deck.set_key_image(key, image)
 
 
-def get_deck() -> StreamDeck:
-    """Get the first Stream Deck device found on the system."""
+def get_deck(config: Config) -> StreamDeck:
+    """Get the first Stream Deck device found, trying USB before the network."""
     streamdecks = DeviceManager().enumerate()
-    found = False
     for deck in streamdecks:
         if not deck.is_visual():
             continue
         deck.open()
         deck.reset()
-        found = True
-        break
-    if not found:
-        msg = "No Stream Deck found"
-        raise RuntimeError(msg)
-    console.log(f"Found {deck.key_count()} keys, {deck=}")
+        console.log(f"Found {deck.key_count()} keys (USB), {deck=}")
+        return deck
+
+    from streamdeck_tcp.device import TCPTransportDevice
+    from streamdeck_tcp.discovery import discover_first_dock
+
+    if config.streamdeck_address:
+        host, port = config.streamdeck_address, config.streamdeck_port
+        console.log(f"Using configured Stream Deck network address {host}:{port}")
+    else:
+        dock = discover_first_dock()
+        if dock is None:
+            msg = "No Stream Deck found (checked USB and mDNS discovery)"
+            raise RuntimeError(msg)
+        host, port = dock.address, dock.port
+        console.log(f"Discovered Stream Deck Network Dock via mDNS at {host}:{port}")
+
+    device = TCPTransportDevice(host, dock_port=port)
+    deck = StreamDeckPlus(device)
+    deck.open()
+    deck.reset()
+    console.log(f"Found {deck.key_count()} keys (network), {deck=}")
     return deck
 
 
@@ -3153,7 +3180,7 @@ def main() -> None:
     )
     config = Config.load(args.config, yaml_encoding=args.yaml_encoding)
 
-    deck = get_deck()
+    deck = get_deck(config)
     handler = _get_signal_handler(deck)
     signal.signal(signal.SIGINT, handler)
     signal.signal(signal.SIGTERM, handler)

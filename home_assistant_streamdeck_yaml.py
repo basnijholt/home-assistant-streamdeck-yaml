@@ -569,7 +569,7 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
 
     def maybe_start_or_cancel_timer(
         self,
-        callback: Callable[[], None | Coroutine] | None = None,
+        callback: Callable[[], Coroutine | None] | None = None,
     ) -> bool:
         """Start or cancel the timer."""
         if self.delay:
@@ -776,7 +776,7 @@ class Dial(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
 
     def start_or_restart_timer(
         self,
-        callback: Callable[[], None | Coroutine] | None = None,
+        callback: Callable[[], Coroutine | None] | None = None,
     ) -> bool:
         """Starts or restarts AsyncDelayedCallback timer."""
         if not self.delay:
@@ -1139,7 +1139,7 @@ class AsyncDelayedCallback:
     def __init__(
         self,
         delay: float,
-        callback: Callable[[], None | Coroutine] | None = None,
+        callback: Callable[[], Coroutine | None] | None = None,
     ) -> None:
         """Initialize."""
         self.delay = delay
@@ -2835,7 +2835,7 @@ def _download_image(
         # If filename has no extension, add one based on the detected format
         if filename.suffix == "":
             # Determine format from the image, default to JPEG
-            fmt = image.format if image.format else "JPEG"
+            fmt = image.format or "JPEG"
             ext = fmt.lower()
             if ext == "jpeg":
                 ext = "jpg"

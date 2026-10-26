@@ -141,89 +141,71 @@
         }
       }
     },
-    "libusb1@1.0.29": {
-      "last_modified": "2025-12-18T02:44:17Z",
-      "resolved": "github:NixOS/nixpkgs/def3da69945bbe338c373fddad5a1bb49cf199ce#libusb1",
+    "libusb1@1.0.30": {
+      "last_modified": "2026-10-24T11:44:37Z",
+      "resolved": "github:NixOS/nixpkgs/d3b13ad75cc492690728f9307e443dec9ef9a20e#libusb1",
       "source": "devbox-search",
-      "version": "1.0.29",
+      "version": "1.0.30",
       "systems": {
         "aarch64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/586xakxhymjqa43kc0mjvbil4cpbfgnd-libusb-1.0.29",
+              "path": "/nix/store/jwpj1gwnrl8kx7vbb0i0dlsjqwj6sb4q-libusb-1.0.30",
               "default": true
             },
             {
               "name": "dev",
-              "path": "/nix/store/8bnws5lj0rkyavrmsg3d8j53pd3h2msi-libusb-1.0.29-dev"
+              "path": "/nix/store/pr5bmk2j82s9pxvip1i6jx7k2q8gs5lc-libusb-1.0.30-dev"
             },
             {
               "name": "doc",
-              "path": "/nix/store/l6g8gqab0vdjqq4zwl99xibg3xxjs57n-libusb-1.0.29-doc"
+              "path": "/nix/store/sfkh8az4a98l955qc4h0qi7kyiwy15jq-libusb-1.0.30-doc"
             }
           ],
-          "store_path": "/nix/store/586xakxhymjqa43kc0mjvbil4cpbfgnd-libusb-1.0.29"
+          "store_path": "/nix/store/jwpj1gwnrl8kx7vbb0i0dlsjqwj6sb4q-libusb-1.0.30"
         },
         "aarch64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/9clgd2wfp5syfglbpmzlg6dm5p6hwa1v-libusb-1.0.29",
+              "path": "/nix/store/hrcwj71lmx4aabknf5kplmzjqzvvkcbs-libusb-1.0.30",
               "default": true
             },
             {
               "name": "dev",
-              "path": "/nix/store/hwr20q5lw1z3dixkfic78c85xk0jfjs5-libusb-1.0.29-dev"
+              "path": "/nix/store/mnmblrvqdzj1m6xf8wjr1zdirgrkim27-libusb-1.0.30-dev"
             },
             {
               "name": "doc",
-              "path": "/nix/store/1x3k2y0yc2770xsqggg18qlrplhp96pg-libusb-1.0.29-doc"
+              "path": "/nix/store/igr0zxvdksspd47pqa27zgbwys2k5gpi-libusb-1.0.30-doc"
             }
           ],
-          "store_path": "/nix/store/9clgd2wfp5syfglbpmzlg6dm5p6hwa1v-libusb-1.0.29"
-        },
-        "x86_64-darwin": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/pw169iwxlh8hs5j2pw22g82zrg00w94w-libusb-1.0.29",
-              "default": true
-            },
-            {
-              "name": "dev",
-              "path": "/nix/store/ya8gvss8r8d3qcn42n23gd4kl48b3n0s-libusb-1.0.29-dev"
-            },
-            {
-              "name": "doc",
-              "path": "/nix/store/ssxzqi7mv4v26pmxw6w771p2gnbq9lcv-libusb-1.0.29-doc"
-            }
-          ],
-          "store_path": "/nix/store/pw169iwxlh8hs5j2pw22g82zrg00w94w-libusb-1.0.29"
+          "store_path": "/nix/store/hrcwj71lmx4aabknf5kplmzjqzvvkcbs-libusb-1.0.30"
         },
         "x86_64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/00s3yaabi3v8y64qq5jwgg5g4dlnmcpq-libusb-1.0.29",
+              "path": "/nix/store/k0ac9glg0y925lxx2hs52b22ragnrglg-libusb-1.0.30",
               "default": true
             },
             {
               "name": "dev",
-              "path": "/nix/store/2wjb7lnk2jhn0m3n1bgmk7p83aznjdm7-libusb-1.0.29-dev"
+              "path": "/nix/store/z62s5gwww106kgxsk64qg2szndcli1pr-libusb-1.0.30-dev"
             },
             {
               "name": "doc",
-              "path": "/nix/store/fnsfghd1rqn4ndvp76y0fzr2lhcjzzbs-libusb-1.0.29-doc"
+              "path": "/nix/store/9yw4hi4fcwzmdm7l149xq86l1qldy7cj-libusb-1.0.30-doc"
             }
           ],
-          "store_path": "/nix/store/00s3yaabi3v8y64qq5jwgg5g4dlnmcpq-libusb-1.0.29"
+          "store_path": "/nix/store/k0ac9glg0y925lxx2hs52b22ragnrglg-libusb-1.0.30"
         }
       }
     },
     "python@3.14": {
       "last_modified": "2025-11-23T21:50:36Z",
-      "plugin_version": "0.0.4",
+      "plugin_version": "0.0.5",
       "resolved": "github:NixOS/nixpkgs/ee09932cedcef15aaf476f9343d1dea2cb77e261#python314",
       "source": "devbox-search",
       "version": "3.14.0",

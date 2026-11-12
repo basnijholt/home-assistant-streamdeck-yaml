@@ -1,91 +1,73 @@
 {
   "lockfile_version": "1",
   "packages": {
-    "cairo@1.18.4": {
-      "last_modified": "2025-12-21T10:48:17Z",
-      "resolved": "github:NixOS/nixpkgs/306ea70f9eb0fb4e040f8540e2deab32ed7e2055#cairo",
+    "cairo@1.18.6": {
+      "last_modified": "2026-11-11T14:42:58Z",
+      "resolved": "github:NixOS/nixpkgs/9397dcb09c9598a33509fbc0cce699bd4e6c84d5#cairo",
       "source": "devbox-search",
-      "version": "1.18.4",
+      "version": "1.18.6",
       "systems": {
         "aarch64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/14j2m15qpjzpyh1j2drb9qwinlmhd9fc-cairo-1.18.4",
+              "path": "/nix/store/7npbnfkld27vpykazm2fqin6ixd6bd7q-cairo-1.18.6",
               "default": true
             },
             {
               "name": "dev",
-              "path": "/nix/store/41p60wf0lz599g075ipl97zs5y8lf1pm-cairo-1.18.4-dev"
+              "path": "/nix/store/dczg0f5pglnx998gvcinzjcmx1salaa5-cairo-1.18.6-dev"
             },
             {
               "name": "devdoc",
-              "path": "/nix/store/k83g74vv1np6z2aqwnp6xw8knwr0d9gn-cairo-1.18.4-devdoc"
+              "path": "/nix/store/6dgz160f4jrg5r9pjbzda9w6kx61bmz3-cairo-1.18.6-devdoc"
             }
           ],
-          "store_path": "/nix/store/14j2m15qpjzpyh1j2drb9qwinlmhd9fc-cairo-1.18.4"
+          "store_path": "/nix/store/7npbnfkld27vpykazm2fqin6ixd6bd7q-cairo-1.18.6"
         },
         "aarch64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/0ypx265mgr0imfa80zgs9gvap9d7cbwq-cairo-1.18.4",
+              "path": "/nix/store/5x3sm1lp2lhk0c36b4gbwgd5xi3ah9b6-cairo-1.18.6",
               "default": true
             },
             {
               "name": "debug",
-              "path": "/nix/store/v69laqhfl6lamm4gjf973bx5ml3vd7fq-cairo-1.18.4-debug"
+              "path": "/nix/store/kv8rb2g67j62p6fhpg1ln6lqqy1mx4az-cairo-1.18.6-debug"
             },
             {
               "name": "dev",
-              "path": "/nix/store/pks0z582cww1b65wwd867cw328nm2lbn-cairo-1.18.4-dev"
+              "path": "/nix/store/n9fcvnpi8davc9rzdagz00iykigb1644-cairo-1.18.6-dev"
             },
             {
               "name": "devdoc",
-              "path": "/nix/store/zpa8ji6scw996k23f0yyl5bw3mv13xd6-cairo-1.18.4-devdoc"
+              "path": "/nix/store/924r21glmk5dqsfjfdp3j32bbqmfpghl-cairo-1.18.6-devdoc"
             }
           ],
-          "store_path": "/nix/store/0ypx265mgr0imfa80zgs9gvap9d7cbwq-cairo-1.18.4"
-        },
-        "x86_64-darwin": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/z2vinhirimh75njgknwxxxz4irmcs1wj-cairo-1.18.4",
-              "default": true
-            },
-            {
-              "name": "dev",
-              "path": "/nix/store/yrcscsnxar994hsgci9bh7cjvmjsp4g7-cairo-1.18.4-dev"
-            },
-            {
-              "name": "devdoc",
-              "path": "/nix/store/p0b2gagn9y9pwf2psi632vykcldfblyr-cairo-1.18.4-devdoc"
-            }
-          ],
-          "store_path": "/nix/store/z2vinhirimh75njgknwxxxz4irmcs1wj-cairo-1.18.4"
+          "store_path": "/nix/store/5x3sm1lp2lhk0c36b4gbwgd5xi3ah9b6-cairo-1.18.6"
         },
         "x86_64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/0ci3da6db19gckz0i5j3br992cspvlz1-cairo-1.18.4",
+              "path": "/nix/store/r020s04y8608q03ayybg2kssia1jc9z2-cairo-1.18.6",
               "default": true
             },
             {
+              "name": "debug",
+              "path": "/nix/store/8yw8pps2hr5niv8aka0bxj6ca0n25zbq-cairo-1.18.6-debug"
+            },
+            {
               "name": "dev",
-              "path": "/nix/store/kx95a2drx2mgkxb61k65xlvp0dcbpsly-cairo-1.18.4-dev"
+              "path": "/nix/store/dq7w1zmhbs1jznkk5phqni5j58hhqp1d-cairo-1.18.6-dev"
             },
             {
               "name": "devdoc",
-              "path": "/nix/store/8yx208k5w7p1inisddihi0k97xjcm49x-cairo-1.18.4-devdoc"
-            },
-            {
-              "name": "debug",
-              "path": "/nix/store/xkq6f2hw0cfdy7yw01abg4m8bscnayvd-cairo-1.18.4-debug"
+              "path": "/nix/store/1ylqi14jifbcz52nfvv7kw76lqfmy5ri-cairo-1.18.6-devdoc"
             }
           ],
-          "store_path": "/nix/store/0ci3da6db19gckz0i5j3br992cspvlz1-cairo-1.18.4"
+          "store_path": "/nix/store/r020s04y8608q03ayybg2kssia1jc9z2-cairo-1.18.6"
         }
       }
     },
@@ -223,7 +205,7 @@
     },
     "python@3.14": {
       "last_modified": "2025-11-23T21:50:36Z",
-      "plugin_version": "0.0.4",
+      "plugin_version": "0.0.5",
       "resolved": "github:NixOS/nixpkgs/ee09932cedcef15aaf476f9343d1dea2cb77e261#python314",
       "source": "devbox-search",
       "version": "3.14.0",

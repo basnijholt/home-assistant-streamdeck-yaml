@@ -1949,7 +1949,7 @@ def _init_icon(
     size: tuple[int, int] = (ICON_PIXELS, ICON_PIXELS),
 ) -> Image.Image:
     """Initialize the icon."""
-    if icon_filename is not None:
+    if icon_filename:  # an icon template may render to ""
         icon_path = Path(icon_filename)
         path = icon_path if icon_path.is_absolute() else ASSETS_PATH / icon_path
         icon = Image.open(path)

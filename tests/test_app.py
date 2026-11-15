@@ -1832,3 +1832,13 @@ async def test_inactivity_timer_turns_off_deck(mock_deck: Mock) -> None:
     assert config._is_on is False
     mock_deck.reset.assert_called()
     mock_deck.set_brightness.assert_called_with(0)
+
+
+def test_icon_template_rendering_empty_means_no_icon() -> None:
+    """An `icon` template that renders to an empty string falls back like an unset icon."""
+    button = Button(
+        icon="{{ 'url:' ~ state_attr('sensor.x', 'image') if state_attr('sensor.x', 'image') }}",
+        icon_background_color="#ff0000",
+    )
+    image = button.render_icon({}, size=(10, 10))
+    assert image.getcolors() == [(100, (255, 0, 0))]

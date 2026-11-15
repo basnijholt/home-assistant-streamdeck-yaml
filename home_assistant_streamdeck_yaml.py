@@ -286,6 +286,15 @@ class Button(_ButtonDialBase, extra="forbid"):  # type: ignore[call-arg]
         " `special_type_data`: Data for the special type action (e.g., {'colors': ['#FF0000']})."
         " If not specified, the default service or special_type action is used for both short and long presses.",
     )
+    led_color: str | None = Field(
+        default=None,
+        allow_template=True,
+        description="Color of the LED of a touch key (e.g., the two touch keys of the"
+        " Stream Deck Neo, which follow the regular keys in the `buttons` list)."
+        " A touch key has no display, so it shows no icon or text; it is pressed like"
+        " any other key. Accepts a named or hex color; empty or `off` turns the LED off."
+        " Re-rendered when the state of `entity_id` or `linked_entity` changes.",
+    )
 
     @classmethod
     def from_yaml(
@@ -866,6 +875,17 @@ class Page(BaseModel):
         default_factory=list,
         description="A list of dials on the page.",
     )
+    info_text: str | None = Field(
+        default=None,
+        description="Text for the info screen of decks that have one (e.g., the Stream Deck Neo)."
+        " Can be a template; lines are separated by `\\n`."
+        " Rendered when the page is shown and when the state of `info_entity_id` changes."
+        " If empty, the screen is blank.",
+    )
+    info_entity_id: str | None = Field(
+        default=None,
+        description="The entity whose state changes re-render `info_text`.",
+    )
 
     _parent_page_index: int = PrivateAttr([])
 
@@ -963,6 +983,7 @@ class Config(BaseModel):
     _configuration_file: Path | None = PrivateAttr(default=None)
     _include_files: list[Path] = PrivateAttr(default_factory=list)
     _inactivity_task: asyncio.Task | None = PrivateAttr(default=None)
+    _info_screen_text: str | None = PrivateAttr(default=None)
 
     @classmethod
     def load(
@@ -1653,6 +1674,9 @@ def _update_state(
                     key_pressed=False,
                 )
 
+            if eid == config.current_page().info_entity_id:
+                update_info_screen(deck, config, complete_state)
+
 
 def _state_attr(
     entity_id: str,
@@ -2162,6 +2186,9 @@ def update_key_image(
     key_pressed: bool = False,
 ) -> None:
     """Update the image for a key."""
+    if key >= deck.key_count():
+        _update_touch_key_color(deck, key=key, config=config, complete_state=complete_state)
+        return
     button = config.button(key)
 
     def clear_image() -> None:
@@ -2183,6 +2210,90 @@ def update_key_image(
     image = PILHelper.to_native_format(deck, image)
     with deck:
         deck.set_key_image(key, image)
+
+
+def _led_rgb(color: str | None) -> tuple[int, int, int]:
+    """Convert a rendered `led_color` to RGB; empty or `off` is black."""
+    if color is None or color.strip().lower() in {"", "off", "none"}:
+        return (0, 0, 0)
+    return ImageColor.getrgb(color.strip())[:3]
+
+
+def _update_touch_key_color(
+    deck: StreamDeck,
+    *,
+    key: int,
+    config: Config,
+    complete_state: StateDict,
+) -> None:
+    """Set the LED of a touch key, which follows the regular keys in index."""
+    if key >= deck.key_count() + deck.touch_key_count():
+        return
+    button = config.button(key)
+    color = None
+    if button is not None and button.special_type != "empty":
+        color = button.rendered_template_button(complete_state).led_color
+    try:
+        rgb = _led_rgb(color)
+    except ValueError:
+        console.log(f"Invalid led_color {color!r} for touch key {key}, turning it off")
+        rgb = (0, 0, 0)
+    with deck:
+        deck.set_key_color(key, *rgb)
+
+
+def _render_info_screen_image(
+    text: str,
+    size: tuple[int, int],
+    font_filename: str = DEFAULT_FONT,
+    max_text_size: int = 20,
+    min_text_size: int = 10,
+) -> Image.Image:
+    """Render text centered on a black image, shrinking the font until it fits."""
+    image = Image.new("RGB", size, "black")
+    if not text:
+        return image
+    draw = ImageDraw.Draw(image)
+    lines = text.splitlines()
+    for text_size in range(max_text_size, min_text_size - 1, -1):
+        font = ImageFont.truetype(str(ASSETS_PATH / font_filename), text_size)
+        left, top, right, bottom = draw.multiline_textbbox((0, 0), "\n".join(lines), font=font)
+        if right - left <= size[0] and bottom - top <= size[1]:
+            break
+    # Still too wide at the smallest size: cut each line and add an ellipsis
+    for i, line in enumerate(lines):
+        while len(line) > 1 and draw.textlength(line, font=font) > size[0]:
+            line = line[:-2] + "…"  # noqa: PLW2901
+        lines[i] = line
+    draw.multiline_text(
+        (size[0] / 2, size[1] / 2),
+        "\n".join(lines),
+        font=font,
+        fill="white",
+        anchor="mm",
+        align="center",
+    )
+    return image
+
+
+def update_info_screen(
+    deck: StreamDeck,
+    config: Config,
+    complete_state: StateDict,
+    *,
+    force: bool = False,
+) -> None:
+    """Render the current page's `info_text` on the deck's info screen, if it has one."""
+    size = deck.screen_image_format()["size"]
+    if not size[0] or not size[1]:
+        return
+    text = _render_jinja(config.current_page().info_text or "", complete_state)
+    if not force and text == config._info_screen_text:
+        return
+    config._info_screen_text = text
+    image = PILHelper.to_native_screen_format(deck, _render_info_screen_image(text, size))
+    with deck:
+        deck.set_screen_image(image)
 
 
 def get_deck() -> StreamDeck:
@@ -2562,7 +2673,9 @@ def _on_press_callback(
         reset_inactivity_timer(config, deck)
 
         button = config.button(key)
-        assert button is not None
+        if button is None:
+            console.log(f"Key {key} has no button on this page, ignoring")
+            return
         if key_pressed:
             press_start_times[key] = time.time()
             console.log(
@@ -2851,7 +2964,7 @@ def update_all_key_images(
 ) -> None:
     """Update all key images."""
     console.log("Called update_all_key_images")
-    for key in range(deck.key_count()):
+    for key in range(deck.key_count() + deck.touch_key_count()):
         update_key_image(
             deck,
             key=key,
@@ -2859,6 +2972,7 @@ def update_all_key_images(
             complete_state=complete_state,
             key_pressed=False,
         )
+    update_info_screen(deck, config, complete_state, force=True)
 
 
 async def _run_connection_session(

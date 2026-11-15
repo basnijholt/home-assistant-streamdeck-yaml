@@ -77,6 +77,13 @@ def mock_deck_plus() -> Mock:
     }
 
     deck_mock.key_count.return_value = 8
+    deck_mock.touch_key_count.return_value = StreamDeckPlus.TOUCH_KEY_COUNT
+    deck_mock.screen_image_format.return_value = {
+        "size": (StreamDeckPlus.SCREEN_PIXEL_WIDTH, StreamDeckPlus.SCREEN_PIXEL_HEIGHT),
+        "format": StreamDeckPlus.SCREEN_IMAGE_FORMAT,
+        "flip": StreamDeckPlus.SCREEN_FLIP,
+        "rotation": StreamDeckPlus.SCREEN_ROTATION,
+    }
     deck_mock.dial_count.return_value = 4
 
     deck_mock.__enter__ = Mock(return_value=deck_mock)

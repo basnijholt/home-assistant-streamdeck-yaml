@@ -429,6 +429,13 @@ def mock_deck() -> Mock:
     }
 
     deck_mock.key_count.return_value = 15
+    deck_mock.touch_key_count.return_value = StreamDeckOriginal.TOUCH_KEY_COUNT
+    deck_mock.screen_image_format.return_value = {
+        "size": (StreamDeckOriginal.SCREEN_PIXEL_WIDTH, StreamDeckOriginal.SCREEN_PIXEL_HEIGHT),
+        "format": StreamDeckOriginal.SCREEN_IMAGE_FORMAT,
+        "flip": StreamDeckOriginal.SCREEN_FLIP,
+        "rotation": StreamDeckOriginal.SCREEN_ROTATION,
+    }
     deck_mock.dial_count.return_value = 0
 
     # Add the context manager methods
@@ -1576,6 +1583,8 @@ def test_page_switch_clears_unused_keys(state: dict[str, dict[str, Any]]) -> Non
         # Configure the mock StreamDeck instance
         mock_deck_instance = mock_device_manager().enumerate()[0]
         mock_deck_instance.key_count.return_value = 2
+        mock_deck_instance.touch_key_count.return_value = 0
+        mock_deck_instance.screen_image_format.return_value = {"size": (0, 0)}
         mock_deck_instance.key_image_format.return_value = {"size": (72, 72)}
         # Use MagicMock to easily track calls to set_key_image
         mock_deck_instance.set_key_image = MagicMock()
